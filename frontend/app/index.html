@@ -247,17 +247,37 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
         <h3 class="font-headline font-bold text-sm tracking-tight">Market Opportunities</h3>
         <span class="text-[10px] font-mono text-primary">BELOW MARKET</span>
       </div>
-      <p class="text-[10px] font-mono text-on-surface/30 mt-1">Listings priced significantly below category average &mdash; potential acquisition targets</p>
+      <p class="text-[10px] font-mono text-on-surface/30 mt-1">Non-Fuelled listings priced below median of similar-priced peers &mdash; potential acquisition targets</p>
     </div>
     <div class="overflow-x-auto">
       <table class="w-full text-left font-mono text-xs">
         <thead class="text-on-surface/30 border-b border-white/[0.05]">
-          <tr><th class="px-6 py-3">EQUIPMENT</th><th class="px-6 py-3">CATEGORY</th><th class="px-6 py-3 text-right">LISTED PRICE</th><th class="px-6 py-3 text-right">AVG MARKET</th><th class="px-6 py-3 text-right">DISCOUNT</th><th class="px-6 py-3">SOURCE</th></tr>
+          <tr><th class="px-6 py-3">EQUIPMENT</th><th class="px-6 py-3">CATEGORY</th><th class="px-6 py-3 text-right">LISTED PRICE</th><th class="px-6 py-3 text-right">PEER MEDIAN</th><th class="px-6 py-3 text-right">DISCOUNT</th><th class="px-6 py-3">SOURCE</th></tr>
         </thead>
         <tbody id="opportunities-table" class="divide-y divide-white/[0.04]"></tbody>
       </table>
     </div>
     <div class="px-6 py-3 border-t border-white/[0.06] text-[10px] font-mono text-on-surface/20" id="opportunities-summary"></div>
+  </div>
+
+  <!-- Fuelled Repricing -->
+  <div class="glass-card rounded-xl overflow-hidden mb-6" style="border-color: rgba(239,93,40,0.15);">
+    <div class="px-6 py-4 border-b border-white/[0.06]">
+      <div class="flex justify-between items-center">
+        <h3 class="font-headline font-bold text-sm tracking-tight">Fuelled Listings &mdash; Potential Repricing Needed</h3>
+        <span class="text-[10px] font-mono text-primary">REVIEW</span>
+      </div>
+      <p class="text-[10px] font-mono text-on-surface/30 mt-1">Our listings that may be priced below market &mdash; review recommended</p>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-left font-mono text-xs">
+        <thead class="text-on-surface/30 border-b border-white/[0.05]">
+          <tr><th class="px-6 py-3">EQUIPMENT</th><th class="px-6 py-3">CATEGORY</th><th class="px-6 py-3 text-right">OUR PRICE</th><th class="px-6 py-3 text-right">PEER MEDIAN</th><th class="px-6 py-3 text-right">BELOW BY</th><th class="px-6 py-3 text-right">PEERS</th></tr>
+        </thead>
+        <tbody id="repricing-table" class="divide-y divide-white/[0.04]"></tbody>
+      </table>
+    </div>
+    <div class="px-6 py-3 border-t border-white/[0.06] text-[10px] font-mono text-on-surface/20" id="repricing-summary"></div>
   </div>
 
   <!-- Quick Actions -->
@@ -734,7 +754,7 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
       ]);
     });
 
-    // Market opportunities
+    // Market opportunities (non-Fuelled, peer-median comparison)
     fetch('/api/market/opportunities').then(function(r) { return r.json(); }).then(function(rows) {
       var tbody = document.getElementById('opportunities-table');
       if (!rows.length) {
@@ -748,14 +768,36 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
           '<td class="px-6 py-3 text-on-surface">' + titleText + '</td>' +
           '<td class="px-6 py-3 text-on-surface/50">' + esc(catName(o.category)) + '</td>' +
           '<td class="px-6 py-3 text-right text-secondary font-bold">' + fmt(o.asking_price) + '</td>' +
-          '<td class="px-6 py-3 text-right text-on-surface/50">' + fmt(o.avg_price) + '</td>' +
+          '<td class="px-6 py-3 text-right text-on-surface/50">' + fmt(o.median_price) + '</td>' +
           '<td class="px-6 py-3 text-right"><span class="text-primary font-bold">' + (o.discount_pct || 0) + '% below</span></td>' +
           '<td class="px-6 py-3 text-on-surface/40">' + esc(o.source || '---') + '</td></tr>';
         tbody.innerHTML += row;
       });
-      document.getElementById('opportunities-summary').textContent = rows.length + ' listings below 40% of category average';
+      document.getElementById('opportunities-summary').textContent = rows.length + ' listings below 50% of peer median (similar-priced items in same category)';
     }).catch(function() {
       document.getElementById('opportunities-table').innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface/30">Opportunities endpoint not available</td></tr>';
+    });
+
+    // Fuelled repricing
+    fetch('/api/market/repricing').then(function(r) { return r.json(); }).then(function(rows) {
+      var tbody = document.getElementById('repricing-table');
+      if (!rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface/30">No Fuelled listings flagged for repricing</td></tr>';
+        return;
+      }
+      rows.forEach(function(o) {
+        var titleText = esc((o.title || '---').slice(0, 55));
+        tbody.innerHTML += '<tr class="hover:bg-white/[0.04] transition-colors">' +
+          '<td class="px-6 py-3 text-on-surface">' + titleText + '</td>' +
+          '<td class="px-6 py-3 text-on-surface/50">' + esc(catName(o.category)) + '</td>' +
+          '<td class="px-6 py-3 text-right text-primary font-bold">' + fmt(o.asking_price) + '</td>' +
+          '<td class="px-6 py-3 text-right text-on-surface/50">' + fmt(o.median_price) + '</td>' +
+          '<td class="px-6 py-3 text-right"><span class="text-primary font-bold">' + (o.discount_pct || 0) + '%</span></td>' +
+          '<td class="px-6 py-3 text-right text-on-surface/40">' + (o.neighbor_count || 0) + '</td></tr>';
+      });
+      document.getElementById('repricing-summary').textContent = rows.length + ' Fuelled listings below 60% of peer median';
+    }).catch(function() {
+      document.getElementById('repricing-table').innerHTML = '<tr><td colspan="6" class="px-6 py-6 text-center text-on-surface/30">Repricing endpoint not available</td></tr>';
     });
   }
 

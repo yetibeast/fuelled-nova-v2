@@ -162,30 +162,38 @@ async def post_feedback(body: dict):
 # 6. GET /market/opportunities
 # ---------------------------------------------------------------------------
 
+_NEIGHBOR_QUERY = """
+    WITH listing_neighbors AS (
+        SELECT l.id, l.title, l.asking_price, l.source, l.location, l.url,
+               l.category_normalized,
+               PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY l2.asking_price) as median_price,
+               COUNT(l2.id) as neighbor_count
+        FROM listings l
+        JOIN listings l2 ON l2.category_normalized = l.category_normalized
+            AND l2.asking_price BETWEEN l.asking_price * 0.3 AND l.asking_price * 3.0
+            AND l2.asking_price > 0
+            AND l2.id != l.id
+        WHERE l.asking_price > 1000
+        GROUP BY l.id, l.title, l.asking_price, l.source, l.location, l.url,
+                 l.category_normalized
+        HAVING COUNT(l2.id) >= 5
+    )
+    SELECT title, asking_price, source, location, url, category_normalized,
+           median_price, neighbor_count,
+           ROUND((1 - asking_price / median_price) * 100) as discount_pct
+    FROM listing_neighbors
+    WHERE asking_price < median_price * :threshold
+      AND source {source_filter}
+    ORDER BY discount_pct DESC
+    LIMIT 10
+"""
+
+
 @router.get("/market/opportunities")
 async def market_opportunities():
+    query = _NEIGHBOR_QUERY.format(source_filter="!= 'fuelled'")
     async with get_session() as session:
-        result = await session.execute(text(
-            """
-            WITH category_avg AS (
-                SELECT category_normalized, AVG(asking_price) as avg_price, COUNT(*) as cnt
-                FROM listings
-                WHERE asking_price > 0
-                GROUP BY category_normalized
-                HAVING COUNT(*) > 20
-            )
-            SELECT l.title, l.asking_price, l.source, l.location, l.url,
-                   ca.avg_price, ca.category_normalized,
-                   ROUND((1 - l.asking_price / ca.avg_price) * 100) as discount_pct
-            FROM listings l
-            JOIN category_avg ca ON l.category_normalized = ca.category_normalized
-            WHERE l.asking_price > 0
-              AND l.asking_price < ca.avg_price * 0.4
-              AND l.asking_price > 1000
-            ORDER BY (ca.avg_price - l.asking_price) DESC
-            LIMIT 10
-            """
-        ))
+        result = await session.execute(text(query), {"threshold": 0.5})
         rows = result.fetchall()
 
     return [
@@ -195,9 +203,33 @@ async def market_opportunities():
             "source": row[2],
             "location": row[3],
             "url": row[4],
-            "avg_price": float(row[5]) if row[5] is not None else None,
-            "category": row[6],
-            "discount_pct": int(row[7]) if row[7] is not None else None,
+            "category": row[5],
+            "median_price": float(row[6]) if row[6] is not None else None,
+            "neighbor_count": row[7],
+            "discount_pct": int(row[8]) if row[8] is not None else None,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/market/repricing")
+async def market_repricing():
+    query = _NEIGHBOR_QUERY.format(source_filter="= 'fuelled'")
+    async with get_session() as session:
+        result = await session.execute(text(query), {"threshold": 0.6})
+        rows = result.fetchall()
+
+    return [
+        {
+            "title": row[0],
+            "asking_price": float(row[1]) if row[1] is not None else None,
+            "source": row[2],
+            "location": row[3],
+            "url": row[4],
+            "category": row[5],
+            "median_price": float(row[6]) if row[6] is not None else None,
+            "neighbor_count": row[7],
+            "discount_pct": int(row[8]) if row[8] is not None else None,
         }
         for row in rows
     ]
