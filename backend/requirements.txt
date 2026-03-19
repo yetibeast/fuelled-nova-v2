@@ -1,0 +1,9 @@
+anthropic
+fastapi
+uvicorn
+sqlalchemy
+asyncpg
+python-dotenv
+python-multipart
+openpyxl
+python-docx

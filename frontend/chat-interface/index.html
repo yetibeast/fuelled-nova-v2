@@ -1,0 +1,954 @@
+<!DOCTYPE html><html class="dark" lang="en"><head>
+<meta charset="utf-8">
+<meta content="width=device-width, initial-scale=1.0" name="viewport">
+<title>Nova v2 | Industrial Equipment Pricing</title>
+<link rel="icon" href="data:,">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#EF5D28",
+                        "primary-container": "#EF5D28",
+                        "secondary": "#0ABAB5",
+                        "secondary-container": "#0ABAB5",
+                        "on-error-container": "#ffdad6",
+                        "tertiary": "#A8D5CF",
+                        "error": "#ffb4ab",
+                        "on-primary-fixed": "#2e1500",
+                        "outline": "#a38c7c",
+                        "on-surface-variant": "#dbc2b0",
+                        "on-tertiary": "#053733",
+                        "outline-variant": "#554336",
+                        "tertiary-fixed": "#beebe5",
+                        "inverse-on-surface": "#223240",
+                        "surface-container-highest": "#263645",
+                        "error-container": "#93000a",
+                        "surface-container": "#10212f",
+                        "surface-container-lowest": "#00101d",
+                        "secondary-fixed-dim": "#4adbd5",
+                        "on-error": "#690005",
+                        "background": "#041522",
+                        "surface-container-low": "#0c1d2a",
+                        "on-primary-container": "#ffffff",
+                        "on-tertiary-fixed": "#00201d",
+                        "tertiary-container": "#6f9b96",
+                        "on-primary-fixed-variant": "#6d3a00",
+                        "surface": "#041522",
+                        "on-tertiary-container": "#00322e",
+                        "surface-bright": "#2b3b49",
+                        "surface-tint": "#EF5D28",
+                        "on-secondary-fixed": "#00201f",
+                        "on-background": "#d3e4f7",
+                        "surface-container-high": "#1b2c3a",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#8f4d00",
+                        "on-surface": "#d3e4f7",
+                        "on-secondary-container": "#00413f",
+                        "surface-dim": "#041522",
+                        "inverse-surface": "#d3e4f7",
+                        "secondary-fixed": "#0ABAB5",
+                        "on-tertiary-fixed-variant": "#224e49",
+                        "on-secondary": "#003735",
+                        "surface-variant": "#263645",
+                        "on-secondary-fixed-variant": "#00504d",
+                        "primary-fixed-dim": "#EF5D28",
+                        "primary-fixed": "#ffdcc2",
+                        "tertiary-fixed-dim": "#A8D5CF"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            background: radial-gradient(circle at center, #001628 0%, #000F1C 100%);
+            min-height: 100vh;
+        }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+        }
+        .recessed-input {
+            background: #00101d;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.3);
+        }
+        .frosted-bottom-nav {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glow-primary {
+            box-shadow: 0 0 20px rgba(239, 93, 40, 0.3);
+        }
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 280px;
+            height: 100vh;
+            background: rgba(4, 21, 34, 0.85);
+            backdrop-filter: blur(20px);
+            border-right: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            transition: width 0.2s ease;
+            overflow: hidden;
+        }
+        .sidebar.collapsed {
+            width: 48px;
+        }
+        .sidebar.collapsed .sidebar-hide-collapsed {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .sidebar-hide-collapsed {
+            transition: opacity 0.15s ease;
+        }
+        .sidebar-list::-webkit-scrollbar {
+            width: 4px;
+        }
+        .sidebar-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .sidebar-list::-webkit-scrollbar-thumb {
+            background: rgba(10, 186, 181, 0.25);
+            border-radius: 4px;
+        }
+        .sidebar-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(10, 186, 181, 0.45);
+        }
+        .content-shift {
+            margin-left: 280px;
+            transition: margin-left 0.2s ease;
+        }
+        .content-shift-collapsed {
+            margin-left: 48px;
+            transition: margin-left 0.2s ease;
+        }
+        .sidebar-entry {
+            padding: 10px 16px;
+            cursor: pointer;
+            border-left: 4px solid transparent;
+            transition: background 0.15s ease;
+        }
+        .sidebar-entry:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .sidebar-entry.active {
+            border-left-color: #0ABAB5;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        @media (max-width: 767px) {
+            .content-shift {
+                margin-left: 48px;
+            }
+        }
+        @keyframes pill-pulse {
+            0%, 100% { border-color: rgba(10, 186, 181, 0.2); box-shadow: 0 0 0 0 rgba(10, 186, 181, 0); }
+            50% { border-color: rgba(10, 186, 181, 0.6); box-shadow: 0 0 8px 0 rgba(10, 186, 181, 0.15); }
+        }
+        .pill-uploading {
+            animation: pill-pulse 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="font-body text-on-surface overflow-x-hidden selection:bg-primary/30 selection:text-white">
+<!-- Sidebar -->
+<aside id="sidebar" class="sidebar collapsed">
+  <div class="flex items-center justify-between h-[52px] px-2 shrink-0">
+    <button id="sidebar-toggle" class="w-10 h-10 flex items-center justify-center text-secondary hover:bg-white/10 rounded-lg transition-colors">
+      <span class="material-symbols-outlined" id="sidebar-toggle-icon">chevron_right</span>
+    </button>
+    <button id="new-chat-btn" class="sidebar-hide-collapsed flex items-center gap-2 bg-white/8 border border-secondary/25 text-secondary hover:bg-white/12 rounded-lg py-1.5 px-3 transition-colors">
+      <span class="material-symbols-outlined text-lg">add</span>
+      <span class="font-mono text-[11px] uppercase tracking-wider font-medium">New Chat</span>
+    </button>
+  </div>
+  <div id="sidebar-list" class="sidebar-list sidebar-hide-collapsed flex-1 overflow-y-auto"></div>
+</aside>
+<!-- TopAppBar -->
+<header id="app-header" class="fixed top-0 w-full h-[52px] bg-white/5 dark:bg-[#041522]/40 backdrop-blur-xl border-b border-white/10 flex justify-between items-center px-6 z-50 content-shift-collapsed" style="transition: margin-left 0.2s ease">
+<div class="flex items-center gap-2">
+<span class="text-lg font-bold tracking-tighter text-[#D3E4F7] dark:text-[#F2E9E1] font-headline" style="">Fuelled Nova v2</span>
+</div>
+<div class="hidden md:flex items-center gap-4 text-xs font-mono tracking-wider text-secondary">
+<span class="opacity-80" style="">Live Market Data</span>
+<span class="w-1 h-1 rounded-full bg-white/20"></span>
+<span class="opacity-80" style="">Multi-Source</span>
+<span class="w-1 h-1 rounded-full bg-white/20"></span>
+<div class="flex items-center gap-2 px-2 py-1 bg-secondary/10 rounded-full border border-secondary/20">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+<span class="uppercase" style="">Connected</span>
+</div>
+<span class="material-symbols-outlined text-sm ml-2" data-icon="sensors" style="">sensors</span>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main id="app-main" class="pt-20 pb-[240px] flex flex-col items-center w-full min-h-screen content-shift-collapsed" style="transition: margin-left 0.2s ease">
+<div class="w-full max-w-[880px] px-6 space-y-10">
+<!-- Conversation Entry: Welcome -->
+<div class="flex justify-start">
+<div class="glass-card p-6 rounded-xl max-w-[85%]">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined" data-icon="precision_manufacturing" style="">precision_manufacturing</span>
+</div>
+<span class="font-headline font-bold text-sm tracking-tight" style="">Nova Intelligence</span>
+</div>
+<p class="text-on-surface/90 leading-relaxed" style="">Welcome back. I have updated market indices for oil &amp; gas compression assets. How can I assist with your valuation today?</p>
+</div>
+</div>
+<!-- User Query -->
+<div class="flex justify-end">
+<div class="glass-card p-5 rounded-xl max-w-[85%] bg-surface-container-highest/40 border-primary/20">
+<p class="text-on-surface leading-relaxed" style="">What's a 2020 Waukesha L7044 / Ariel JGK/4 3-stage sweet gas compressor package worth? Good condition, about 12,000 hours.</p>
+</div>
+</div>
+<!-- Nova Response: Comprehensive Valuation -->
+<div class="space-y-6">
+<!-- Valuation Summary Card -->
+<div class="glass-card p-8 rounded-xl w-full border-l-4 border-l-primary">
+<div class="flex flex-col md:flex-row justify-between items-start gap-6">
+<div class="space-y-1">
+<div class="flex items-center gap-3">
+<span class="text-secondary font-mono text-[10px] uppercase tracking-[0.2em]" style="">Estimated Fair Market Value</span>
+<a class="text-secondary hover:underline text-[10px] font-mono flex items-center gap-1" href="#" style="">
+<span class="material-symbols-outlined text-xs" data-icon="database" style="">database</span>
+                                    VIEW DATA SOURCE
+                                </a>
+</div>
+<div class="flex items-baseline gap-2">
+<h2 class="text-4xl font-headline font-bold text-white tracking-tight" style="">$320,000 - $420,000</h2>
+<span class="font-mono text-sm text-secondary" style="">CAD</span>
+</div>
+<div class="flex items-center gap-2 mt-2">
+<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#4CAF50]/10 text-[#4CAF50]" style="">HIGH CONFIDENCE</span>
+<span class="text-on-surface/40 text-xs font-mono italic" style="">Based on 5 recent match criteria</span>
+</div>
+</div>
+<div class="flex flex-col items-end gap-2 text-right">
+<span class="text-on-surface/60 font-mono text-[10px] uppercase tracking-widest" style="">Est. Replacement Cost (RCN)</span>
+<div class="flex items-center gap-2">
+<span class="text-2xl font-mono text-primary font-bold tracking-tighter" style="">$1.42M <span class="text-sm font-normal" style="">CAD</span></span>
+<a class="text-secondary/60 hover:text-secondary" href="#" title="View RCN Backup" style="">
+<span class="material-symbols-outlined text-sm" data-icon="info" style="">info</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Factor Multipliers -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/5">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1" style="">Age Factor</span>
+<span class="font-mono text-lg text-secondary" style="">0.50x</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1" style="">Cond Factor</span>
+<span class="font-mono text-lg text-secondary" style="">0.75x</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1" style="">Usage Factor</span>
+<span class="font-mono text-lg text-secondary" style="">1.00x</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1" style="">Service Type</span>
+<span class="font-mono text-lg text-secondary" style="">1.00x</span>
+</div>
+</div>
+</div>
+<!-- Comparables Table -->
+<div class="glass-card overflow-hidden rounded-xl">
+<div class="px-6 py-4 bg-white/5 border-b border-white/5 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<h3 class="font-headline font-bold text-sm tracking-tight text-on-surface" style="">Recent Market Comparables</h3>
+<a class="text-secondary text-[10px] font-mono hover:underline ml-2" href="#" style="">BACKUP DATA</a>
+</div>
+<span class="text-[10px] font-mono text-secondary" style="">5 MATCHES FOUND</span>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left font-mono text-xs">
+<thead class="text-on-surface/40 border-b border-white/5">
+<tr>
+<th class="px-6 py-3 font-medium" style="">UNIT SPEC</th>
+<th class="px-6 py-3 font-medium" style="">HOURS</th>
+<th class="px-6 py-3 font-medium" style="">REGION</th>
+<th class="px-6 py-3 font-medium text-right" style="">LIST PRICE (CAD)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface font-medium" style="">Wauk L5774 / JGK4</td>
+<td class="px-6 py-4 text-on-surface/70" style="">14,200</td>
+<td class="px-6 py-4 text-on-surface/70" style="">West TX</td>
+<td class="px-6 py-4 text-right text-secondary font-bold" style="">$375,000</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface font-medium" style="">Wauk L7044 / JGK4</td>
+<td class="px-6 py-4 text-on-surface/70" style="">8,900</td>
+<td class="px-6 py-4 text-on-surface/70" style="">Alberta</td>
+<td class="px-6 py-4 text-right text-secondary font-bold" style="">$445,000</td>
+</tr>
+<tr class="hover:bg-white/5 transition-colors group">
+<td class="px-6 py-4 text-on-surface font-medium" style="">Wauk 7044GSI / JGT4</td>
+<td class="px-6 py-4 text-on-surface/70" style="">21,000</td>
+<td class="px-6 py-4 text-on-surface/70" style="">Oklahoma</td>
+<td class="px-6 py-4 text-right text-secondary font-bold" style="">$290,000</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- Risk Assessment -->
+<div class="glass-card p-5 rounded-xl bg-primary/5 border-primary/20 border flex gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="report" style="">report</span>
+<div class="space-y-1">
+<h4 class="font-headline font-bold text-sm text-primary tracking-tight" style="">Technical Risk Advisory</h4>
+<p class="text-sm text-on-surface/80 leading-relaxed italic" style="">
+                            12,000 operational hours suggests an upcoming Top-End Overhaul requirement within 4k-8k hours. For the Alberta market, subtract $45k CAD from FMV if major service records are unavailable.
+                        </p>
+</div>
+</div>
+<!-- Narrative Response -->
+<div class="flex justify-start">
+<div class="max-w-[90%] space-y-4">
+<p class="text-[#F2E9E1] leading-relaxed" style="">
+                            My methodology leverages RCN × depreciation factors that prioritize the Ariel JGK/4 frame due to its current high liquidity in the secondary market. The Waukesha L7044 provides a steady baseline, but the specific 3-stage configuration adds a 12% premium for versatility in gas gathering applications.
+                        </p>
+<p class="text-[#F2E9E1] leading-relaxed" style="">
+                            In the current Alberta context, we are seeing shorter lead times for new units, which has softened the "premium for availability" that used to inflate used asset prices in 2022.
+                        </p>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Enhanced Bottom Navigation & Input Bar -->
+<div id="app-bottom" class="fixed bottom-0 left-0 w-full z-50 flex flex-col items-center content-shift-collapsed" style="transition: margin-left 0.2s ease">
+<!-- Elevated Floating Chat Input -->
+<div class="w-full max-w-[880px] px-6 mb-10">
+<div class="bg-white/10 backdrop-blur-2xl rounded-2xl p-2.5 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all">
+<div id="file-pills" class="hidden flex-wrap gap-2 px-1 pb-2"></div>
+<div class="flex items-center gap-3">
+<button id="attach-btn" class="w-12 h-12 flex items-center justify-center text-secondary border border-secondary/30 hover:bg-secondary/10 rounded-xl transition-colors" style="">
+<span class="material-symbols-outlined" data-icon="attach_file" style="">attach_file</span>
+</button>
+<input id="file-picker" type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.csv,.eml" multiple class="hidden">
+<input id="chat-input" class="bg-[#00101d] border border-white/5 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 rounded-xl text-base flex-1 py-3 px-4 text-on-surface placeholder:text-on-surface/30 transition-all font-body" placeholder="Ask about equipment or valuation data..." type="text">
+<button id="send-btn" class="bg-primary text-white h-12 px-6 flex items-center justify-center rounded-xl shadow-[0_8px_20px_rgba(239,93,40,0.3)] hover:brightness-110 hover:translate-y-[-1px] active:translate-y-[1px] transition-all gap-2 group" style="">
+<span class="font-headline font-bold text-sm tracking-wide" style="">SEND</span>
+<span class="material-symbols-outlined text-xl transition-transform group-hover:translate-x-1" data-icon="send" style="font-variation-settings: &quot;FILL&quot; 1;">send</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Refined Frosted BottomNavBar -->
+<nav class="w-full frosted-bottom-nav flex justify-center items-center px-4 py-4 border-t border-white/10">
+<div class="max-w-[880px] w-full flex justify-between items-center px-6">
+<a class="flex items-center gap-3 bg-white/8 border border-secondary/25 text-secondary/80 rounded-full py-2.5 px-8 hover:bg-white/12 hover:text-secondary transition-all group" href="#" style="">
+<span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform" data-icon="folder_open" style="">folder_open</span>
+<span class="font-mono text-[11px] uppercase tracking-[0.15em] font-medium" style="">Attachments</span>
+</a>
+<a id="new-query-btn" class="flex items-center gap-3 bg-white/8 border border-secondary/25 text-secondary/80 rounded-full py-2.5 px-8 hover:bg-white/12 hover:text-secondary transition-all" href="#" style="">
+<span class="material-symbols-outlined text-xl" data-icon="terminal" style="">terminal</span>
+<span class="font-mono text-[11px] uppercase tracking-[0.15em] font-bold" style="">New Query</span>
+</a>
+<a id="export-btn" class="flex items-center gap-3 bg-white/8 border border-primary/25 text-primary/80 rounded-full py-2.5 px-8 hover:bg-white/12 hover:text-primary transition-all group" href="#" style="">
+<span class="material-symbols-outlined text-xl group-hover:rotate-12 transition-transform" data-icon="description" style="">description</span>
+<span class="font-mono text-[11px] uppercase tracking-[0.15em] font-bold" style="">Export Report</span>
+</a>
+</div>
+</nav>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var convo = document.querySelector('main div.space-y-10');
+  var input = document.getElementById('chat-input');
+  var sendBtn = document.getElementById('send-btn');
+  if (!convo || !input || !sendBtn) return;
+
+  // Remove static demo content, keep welcome message (first child)
+  while (convo.children.length > 1) convo.removeChild(convo.lastChild);
+
+  // --- Conversation Storage ---
+  var STORAGE_KEY = 'nova_conversations';
+  var currentConvoId = null;
+
+  function loadConversations() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      var arr = raw ? JSON.parse(raw) : [];
+      arr.sort(function(a, b) { return b.created - a.created; });
+      return arr;
+    } catch(e) { return []; }
+  }
+
+  function saveConversations(convos) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(convos));
+  }
+
+  function saveCurrentConversation() {
+    if (!currentConvoId) return;
+    var convos = loadConversations();
+    var idx = convos.findIndex(function(c) { return c.id === currentConvoId; });
+    if (idx === -1) return;
+    // Serialize messages from DOM
+    var messages = [];
+    var children = convo.children;
+    for (var i = 1; i < children.length; i++) { // skip welcome
+      var child = children[i];
+      // User bubble (has justify-end class)
+      if (child.classList.contains('flex') && child.classList.contains('justify-end')) {
+        var p = child.querySelector('p');
+        if (p) messages.push({ role: 'user', text: p.textContent });
+      }
+      // Nova response wrapper (space-y-6)
+      else if (child.classList.contains('space-y-6')) {
+        messages.push({ role: 'nova', data: convos[idx]._lastResponse || null });
+      }
+    }
+    convos[idx].messages = messages;
+    // Update title from first user message
+    var firstUser = messages.find(function(m) { return m.role === 'user'; });
+    if (firstUser) convos[idx].title = firstUser.text.substring(0, 60);
+    saveConversations(convos);
+    renderSidebarList();
+  }
+
+  function loadConversation(id) {
+    var convos = loadConversations();
+    var c = convos.find(function(cv) { return cv.id === id; });
+    if (!c) return;
+    currentConvoId = id;
+    // Clear convo area except welcome
+    while (convo.children.length > 1) convo.removeChild(convo.lastChild);
+    lastResponse = null;
+    chatHistory = [];
+    // Replay messages
+    if (c.messages) {
+      c.messages.forEach(function(m) {
+        if (m.role === 'user') {
+          addUserBubble(m.text);
+          chatHistory.push({role: 'user', content: m.text});
+        } else if (m.role === 'nova' && m.data) {
+          addNovaResponse(m.data);
+          lastResponse = m.data;
+          chatHistory.push({role: 'assistant', content: m.data.response || ''});
+        }
+      });
+    }
+    renderSidebarList();
+    window.scrollTo({ top: 0 });
+  }
+
+  function createNewConversation() {
+    // Save current first
+    saveCurrentConversation();
+    var convos = loadConversations();
+    var newConvo = {
+      id: 'c_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+      title: 'New conversation',
+      messages: [],
+      created: Date.now(),
+      _lastResponse: null
+    };
+    convos.unshift(newConvo);
+    saveConversations(convos);
+    currentConvoId = newConvo.id;
+    // Reset UI
+    while (convo.children.length > 1) convo.removeChild(convo.lastChild);
+    input.value = '';
+    selectedFiles = []; renderFilePills();
+    lastResponse = null;
+    chatHistory = [];
+    renderSidebarList();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function relativeTime(ts) {
+    var diff = Date.now() - ts;
+    var sec = Math.floor(diff / 1000);
+    if (sec < 60) return 'just now';
+    var min = Math.floor(sec / 60);
+    if (min < 60) return min + 'm ago';
+    var hr = Math.floor(min / 60);
+    if (hr < 24) return hr + 'h ago';
+    var days = Math.floor(hr / 24);
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return days + 'd ago';
+    var d = new Date(ts);
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return months[d.getMonth()] + ' ' + d.getDate();
+  }
+
+  function renderSidebarList() {
+    var list = document.getElementById('sidebar-list');
+    if (!list) return;
+    var convos = loadConversations();
+    list.innerHTML = '';
+    convos.forEach(function(c) {
+      var isActive = c.id === currentConvoId;
+      var entry = document.createElement('div');
+      entry.className = 'sidebar-entry' + (isActive ? ' active' : '');
+      entry.setAttribute('data-id', c.id);
+      entry.innerHTML =
+        '<div class="truncate text-sm text-on-surface/90" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (c.title || 'New conversation') + '</div>' +
+        '<div class="font-mono text-[10px] text-on-surface/40 mt-0.5">' + relativeTime(c.created) + '</div>';
+      entry.addEventListener('click', function() {
+        saveCurrentConversation();
+        loadConversation(c.id);
+      });
+      list.appendChild(entry);
+    });
+  }
+
+  // --- Sidebar Toggle ---
+  var sidebar = document.getElementById('sidebar');
+  var appHeader = document.getElementById('app-header');
+  var appMain = document.getElementById('app-main');
+  var appBottom = document.getElementById('app-bottom');
+  var sidebarToggle = document.getElementById('sidebar-toggle');
+  var toggleIcon = document.getElementById('sidebar-toggle-icon');
+
+  function setSidebarState(open) {
+    if (open) {
+      sidebar.classList.remove('collapsed');
+      toggleIcon.textContent = 'chevron_left';
+      [appHeader, appMain, appBottom].forEach(function(el) {
+        if (el) { el.classList.add('content-shift'); el.classList.remove('content-shift-collapsed'); }
+      });
+      localStorage.setItem('nova_sidebar', 'open');
+    } else {
+      sidebar.classList.add('collapsed');
+      toggleIcon.textContent = 'chevron_right';
+      [appHeader, appMain, appBottom].forEach(function(el) {
+        if (el) { el.classList.remove('content-shift'); el.classList.add('content-shift-collapsed'); }
+      });
+      localStorage.setItem('nova_sidebar', 'closed');
+    }
+  }
+
+  function toggleSidebar() {
+    setSidebarState(sidebar.classList.contains('collapsed'));
+  }
+
+  if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+
+  // Default sidebar state
+  var savedSidebar = localStorage.getItem('nova_sidebar');
+  if (savedSidebar === 'open' && window.innerWidth >= 768) {
+    setSidebarState(true);
+  } else if (savedSidebar === null && window.innerWidth >= 768) {
+    setSidebarState(true);
+  }
+  // else stays collapsed (default from HTML)
+
+  // New Chat button
+  var newChatBtn = document.getElementById('new-chat-btn');
+  if (newChatBtn) newChatBtn.addEventListener('click', function(e) { e.preventDefault(); createNewConversation(); });
+
+  // Initialize: load conversations, select most recent or create first
+  (function initConversations() {
+    var convos = loadConversations();
+    if (convos.length === 0) {
+      createNewConversation();
+    } else {
+      currentConvoId = convos[0].id;
+      loadConversation(convos[0].id);
+    }
+  })();
+
+  function scrollBottom() { setTimeout(function() { window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }, 50); }
+  function esc(t) { var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function bold(t) { return t.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>'); }
+  function fmtPrice(n) { return '$' + Math.round(n).toLocaleString(); }
+  function fmtRcn(n) { return n >= 1000000 ? '$' + (n/1000000).toFixed(2) + 'M' : fmtPrice(n); }
+  function el(html) { var d = document.createElement('div'); d.innerHTML = html; return d.firstChild; }
+
+  function addUserBubble(text, fileInfos, uploading) {
+    var filesHtml = '';
+    if (fileInfos && fileInfos.length) {
+      var uploadCls = uploading ? ' pill-uploading' : '';
+      filesHtml = '<div class="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-white/5">' +
+        fileInfos.map(function(f) {
+          var name = typeof f === 'string' ? f : f.name;
+          var size = typeof f === 'object' && f.size ? formatFileSize(f.size) : '';
+          var sizeHtml = size ? '<span class="text-on-surface/30">' + size + '</span>' : '';
+          return '<span class="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/10 text-on-surface/70 text-[10px] font-mono rounded-lg px-2.5 py-1' + uploadCls + '">' +
+            '<span style="font-size:11px">' + fileIcon(name) + '</span>' +
+            esc(name) + sizeHtml + '</span>';
+        }).join('') + '</div>';
+    }
+    convo.appendChild(el(
+      '<div class="flex justify-end">' +
+        '<div class="glass-card p-5 rounded-xl max-w-[85%] bg-surface-container-highest/40 border-primary/20">' +
+          '<p class="text-on-surface leading-relaxed">' + esc(text) + '</p>' +
+          filesHtml +
+        '</div>' +
+      '</div>'
+    ));
+    scrollBottom();
+  }
+
+  var _thinkingInterval = null;
+  var _thinkingMsgs = [
+    'Searching 31,000 listings...',
+    'Analyzing market comparables...',
+    'Calculating fair market value...',
+    'Checking risk factors...',
+    'Building valuation summary...'
+  ];
+
+  function addThinking() {
+    convo.appendChild(el(
+      '<div id="nova-thinking" class="flex justify-start">' +
+        '<div class="glass-card p-6 rounded-xl max-w-[85%]">' +
+          '<div class="flex items-center gap-3">' +
+            '<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">' +
+              '<span class="material-symbols-outlined">precision_manufacturing</span>' +
+            '</div>' +
+            '<span class="font-headline font-bold text-sm tracking-tight">Nova Intelligence</span>' +
+            '<span id="nova-thinking-text" class="text-secondary animate-pulse font-mono text-xs">' + _thinkingMsgs[0] + '</span>' +
+          '</div>' +
+        '</div>' +
+      '</div>'
+    ));
+    scrollBottom();
+    var idx = 0;
+    _thinkingInterval = setInterval(function() {
+      idx = (idx + 1) % _thinkingMsgs.length;
+      var span = document.getElementById('nova-thinking-text');
+      if (span) span.textContent = _thinkingMsgs[idx];
+    }, 3000);
+  }
+
+  function removeThinking() {
+    if (_thinkingInterval) { clearInterval(_thinkingInterval); _thinkingInterval = null; }
+    var t = document.getElementById('nova-thinking'); if (t) t.remove();
+  }
+
+  function renderMarkdown(text) {
+    return text.split(/\n\n+/).map(function(block) {
+      block = block.trim();
+      if (!block) return '';
+      if (block.startsWith('### ')) return '<h4 class="font-headline font-bold text-sm text-on-surface mt-2">' + bold(esc(block.slice(4))) + '</h4>';
+      if (block.startsWith('## ')) return '<h3 class="font-headline font-bold text-base text-white mt-3">' + bold(esc(block.slice(3))) + '</h3>';
+      var lines = block.split('\n');
+      var listLines = lines.filter(function(l) { return l.match(/^\s*[-*\d.]+[\s)]+/); });
+      if (listLines.length === lines.length && listLines.length > 0) {
+        return lines.map(function(l) {
+          return '<div class="flex gap-2 text-sm"><span class="text-secondary shrink-0">•</span><span class="text-[#F2E9E1]/80">' + bold(esc(l.replace(/^\s*[-*\d.]+[\s)]+/, ''))) + '</span></div>';
+        }).join('');
+      }
+      return '<p class="text-[#F2E9E1] leading-relaxed">' + bold(esc(block)).replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
+  function buildValuationCard(v) {
+    var confColor = v.confidence === 'HIGH' ? '#4CAF50' : v.confidence === 'MEDIUM' ? '#FF9800' : '#F44336';
+    var factorsHtml = '';
+    if (v.factors && v.factors.length) {
+      v.factors.forEach(function(f) {
+        var val = typeof f.value === 'number' && f.value <= 5 ? f.value.toFixed(2) + 'x' : f.value;
+        factorsHtml += '<div class="flex flex-col">' +
+          '<span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1">' + esc(f.label) + '</span>' +
+          '<span class="font-mono text-lg text-secondary">' + val + '</span></div>';
+      });
+    }
+    return '<div class="glass-card p-8 rounded-xl w-full border-l-4 border-l-primary">' +
+      '<div class="flex flex-col md:flex-row justify-between items-start gap-6">' +
+        '<div class="space-y-1">' +
+          '<div class="flex items-center gap-3">' +
+            '<span class="text-secondary font-mono text-[10px] uppercase tracking-[0.2em]">Estimated Fair Market Value</span>' +
+          '</div>' +
+          '<div class="flex items-baseline gap-2">' +
+            '<h2 class="text-4xl font-headline font-bold text-white tracking-tight">' + fmtPrice(v.fmv_low) + ' - ' + fmtPrice(v.fmv_high) + '</h2>' +
+            '<span class="font-mono text-sm text-secondary">CAD</span>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 mt-2">' +
+            '<span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold" style="background:' + confColor + '1a;color:' + confColor + '">' + v.confidence + ' CONFIDENCE</span>' +
+          '</div>' +
+        '</div>' +
+        (v.rcn ? '<div class="flex flex-col items-end gap-2 text-right">' +
+          '<span class="text-on-surface/60 font-mono text-[10px] uppercase tracking-widest">Est. Replacement Cost (RCN)</span>' +
+          '<span class="text-2xl font-mono text-primary font-bold tracking-tighter">' + fmtRcn(v.rcn) + ' <span class="text-sm font-normal">CAD</span></span>' +
+        '</div>' : '') +
+      '</div>' +
+      (factorsHtml ? '<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8 pt-6 border-t border-white/5">' + factorsHtml + '</div>' : '') +
+    '</div>';
+  }
+
+  function buildCompsTable(comps) {
+    var rows = comps.map(function(c) {
+      var clickAttr = c.url ? ' style="cursor:pointer" onclick="window.open(\'' + esc(c.url).replace(/'/g, "\\'") + '\',\'_blank\')"' : '';
+      return '<tr class="hover:bg-white/10 transition-colors group"' + clickAttr + '>' +
+        '<td class="px-6 py-4 text-on-surface font-medium">' + esc(c.title || '') + '</td>' +
+        '<td class="px-6 py-4 text-on-surface/70">' + esc(c.year || '-') + '</td>' +
+        '<td class="px-6 py-4 text-on-surface/70">' + esc(c.location || '-') + '</td>' +
+        '<td class="px-6 py-4 text-right text-secondary font-bold">' + fmtPrice(c.price || 0) + '</td></tr>';
+    }).join('');
+    return '<div class="glass-card overflow-hidden rounded-xl">' +
+      '<div class="px-6 py-4 bg-white/5 border-b border-white/5 flex justify-between items-center">' +
+        '<h3 class="font-headline font-bold text-sm tracking-tight text-on-surface">Recent Market Comparables</h3>' +
+        '<span class="text-[10px] font-mono text-secondary">' + comps.length + ' MATCHES FOUND</span>' +
+      '</div>' +
+      '<div class="overflow-x-auto"><table class="w-full text-left font-mono text-xs">' +
+        '<thead class="text-on-surface/40 border-b border-white/5"><tr>' +
+          '<th class="px-6 py-3 font-medium">UNIT SPEC</th>' +
+          '<th class="px-6 py-3 font-medium">YEAR</th>' +
+          '<th class="px-6 py-3 font-medium">REGION</th>' +
+          '<th class="px-6 py-3 font-medium text-right">LIST PRICE (CAD)</th>' +
+        '</tr></thead>' +
+        '<tbody class="divide-y divide-white/5">' + rows + '</tbody>' +
+      '</table></div></div>';
+  }
+
+  function buildRiskCard(risks) {
+    var text = Array.isArray(risks) ? risks.map(esc).join('<br>') : esc(String(risks));
+    return '<div class="glass-card p-5 rounded-xl bg-primary/5 border-primary/20 border flex gap-4">' +
+      '<span class="material-symbols-outlined text-primary">report</span>' +
+      '<div class="space-y-1">' +
+        '<h4 class="font-headline font-bold text-sm text-primary tracking-tight">Technical Risk Advisory</h4>' +
+        '<p class="text-sm text-on-surface/80 leading-relaxed italic">' + text + '</p>' +
+      '</div></div>';
+  }
+
+  function addNovaResponse(data) {
+    var wrapper = document.createElement('div');
+    wrapper.className = 'space-y-6';
+    var s = data.structured || {};
+
+    if (s.valuation && s.valuation.fmv_low != null) wrapper.appendChild(el(buildValuationCard(s.valuation)));
+    if (s.comparables && s.comparables.length) wrapper.appendChild(el(buildCompsTable(s.comparables)));
+    if (s.risks && s.risks.length) wrapper.appendChild(el(buildRiskCard(s.risks)));
+    if (data.response) {
+      var text = data.response;
+      var narrativeEl;
+      if (text.length > 200) {
+        var truncated = text.slice(0, 200).replace(/\s+\S*$/, '') + '...';
+        narrativeEl = el(
+          '<div class="flex justify-start"><div class="max-w-[90%] space-y-4">' +
+            '<div data-narrative-collapsed>' +
+              renderMarkdown(truncated) +
+              '<button class="text-secondary hover:text-secondary/80 text-sm font-medium mt-2 transition-colors cursor-pointer" data-toggle-narrative>Show full analysis \u25B8</button>' +
+            '</div>' +
+            '<div data-narrative-full class="hidden">' +
+              renderMarkdown(text) +
+              '<button class="text-secondary hover:text-secondary/80 text-sm font-medium mt-2 transition-colors cursor-pointer" data-toggle-narrative>\u25BE Collapse</button>' +
+            '</div>' +
+          '</div></div>'
+        );
+        narrativeEl.querySelectorAll('[data-toggle-narrative]').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var container = btn.closest('.space-y-4');
+            var collapsed = container.querySelector('[data-narrative-collapsed]');
+            var full = container.querySelector('[data-narrative-full]');
+            collapsed.classList.toggle('hidden');
+            full.classList.toggle('hidden');
+          });
+        });
+      } else {
+        narrativeEl = el(
+          '<div class="flex justify-start"><div class="max-w-[90%] space-y-4">' +
+            renderMarkdown(text) +
+          '</div></div>'
+        );
+      }
+      wrapper.appendChild(narrativeEl);
+    }
+    convo.appendChild(wrapper);
+    setTimeout(function() { wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
+  }
+
+  // --- File attachment handling ---
+  var DEFAULT_PLACEHOLDER = 'Ask about equipment or valuation data...';
+  var FILE_PLACEHOLDER = 'Analyze this document';
+  var attachBtn = document.getElementById('attach-btn');
+  var filePicker = document.getElementById('file-picker');
+  var filePills = document.getElementById('file-pills');
+  var selectedFiles = [];
+
+  function fileIcon(name) {
+    var ext = (name || '').split('.').pop().toLowerCase();
+    if (ext === 'pdf') return '\uD83D\uDCC4';
+    if (['png','jpg','jpeg','webp','gif','bmp','svg'].indexOf(ext) !== -1) return '\uD83D\uDDBC\uFE0F';
+    if (['xlsx','xls','csv'].indexOf(ext) !== -1) return '\uD83D\uDCCA';
+    if (['eml','msg'].indexOf(ext) !== -1) return '\uD83D\uDCE7';
+    return '\uD83D\uDCC4';
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1048576) return Math.round(bytes / 1024) + ' KB';
+    return (bytes / 1048576).toFixed(1) + ' MB';
+  }
+
+  function updatePlaceholder() {
+    if (selectedFiles.length > 0 && !input.value.trim()) {
+      input.placeholder = FILE_PLACEHOLDER;
+    } else {
+      input.placeholder = DEFAULT_PLACEHOLDER;
+    }
+  }
+
+  if (attachBtn && filePicker) {
+    attachBtn.addEventListener('click', function(e) { e.preventDefault(); filePicker.click(); });
+    filePicker.addEventListener('change', function() {
+      for (var i = 0; i < filePicker.files.length; i++) selectedFiles.push(filePicker.files[i]);
+      filePicker.value = '';
+      renderFilePills();
+      updatePlaceholder();
+      input.focus();
+    });
+  }
+
+  input.addEventListener('input', updatePlaceholder);
+
+  function renderFilePills() {
+    if (!filePills) return;
+    filePills.innerHTML = '';
+    if (selectedFiles.length === 0) { filePills.classList.add('hidden'); filePills.classList.remove('flex'); updatePlaceholder(); return; }
+    filePills.classList.remove('hidden'); filePills.classList.add('flex');
+    selectedFiles.forEach(function(f, idx) {
+      var pill = el(
+        '<div class="inline-flex items-center gap-2 bg-white/[0.06] backdrop-blur-sm border border-secondary/20 rounded-lg px-3 py-1.5 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)] group">' +
+          '<span class="text-sm shrink-0">' + fileIcon(f.name) + '</span>' +
+          '<div class="flex flex-col leading-tight">' +
+            '<span class="text-[11px] font-mono text-on-surface/90 truncate max-w-[140px]">' + esc(f.name) + '</span>' +
+            '<span class="text-[9px] font-mono text-on-surface/40">' + formatFileSize(f.size) + '</span>' +
+          '</div>' +
+          '<button data-idx="' + idx + '" class="w-5 h-5 flex items-center justify-center rounded-full hover:bg-white/10 text-on-surface/30 hover:text-white text-sm transition-colors shrink-0">\u00D7</button>' +
+        '</div>'
+      );
+      pill.querySelector('button').addEventListener('click', function() {
+        selectedFiles.splice(idx, 1); renderFilePills();
+      });
+      filePills.appendChild(pill);
+    });
+  }
+
+  // --- Send with file attachments ---
+  async function send() {
+    var msg = input.value.trim();
+    var hasFiles = selectedFiles.length > 0;
+    if (!msg && !hasFiles) return;
+    if (!msg && hasFiles) msg = FILE_PLACEHOLDER;
+    var attachedFiles = selectedFiles.map(function(f) { return {name: f.name, size: f.size}; });
+    input.value = '';
+    input.focus();
+    addUserBubble(msg, attachedFiles.length ? attachedFiles : null, hasFiles);
+    addThinking();
+    var fd = new FormData();
+    fd.append('message', msg);
+    if (chatHistory.length) fd.append('history', JSON.stringify(chatHistory));
+    selectedFiles.forEach(function(f) { fd.append('files', f); });
+    selectedFiles = []; renderFilePills(); updatePlaceholder();
+    try {
+      var res = await fetch('/api/price', { method: 'POST', body: fd });
+      var data = await res.json();
+      console.log('[Nova] Response:', data);
+      removeThinking();
+      // Stop upload pulse animation on user bubble pills
+      var pulsing = convo.querySelectorAll('.pill-uploading');
+      pulsing.forEach(function(p) { p.classList.remove('pill-uploading'); });
+      addNovaResponse(data);
+      lastResponse = data;
+      chatHistory.push({role: 'user', content: msg});
+      chatHistory.push({role: 'assistant', content: data.response || ''});
+      // Persist to conversation storage
+      if (currentConvoId) {
+        var convos = loadConversations();
+        var ci = convos.findIndex(function(c) { return c.id === currentConvoId; });
+        if (ci !== -1) convos[ci]._lastResponse = data;
+        saveConversations(convos);
+      }
+      saveCurrentConversation();
+    } catch (e) {
+      console.error('[Nova] Error:', e);
+      removeThinking();
+      var pulsing = convo.querySelectorAll('.pill-uploading');
+      pulsing.forEach(function(p) { p.classList.remove('pill-uploading'); });
+      convo.appendChild(el(
+        '<div class="flex justify-start"><div class="glass-card p-6 rounded-xl max-w-[85%]">' +
+          '<p class="text-error leading-relaxed">Connection error. Please try again.</p></div></div>'
+      ));
+      scrollBottom();
+    }
+  }
+
+  // --- Store last response for export ---
+  var lastResponse = null;
+  var chatHistory = [];
+
+  // --- New Query: reset conversation ---
+  var newQueryBtn = document.getElementById('new-query-btn');
+  if (newQueryBtn) {
+    newQueryBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      createNewConversation();
+    });
+  }
+
+  // --- Export Report: generate .docx via /api/report using cached data ---
+  var exportBtn = document.getElementById('export-btn');
+  if (exportBtn) {
+    exportBtn.addEventListener('click', async function(e) {
+      e.preventDefault();
+      if (!lastResponse || !lastResponse.structured || Object.keys(lastResponse.structured).length === 0) {
+        alert('No valuation data to export. Run a query first.');
+        return;
+      }
+      var lastUserMsg = '';
+      for (var i = chatHistory.length - 1; i >= 0; i--) {
+        if (chatHistory[i].role === 'user') { lastUserMsg = chatHistory[i].content; break; }
+      }
+      var origText = exportBtn.textContent;
+      exportBtn.textContent = 'Generating report...';
+      exportBtn.disabled = true;
+      exportBtn.classList.add('opacity-50', 'cursor-wait');
+      try {
+        var fd = new FormData();
+        fd.append('structured_data', JSON.stringify(lastResponse.structured));
+        fd.append('response_text', lastResponse.response || '');
+        fd.append('user_message', lastUserMsg || 'Equipment Valuation');
+        var res = await fetch('/api/report', { method: 'POST', body: fd });
+        if (!res.ok) throw new Error('Report generation failed');
+        var blob = await res.blob();
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href = url; a.download = 'Fuelled_Valuation_Report.docx'; a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('[Nova] Report error:', err);
+        alert('Failed to generate report. Please try again.');
+      } finally {
+        exportBtn.textContent = origText;
+        exportBtn.disabled = false;
+        exportBtn.classList.remove('opacity-50', 'cursor-wait');
+      }
+    });
+  }
+
+  sendBtn.addEventListener('click', function(e) { e.preventDefault(); send(); });
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); send(); } });
+});
+</script>
+</body></html>

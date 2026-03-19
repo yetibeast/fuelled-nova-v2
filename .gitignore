@@ -1,0 +1,15 @@
+.DS_Store
+__pycache__/
+*.pyc
+.venv/
+.env
+backend/.venv/
+backend/.env
+backend/logs/
+**/logs/
+**/pricing_log.jsonl
+*.egg-info/
+dist/
+build/
+node_modules/
+.claude/
