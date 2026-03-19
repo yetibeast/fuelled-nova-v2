@@ -774,6 +774,83 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       wrapper.appendChild(narrativeEl);
     }
+    // Feedback buttons
+    var msgIdx = document.querySelectorAll('[data-feedback-row]').length;
+    var feedbackRow = el(
+      '<div data-feedback-row class="flex items-center gap-2 pl-1 pt-2">' +
+        '<button data-fb="up" class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] border border-white/[0.06] text-on-surface/30 hover:text-emerald-400 hover:border-emerald-400/30 hover:bg-emerald-400/10 transition-all text-sm" title="Good response">\uD83D\uDC4D</button>' +
+        '<button data-fb="down" class="flex items-center justify-center w-7 h-7 rounded-lg bg-white/[0.04] border border-white/[0.06] text-on-surface/30 hover:text-primary hover:border-primary/30 hover:bg-primary/10 transition-all text-sm" title="Needs improvement">\uD83D\uDC4E</button>' +
+        '<span data-fb-status class="text-[10px] font-mono text-on-surface/20 ml-1"></span>' +
+      '</div>'
+    );
+    var fbData = data;
+    var fbMsgIdx = msgIdx;
+    feedbackRow.querySelectorAll('[data-fb]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var rating = btn.getAttribute('data-fb');
+        var row = btn.closest('[data-feedback-row]');
+        var statusEl = row.querySelector('[data-fb-status]');
+        // Disable both buttons
+        row.querySelectorAll('[data-fb]').forEach(function(b) { b.disabled = true; b.classList.add('opacity-30', 'pointer-events-none'); });
+
+        if (rating === 'up') {
+          btn.classList.remove('text-on-surface/30');
+          btn.classList.add('text-emerald-400', 'border-emerald-400/30', 'bg-emerald-400/10', 'opacity-100');
+          btn.classList.remove('opacity-30');
+          // Send immediately
+          fetch('/api/feedback', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              rating: 'up',
+              conversation_id: currentConvoId || '',
+              message_index: fbMsgIdx,
+              user_message: chatHistory.length >= 2 ? chatHistory[chatHistory.length - 2].content : '',
+              structured_data: fbData.structured || {},
+              response_text: (fbData.response || '').slice(0, 200)
+            })
+          });
+          statusEl.textContent = 'Feedback saved';
+        } else {
+          btn.classList.remove('text-on-surface/30');
+          btn.classList.add('text-primary', 'border-primary/30', 'bg-primary/10', 'opacity-100');
+          btn.classList.remove('opacity-30');
+          // Show comment input
+          var commentBox = el(
+            '<div class="flex items-center gap-2 mt-2 animate-in">' +
+              '<input type="text" placeholder="What was off?" class="recessed-input text-xs text-on-surface px-3 py-1.5 rounded-lg border border-white/10 flex-1 focus:outline-none focus:border-secondary/40" maxlength="200">' +
+              '<button class="text-[10px] font-mono text-secondary hover:text-white bg-secondary/10 hover:bg-secondary/20 px-3 py-1.5 rounded-lg border border-secondary/20 transition-all">Send</button>' +
+            '</div>'
+          );
+          row.appendChild(commentBox);
+          var commentInput = commentBox.querySelector('input');
+          var sendFbBtn = commentBox.querySelector('button');
+          commentInput.focus();
+          function submitFb() {
+            var comment = commentInput.value.trim();
+            fetch('/api/feedback', {
+              method: 'POST',
+              headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({
+                rating: 'down',
+                comment: comment,
+                conversation_id: currentConvoId || '',
+                message_index: fbMsgIdx,
+                user_message: chatHistory.length >= 2 ? chatHistory[chatHistory.length - 2].content : '',
+                structured_data: fbData.structured || {},
+                response_text: (fbData.response || '').slice(0, 200)
+              })
+            });
+            commentBox.remove();
+            statusEl.textContent = 'Feedback saved';
+          }
+          sendFbBtn.addEventListener('click', submitFb);
+          commentInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') submitFb(); });
+        }
+      });
+    });
+    wrapper.appendChild(feedbackRow);
+
     convo.appendChild(wrapper);
     setTimeout(function() { wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
   }

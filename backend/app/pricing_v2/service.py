@@ -20,7 +20,7 @@ TOOL_MAP = {
     "check_equipment_risks": tool_fns.check_equipment_risks,
 }
 
-ASYNC_TOOLS = {"search_comparables", "get_category_stats"}
+ASYNC_TOOLS = {"search_comparables", "get_category_stats", "lookup_rcn"}
 
 
 async def _call_tool(name: str, args: dict) -> str:

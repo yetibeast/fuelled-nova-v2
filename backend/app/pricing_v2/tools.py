@@ -1,6 +1,4 @@
 from __future__ import annotations
-import os
-import openpyxl
 from sqlalchemy import text
 from app.db.session import get_session
 
@@ -48,123 +46,7 @@ async def get_category_stats(category: str) -> str:
             f"  Avg: ${r.avg_price:,.0f}  Min: ${r.min_price:,.0f}  Max: ${r.max_price:,.0f}")
 
 
-_RCN_ROWS: list[dict] | None = None
-_XLSX_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "..", "seeds", "rcn_price_reference_seed_v2.xlsx")
-_DATA_TABS = ["Compressors", "Drivers", "Generators", "Static Equipment", "Pumps & Pumpjacks"]
-_EVIDENCE_TAB = "PDF Pricing Evidence Intake"
-
-_ESCALATION = {2020: 1.40, 2021: 1.30, 2022: 1.16, 2023: 1.08, 2024: 1.04, 2025: 1.02, 2026: 1.00}
-_USD_TO_CAD = 1.44
-
-
-def _load_rcn_data() -> list[dict]:
-    global _RCN_ROWS
-    if _RCN_ROWS is not None:
-        return _RCN_ROWS
-    wb = openpyxl.load_workbook(_XLSX_PATH, read_only=True, data_only=True)
-    rows = []
-
-    # ── Reference tabs ────────────────────────────────
-    for tab in _DATA_TABS:
-        if tab not in wb.sheetnames:
-            continue
-        ws = wb[tab]
-        headers = None
-        for row in ws.iter_rows(values_only=True):
-            if row and str(row[0] or "").strip().lower() == "reference key":
-                headers = [str(c or "").strip().lower().replace(" ", "_").replace("(", "").replace(")", "").replace("/", "_") for c in row]
-                continue
-            if headers is None or not row or not row[0]:
-                continue
-            # Skip section-header rows (only first cell has text, rest are None)
-            if all(c is None for c in row[1:6]):
-                continue
-            d = dict(zip(headers, row))
-            d["_tab"] = tab
-            d["_source"] = "reference_table"
-            # Build searchable text from key columns
-            searchable = " ".join(str(d.get(k) or "") for k in
-                ["reference_key", "manufacturer", "model_frame", "model", "type_model", "configuration", "notes"])
-            d["_search"] = searchable.lower()
-            rows.append(d)
-
-    # ── Appraisal evidence tab ────────────────────────
-    if _EVIDENCE_TAB in wb.sheetnames:
-        ws = wb[_EVIDENCE_TAB]
-        ev_headers = None
-        for row in ws.iter_rows(values_only=True):
-            vals = list(row)
-            if ev_headers is None:
-                ev_headers = [str(c or "").strip().lower().replace(" ", "_") for c in vals]
-                continue
-            if not vals or not vals[0]:
-                continue
-            d = dict(zip(ev_headers, vals))
-            # Only load RCN rows
-            if str(d.get("price_type") or "").upper() != "RCN":
-                continue
-            price = d.get("price_value")
-            if not price or not isinstance(price, (int, float)) or price <= 0:
-                continue
-
-            # Currency conversion
-            rcn_cad = float(price)
-            if str(d.get("currency") or "").upper() == "USD":
-                rcn_cad *= _USD_TO_CAD
-
-            # Escalation by effective_date year
-            eff_date = d.get("effective_date")
-            year = None
-            if hasattr(eff_date, "year"):
-                year = eff_date.year
-            elif isinstance(eff_date, str) and len(eff_date) >= 4:
-                try:
-                    year = int(eff_date[:4])
-                except ValueError:
-                    pass
-            if year and year in _ESCALATION:
-                rcn_cad *= _ESCALATION[year]
-
-            rcn_mid = round(rcn_cad)
-            rcn_low = round(rcn_cad * 0.85)
-            rcn_high = round(rcn_cad * 1.15)
-
-            # Build searchable text
-            searchable = " ".join(str(d.get(k) or "") for k in
-                ["manufacturer", "model_frame", "description", "equipment_category", "notes"])
-
-            ref_key = f"ev:{str(d.get('asset_id') or '')}:{str(d.get('manufacturer') or '')[:10]}"
-            source_label = str(d.get("source_file") or "")[:60]
-            appraiser = str(d.get("appraiser") or "")
-            eff_str = str(eff_date or "")[:10]
-
-            rows.append({
-                "reference_key": ref_key,
-                "manufacturer": d.get("manufacturer"),
-                "model_frame": d.get("model_frame"),
-                "description": d.get("description"),
-                "equipment_category": d.get("equipment_category"),
-                "rcn_low": rcn_low,
-                "rcn_mid": rcn_mid,
-                "rcn_high": rcn_high,
-                "confidence": d.get("confidence", "—"),
-                "notes": f"Appraisal by {appraiser}, {eff_str}. Source: {source_label}",
-                "effective_date": eff_str,
-                "original_currency": d.get("currency"),
-                "original_value": price,
-                "_tab": "Appraisal Evidence",
-                "_source": "appraisal_evidence",
-                "_search": searchable.lower(),
-            })
-
-    wb.close()
-    _RCN_ROWS = rows
-    return _RCN_ROWS
-
-
-def _score_match(row_search: str, terms: list[str]) -> int:
-    return sum(1 for t in terms if t in row_search)
-
+# ── Fallback RCN dictionary — last resort if database returns nothing ──
 
 _FALLBACK_RCN = {
     "vru": {
@@ -206,46 +88,98 @@ def _check_fallback(query: str) -> str | None:
         if any(term in q for term in d["match_terms"]):
             return (f"Found 1 RCN match(es):\n\n  [fallback:{key}] (Fallback)\n"
                     f"  RCN: ${d['rcn_low']:,} — ${d['rcn_mid']:,} — ${d['rcn_high']:,} CAD\n"
-                    f"  Notes: {d['note']} (fallback - not yet in reference spreadsheet)\n"
+                    f"  Notes: {d['note']} (fallback dictionary)\n"
                     f"\nApply depreciation factors for age, condition, hours.")
     return None
 
 
-def lookup_rcn(equipment_type: str, manufacturer: str | None = None, model: str | None = None,
-               drive_type: str | None = None, stages: int | None = None, hp: int | None = None) -> str:
+async def lookup_rcn(equipment_type: str, manufacturer: str | None = None, model: str | None = None,
+                     drive_type: str | None = None, stages: int | None = None, hp: int | None = None) -> str:
+    # Build dynamic WHERE clauses and scoring
+    conditions = []
+    params: dict = {}
+
+    if manufacturer:
+        conditions.append("canonical_manufacturer ILIKE :mfr")
+        params["mfr"] = f"%{manufacturer}%"
+    if model:
+        conditions.append("canonical_model ILIKE :mdl")
+        params["mdl"] = f"%{model}%"
+    if equipment_type:
+        conditions.append("equipment_class ILIKE :eqtype")
+        params["eqtype"] = f"%{equipment_type}%"
+
+    if not conditions:
+        return "No search criteria provided for RCN lookup."
+
+    # Score: model match is worth most, then manufacturer, then equipment_class
+    score_parts = []
+    if manufacturer:
+        score_parts.append("CASE WHEN canonical_manufacturer ILIKE :mfr THEN 2 ELSE 0 END")
+    if model:
+        score_parts.append("CASE WHEN canonical_model ILIKE :mdl THEN 3 ELSE 0 END")
+    if equipment_type:
+        score_parts.append("CASE WHEN equipment_class ILIKE :eqtype THEN 1 ELSE 0 END")
+
+    # Optional stage filter adds to score
+    if stages:
+        score_parts.append("CASE WHEN stage_config ILIKE :stg THEN 2 ELSE 0 END")
+        params["stg"] = f"%{stages}-stage%"
+
+    score_expr = " + ".join(score_parts) if score_parts else "0"
+    where_expr = " OR ".join(conditions)
+
+    sql = f"""
+        SELECT canonical_manufacturer, canonical_model, stage_config, drive_type,
+               equipment_class, escalated_rcn_cad, confidence, horsepower, notes,
+               validation_status,
+               ({score_expr}) as match_score
+        FROM rcn_price_references
+        WHERE ({where_expr})
+          AND escalated_rcn_cad > 0
+        ORDER BY match_score DESC,
+                 CASE WHEN validation_status = 'active' THEN 0 ELSE 1 END,
+                 confidence DESC NULLS LAST
+        LIMIT 3
+    """
+
+    async with get_session() as session:
+        result = await session.execute(text(sql), params)
+        rows = result.fetchall()
+
+    if rows:
+        lines = [f"Found {len(rows)} RCN match(es) from gold reference table:"]
+        for r in rows:
+            rcn_mid = float(r.escalated_rcn_cad)
+            rcn_low = round(rcn_mid * 0.85)
+            rcn_high = round(rcn_mid * 1.15)
+            rcn_mid_r = round(rcn_mid)
+            conf = f"{r.confidence:.0%}" if r.confidence is not None else "—"
+            status = r.validation_status or "unknown"
+            hp_str = f"  HP: {r.horsepower:,.0f}" if r.horsepower else ""
+            notes = r.notes or ""
+            lines.append(f"\n  [{r.canonical_manufacturer} {r.canonical_model}] ({r.equipment_class} — {status})")
+            lines.append(f"  RCN: ${rcn_low:,} — ${rcn_mid_r:,} — ${rcn_high:,} CAD (already escalated to current year)")
+            if r.stage_config:
+                lines.append(f"  Config: {r.stage_config}")
+            if r.drive_type:
+                lines.append(f"  Drive: {r.drive_type}")
+            if hp_str:
+                lines.append(hp_str)
+            lines.append(f"  Confidence: {conf}")
+            if notes:
+                lines.append(f"  Notes: {notes}")
+        lines.append("\nApply depreciation factors for age, condition, hours.")
+        return "\n".join(lines)
+
+    # Database returned nothing — try fallback dictionary
     query = " ".join(p.lower() for p in [equipment_type, manufacturer or "", model or ""] if p)
-    # Check fallback first — specific match_terms are more reliable than weak fuzzy hits
     fb = _check_fallback(query)
     if fb:
         return fb
-    data = _load_rcn_data()
-    terms = [t for t in query.split() if len(t) > 1]
-    scored = [(r, _score_match(r["_search"], terms)) for r in data]
-    matches = sorted([(r, s) for r, s in scored if s >= max(1, len(terms) // 2)], key=lambda x: -x[1])[:3]
-    if not matches:
-        return ("No RCN anchor found in reference tables. Estimate from general knowledge. "
-                "HP scaling: base × (target_hp / base_hp) ^ 0.6")
-    lines = [f"Found {len(matches)} RCN match(es):"]
-    for r, score in matches:
-        ref = r.get("reference_key", "?")
-        source = r.get("_source", "reference_table")
-        source_label = "Reference Table" if source == "reference_table" else "Appraisal Evidence"
-        low = r.get("rcn_new_low_cad") or r.get("rcn_low") or 0
-        mid = r.get("rcn_new_mid_cad") or r.get("rcn_mid") or 0
-        high = r.get("rcn_new_high_cad") or r.get("rcn_high") or 0
-        exp = r.get("scaling_exp") or r.get("scaling_method") or "0.6"
-        base_hp = r.get("base_hp", "—")
-        conf = r.get("confidence", "—")
-        notes = r.get("notes", "")
-        lines.append(f"\n  [{ref}] ({r['_tab']} — {source_label})")
-        lines.append(f"  RCN: ${low:,.0f} — ${mid:,.0f} — ${high:,.0f} CAD")
-        if base_hp and base_hp != "—" and source == "reference_table":
-            lines.append(f"  Base HP: {base_hp}, Scaling exponent: {exp}")
-        lines.append(f"  Confidence: {conf}")
-        if notes:
-            lines.append(f"  Notes: {notes}")
-    lines.append("\nApply depreciation factors for age, condition, hours.")
-    return "\n".join(lines)
+
+    return ("No RCN anchor found in reference tables. Estimate from general knowledge. "
+            "HP scaling: base * (target_hp / base_hp) ^ 0.6")
 
 
 AGE_CURVES = {
