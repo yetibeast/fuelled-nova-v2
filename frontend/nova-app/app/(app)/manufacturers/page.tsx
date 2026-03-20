@@ -10,7 +10,7 @@ const FEATURES = [
 
 export default function ManufacturersPage() {
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-56px)]">
+    <div className="flex items-center justify-center min-h-[70vh]">
       {/* Ambient glow */}
       <div
         className="absolute top-1/4 left-1/3 w-[400px] h-[400px] rounded-full opacity-[0.04] pointer-events-none"

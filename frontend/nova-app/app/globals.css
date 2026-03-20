@@ -1,7 +1,3 @@
-/* ── Google Fonts ── */
-@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
-
 @import "tailwindcss";
 
 /* ── Design Tokens (Tailwind v4) ── */
@@ -81,84 +77,89 @@
 }
 
 /* ── Base Styles ── */
-body {
-  background: radial-gradient(circle at center, #001628 0%, #000F1C 100%);
-  min-height: 100vh;
-  margin: 0;
+@layer base {
+  body {
+    background: radial-gradient(circle at center, #001628 0%, #000F1C 100%);
+    min-height: 100vh;
+    margin: 0;
+  }
 }
 
-/* ── Glass Utilities ── */
-.glass-card {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
-}
+/* ── Component Classes ──
+   In @layer components so Tailwind utilities can override individual properties.
+   e.g. glass-card sets background, but bg-surface-container-highest/40 can override it. */
+@layer components {
+  .glass-card {
+    background: rgba(255, 255, 255, 0.04);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+  }
 
-.glass-card-highlighted {
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
-}
+  .glass-card-highlighted {
+    background: rgba(255, 255, 255, 0.06);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+  }
 
-.recessed-input {
-  background: #00101d;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
-}
+  .recessed-input {
+    background: #00101d;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
 
-.frosted-panel {
-  background: rgba(4, 21, 34, 0.92);
-  backdrop-filter: blur(20px);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-}
+  .frosted-panel {
+    background: rgba(4, 21, 34, 0.92);
+    backdrop-filter: blur(20px);
+    border-right: 1px solid rgba(255, 255, 255, 0.08);
+  }
 
-/* ── Material Symbols ── */
-.material-symbols-outlined {
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
-  vertical-align: middle;
-}
+  .frosted-bottom-nav {
+    background: rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
 
-/* ── Status Dots ── */
-.status-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  display: inline-block;
-}
+  .glow-primary {
+    box-shadow: 0 0 20px rgba(239, 93, 40, 0.3);
+  }
 
-.status-green {
-  background: #4CAF50;
-  box-shadow: 0 0 4px #4CAF50;
-}
+  /* Status Dots */
+  .status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    display: inline-block;
+  }
 
-.status-yellow {
-  background: #FF9800;
-  box-shadow: 0 0 4px #FF9800;
-}
+  .status-green {
+    background: #4CAF50;
+    box-shadow: 0 0 4px #4CAF50;
+  }
 
-.status-red {
-  background: #F44336;
-  box-shadow: 0 0 4px #F44336;
-}
+  .status-yellow {
+    background: #FF9800;
+    box-shadow: 0 0 4px #FF9800;
+  }
 
-/* ── Stat Bars ── */
-.stat-bar {
-  height: 6px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.06);
-  overflow: hidden;
-}
+  .status-red {
+    background: #F44336;
+    box-shadow: 0 0 4px #F44336;
+  }
 
-.stat-bar-fill {
-  height: 100%;
-  border-radius: 3px;
-  transition: width 0.6s ease;
-}
+  /* Stat Bars */
+  .stat-bar {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    overflow: hidden;
+  }
 
-/* ── Glow ── */
-.glow-primary {
-  box-shadow: 0 0 20px rgba(239, 93, 40, 0.3);
+  .stat-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
 }
 
 /* ── Custom Scrollbar ── */

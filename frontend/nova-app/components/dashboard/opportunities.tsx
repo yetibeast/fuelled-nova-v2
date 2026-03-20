@@ -60,12 +60,12 @@ export function Opportunities() {
           >
             {loading ? (
               <>
-                <MaterialIcon icon="progress_activity" className="text-[16px] animate-spin" />
+                <MaterialIcon icon="autorenew" className="text-[16px] animate-spin" />
                 Analyzing...
               </>
             ) : (
               <>
-                <MaterialIcon icon="query_stats" className="text-[16px]" />
+                <MaterialIcon icon="insights" className="text-[16px]" />
                 Load Analysis
               </>
             )}

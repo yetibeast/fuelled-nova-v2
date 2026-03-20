@@ -28,7 +28,7 @@ export default function PricingPage() {
   );
 
   return (
-    <div className="flex h-[calc(100vh-56px)] -m-7 max-md:-m-4 gap-0">
+    <div className="flex h-screen -m-7 max-md:-m-4 gap-0">
       {/* Chat panel — 55% */}
       <div className="w-[55%] min-w-0 border-r border-white/[0.06] flex flex-col">
         <ChatPanel onResponse={handleResponse} />

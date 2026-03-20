@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8100:8100"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./seeds:/app/seeds:ro
+    restart: unless-stopped
+
+  frontend:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./frontend/chat-interface:/usr/share/nginx/html/chat-interface:ro
+      - ./frontend/app:/usr/share/nginx/html/app:ro
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - backend
+    restart: unless-stopped

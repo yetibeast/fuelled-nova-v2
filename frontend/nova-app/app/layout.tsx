@@ -13,6 +13,16 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark h-full">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+        <link
+          href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined"
+          rel="stylesheet"
+        />
+      </head>
       <body className="font-body text-on-surface min-h-full overflow-x-hidden selection:bg-primary/30 selection:text-white">
         {children}
       </body>
