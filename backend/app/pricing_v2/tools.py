@@ -3,6 +3,8 @@ import logging
 from sqlalchemy import text
 from app.db.session import get_session
 from app.pricing_v2.rcn_engine.calculator import calculate_rcn as _rcn_calculate
+from app.pricing_v2.equipment.parsing import parse_compound_description
+from app.pricing_v2.equipment.aliases import normalize_manufacturer, normalize_model
 
 log = logging.getLogger(__name__)
 
@@ -99,6 +101,32 @@ def _check_fallback(query: str) -> str | None:
 
 async def lookup_rcn(equipment_type: str, manufacturer: str | None = None, model: str | None = None,
                      drive_type: str | None = None, stages: int | None = None, hp: int | None = None) -> str:
+    # ── Parse compound descriptions before DB search ──
+    # If manufacturer contains a compound like "Waukesha L5774 / Ariel JGK4",
+    # parse it to extract the actual equipment manufacturer and model
+    compound_input = " / ".join(p for p in [manufacturer or "", model or ""] if p)
+    if "/" in (manufacturer or "") or "/" in (model or ""):
+        parsed = parse_compound_description(compound_input)
+        if parsed.equipment_manufacturer:
+            manufacturer = parsed.equipment_manufacturer
+        if parsed.equipment_model:
+            model = parsed.equipment_model
+        if parsed.drive_type != "N/A" and not drive_type:
+            drive_type = parsed.drive_type
+        if parsed.stage_config and not stages:
+            try:
+                stages = int(parsed.stage_config.split("-")[0])
+            except (ValueError, IndexError):
+                pass
+        log.info("Parsed compound: mfr=%s model=%s drive=%s stages=%s",
+                 manufacturer, model, drive_type, stages)
+
+    # Normalize through alias maps
+    if manufacturer:
+        manufacturer = normalize_manufacturer(manufacturer)
+    if model:
+        model = normalize_model(model)
+
     # Build dynamic WHERE clauses and scoring
     conditions = []
     params: dict = {}

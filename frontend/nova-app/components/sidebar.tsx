@@ -1,0 +1,138 @@
+"use client";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { MaterialIcon } from "@/components/ui/material-icon";
+
+const NAV_ITEMS = [
+  { section: "INTELLIGENCE" },
+  { label: "Dashboard", icon: "grid_view", href: "/" },
+  { label: "Pricing Agent", icon: "chat", href: "/pricing" },
+  { label: "Competitive", icon: "monitoring", href: "/competitive" },
+  { label: "Manufacturers", icon: "factory", href: "/manufacturers" },
+  { section: "DATA" },
+  { label: "Market Data", icon: "database", href: "/market" },
+];
+
+interface SidebarProps {
+  onSettingsClick: () => void;
+}
+
+export function Sidebar({ onSettingsClick }: SidebarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setCollapsed(true);
+    }
+  }, []);
+
+  function isActive(href: string) {
+    if (href === "/") return pathname === "/" || pathname === "";
+    return pathname.startsWith(href);
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("nova_authenticated");
+    router.push("/login");
+  }
+
+  return (
+    <>
+      {/* Mobile overlay */}
+      {!collapsed && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setCollapsed(true)}
+        />
+      )}
+
+      <aside
+        className="fixed left-0 top-0 h-full frosted-panel z-50 flex flex-col transition-all duration-200 ease-in-out"
+        style={{ width: collapsed ? 48 : 220 }}
+      >
+        {/* Logo */}
+        <div className="px-5 py-5 flex items-center gap-3 border-b border-white/[0.06] shrink-0">
+          <button
+            onClick={() => setCollapsed(!collapsed)}
+            className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shadow-lg shadow-primary/20 shrink-0"
+          >
+            <span className="font-headline font-bold text-white text-sm">N</span>
+          </button>
+          {!collapsed && (
+            <div className="overflow-hidden">
+              <div className="font-headline font-bold text-sm text-on-surface tracking-tight">Nova v2</div>
+              <div className="text-[9px] font-mono text-secondary tracking-widest">PRICING ENGINE</div>
+            </div>
+          )}
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 py-3 overflow-y-auto">
+          {NAV_ITEMS.map((item, i) => {
+            if ("section" in item && item.section) {
+              if (collapsed) return null;
+              return (
+                <div key={i} className="px-5 pt-5 pb-2 text-[9px] font-mono text-secondary/60 uppercase tracking-[0.2em]">
+                  {item.section}
+                </div>
+              );
+            }
+            const active = isActive(item.href!);
+            return (
+              <button
+                key={i}
+                onClick={() => {
+                  router.push(item.href!);
+                  if (window.innerWidth < 768) setCollapsed(true);
+                }}
+                className={`w-full flex items-center gap-3 py-[11px] transition-all duration-150 text-[13px] font-medium ${
+                  collapsed ? "px-3 justify-center" : "px-5"
+                } ${
+                  active
+                    ? "border-l-[3px] border-l-primary bg-primary/[0.06] text-on-surface"
+                    : "border-l-[3px] border-l-transparent text-on-surface/50 hover:bg-white/[0.04] hover:text-on-surface/80"
+                }`}
+              >
+                <MaterialIcon
+                  icon={item.icon!}
+                  className={`text-[20px] ${active ? "text-primary" : ""}`}
+                />
+                {!collapsed && <span>{item.label}</span>}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Settings button */}
+        <button
+          onClick={onSettingsClick}
+          className={`flex items-center gap-3 py-3 border-t border-white/[0.06] transition-colors text-on-surface/50 hover:text-on-surface/80 hover:bg-white/[0.04] ${
+            collapsed ? "px-3 justify-center" : "px-5"
+          }`}
+        >
+          <MaterialIcon icon="settings" className="text-[20px]" />
+          {!collapsed && <span className="text-[13px] font-medium">Settings</span>}
+        </button>
+
+        {/* Footer */}
+        <div className={`px-5 py-4 border-t border-white/[0.06] flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
+          {!collapsed && (
+            <div className="text-[9px] font-mono text-on-surface/20 leading-relaxed">
+              Fuelled Energy<br />Marketing Inc.
+            </div>
+          )}
+          <button
+            onClick={handleLogout}
+            className="text-on-surface/30 hover:text-primary transition-colors"
+            title="Sign out"
+          >
+            <MaterialIcon icon="logout" className="text-[18px]" />
+          </button>
+        </div>
+      </aside>
+    </>
+  );
+}

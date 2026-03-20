@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "inverse-surface": "#d5e4f4",
+              "secondary": "#63d8d8",
+              "on-background": "#d5e4f4",
+              "surface-variant": "#283642",
+              "on-surface": "#d5e4f4",
+              "secondary-fixed": "#82f5f4",
+              "error-container": "#93000a",
+              "surface-dim": "#061520",
+              "on-error": "#690005",
+              "surface": "#061520",
+              "surface-tint": "#ffb59d",
+              "background": "#061520",
+              "on-surface-variant": "#e2bfb4",
+              "on-tertiary-fixed-variant": "#842600",
+              "on-primary-fixed": "#390b00",
+              "on-tertiary": "#5d1800",
+              "error": "#ffb4ab",
+              "on-tertiary-container": "#521400",
+              "tertiary-container": "#f5612c",
+              "tertiary": "#ffb59d",
+              "tertiary-fixed": "#ffdbd0",
+              "inverse-on-surface": "#24323e",
+              "secondary-container": "#14a1a1",
+              "on-secondary": "#003737",
+              "on-primary-container": "#521400",
+              "surface-container-highest": "#283642",
+              "tertiary-fixed-dim": "#ffb59d",
+              "outline-variant": "#5a4139",
+              "primary": "#ffb59d",
+              "on-error-container": "#ffdad6",
+              "primary-fixed": "#ffdbd0",
+              "secondary-fixed-dim": "#63d8d8",
+              "surface-container-lowest": "#020f1a",
+              "surface-container": "#12212c",
+              "primary-container": "#f5612c",
+              "inverse-primary": "#ac3400",
+              "surface-bright": "#2c3b47",
+              "on-secondary-container": "#002f2f",
+              "outline": "#a98a80",
+              "on-primary-fixed-variant": "#842600",
+              "on-secondary-fixed": "#002020",
+              "on-secondary-fixed-variant": "#004f50",
+              "surface-container-low": "#0e1d28",
+              "primary-fixed-dim": "#ffb59d",
+              "on-primary": "#5d1800",
+              "surface-container-high": "#1d2b37",
+              "on-tertiary-fixed": "#390b00"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"],
+              "mono": ["JetBrains Mono"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      .glass-card {
+        background: rgba(18, 33, 44, 0.6);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .bg-radial-obs {
+        background: radial-gradient(circle at center, #0e1d28 0%, #061520 100%);
+      }
+      .ghost-border {
+        border: 1px solid rgba(255, 255, 255, 0.08);
+      }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[220px] border-r border-[#FFFFFF14] bg-[#05141F]/60 backdrop-blur-xl flex flex-col py-6 z-50">
+<div class="px-6 mb-10">
+<h1 class="text-xl font-bold text-secondary font-headline tracking-tight">Fuelled Nova</h1>
+<p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-mono mt-1">Global Intelligence</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="dashboard">dashboard</span>
+<span class="font-headline text-sm tracking-tight">Dashboard</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="payments">payments</span>
+<span class="font-headline text-sm tracking-tight">Pricing Agent</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="insights">insights</span>
+<span class="font-headline text-sm tracking-tight">Competitive Intelligence</span>
+</a>
+<a class="border-l-4 border-[#EF5D28] bg-[#FFFFFF0A] text-[#EF5D28] font-bold px-4 py-3 flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="factory">factory</span>
+<span class="font-headline text-sm tracking-tight">Manufacturer Intelligence</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="analytics">analytics</span>
+<span class="font-headline text-sm tracking-tight">Market Data</span>
+</a>
+</nav>
+<div class="px-4 mt-auto">
+<div class="flex items-center gap-3 p-3 rounded-xl bg-[#FFFFFF05] border border-[#FFFFFF08]">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-xs">
+                    N
+                </div>
+<div class="overflow-hidden">
+<p class="text-xs font-headline font-bold truncate">Premium Node</p>
+<p class="text-[10px] text-slate-500 font-mono">ID: 0824-X</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- TopAppBar -->
+<header class="fixed top-0 right-0 left-[220px] h-16 bg-[#05141F]/40 backdrop-blur-md border-b border-[#FFFFFF14] flex items-center justify-between px-8 z-40">
+<div class="flex items-center gap-4 flex-1">
+<div class="relative w-full max-w-md focus-within:ring-1 focus-within:ring-[#EF5D28] rounded-lg transition-all">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="w-full bg-surface-container-lowest/50 border-none rounded-lg py-1.5 pl-10 pr-4 text-sm focus:ring-0 placeholder:text-slate-600 font-body" placeholder="Query global manufacturer database..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+</div>
+<div class="h-8 w-px bg-[#FFFFFF14]"></div>
+<button class="flex items-center gap-2 group">
+<img alt="User Profile" class="w-8 h-8 rounded-lg object-cover grayscale group-hover:grayscale-0 transition-all border border-[#FFFFFF14]" data-alt="High contrast professional user profile portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuX7QoBVXKjD1zlvsaZcBVcwDTsE2uW3Kv-1HHTmTqlAAln1P2N_pVqq47lMG6gBoIyxcAULTIhZKPPxNG30fAace6WgQsSwUwS9yBwtG6HiXH9Lp2IsA_lThyDb2nAuO1TterBZdyPQipGc4LP68k2nEp9YTALy-Q9EdB3u76Sokx6Gt3shUPFoLmq2HOmKkTbBcNEOfoapnDFwSuIdg72KXkknolasrA0NC3B8NASwbw6JuBUZCLcPaaQSnF4EomDp5ahjKuGZ-J"/>
+<span class="material-symbols-outlined text-slate-400" data-icon="expand_more">expand_more</span>
+</button>
+</div>
+</header>
+<!-- Main Canvas -->
+<main class="ml-[220px] pt-16 min-h-screen bg-radial-obs relative overflow-hidden flex items-center justify-center p-8">
+<!-- Subtle Ambient Background Decorations -->
+<div class="absolute top-1/4 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-1/4 -left-20 w-80 h-80 bg-secondary/5 rounded-full blur-[100px]"></div>
+<!-- Coming Soon Card -->
+<div class="glass-card max-w-2xl w-full p-12 relative overflow-hidden rounded-xl">
+<!-- Decorative corner accent -->
+<div class="absolute top-0 right-0 p-4">
+<div class="font-mono text-[10px] text-secondary/40 tracking-[0.3em] uppercase">Status: In Dev</div>
+</div>
+<div class="flex flex-col items-center text-center">
+<div class="w-20 h-20 mb-8 rounded-2xl bg-surface-container-high border border-[#FFFFFF14] flex items-center justify-center relative">
+<span class="material-symbols-outlined text-4xl text-[#EF5D28]" data-icon="factory">factory</span>
+<div class="absolute -bottom-1 -right-1 w-6 h-6 bg-secondary rounded-full flex items-center justify-center border-4 border-surface">
+<span class="material-symbols-outlined text-[12px] text-on-secondary font-bold" data-icon="lock">lock</span>
+</div>
+</div>
+<h2 class="text-3xl font-headline font-bold text-on-surface tracking-tight mb-4 leading-tight">
+                    Manufacturer Intelligence Workspace
+                </h2>
+<p class="text-slate-400 font-body text-lg leading-relaxed mb-10 max-w-md">
+                    We are engineering a high-precision node for deep-tier supplier tracking and industrial output forecasting. 
+                </p>
+<div class="w-full max-w-sm space-y-4">
+<button class="w-full bg-[#EF5D28] text-white font-headline font-bold py-4 rounded-xl shadow-[0_10px_30px_rgba(239,93,40,0.2)] hover:scale-[0.98] transition-transform flex items-center justify-center gap-3">
+                        Notify me when ready
+                        <span class="material-symbols-outlined text-lg" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<div class="flex items-center justify-center gap-6 pt-4">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-[11px] font-mono text-slate-500 uppercase tracking-widest">Supply Chain Mapping</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary"></span>
+<span class="text-[11px] font-mono text-slate-500 uppercase tracking-widest">Risk Indexing</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Build Info -->
+<div class="mt-16 pt-8 border-t border-[#FFFFFF08] flex items-center justify-between">
+<div class="font-mono text-[10px] text-slate-600 tracking-tighter">
+                    BUILD 0.94-ALPHA // REF: 4092-NOVA-INTEL
+                </div>
+<div class="flex gap-2">
+<div class="w-1 h-3 bg-[#FFFFFF14]"></div>
+<div class="w-1 h-3 bg-[#FFFFFF14]"></div>
+<div class="w-1 h-3 bg-secondary"></div>
+</div>
+</div>
+</div>
+<!-- Background Data Noise (Visual Only) -->
+<div class="absolute top-10 left-10 opacity-10 font-mono text-[8px] space-y-1 pointer-events-none select-none">
+<p>TRACE_START: 0x8F22A</p>
+<p>LATENCY: 14ms</p>
+<p>ENCRYPTION: AES-256</p>
+<p>SIGNAL: STABLE</p>
+</div>
+</main>
+<!-- NavigationDrawer (Settings) - Hidden by Default but Styled -->
+<div class="fixed right-0 top-0 h-full w-80 z-50 bg-[#05141F]/80 backdrop-blur-2xl border-l border-[#FFFFFF14] shadow-[-20px_0_40px_rgba(0,0,0,0.4)] translate-x-full transition-transform duration-300">
+<div class="flex flex-col p-6 h-full">
+<div class="mb-8">
+<h3 class="text-[#EF5D28] font-bold font-headline text-lg">Settings</h3>
+<p class="text-slate-500 text-xs font-mono uppercase tracking-widest">System Configuration</p>
+</div>
+<div class="flex-1 space-y-6">
+<!-- Mock settings categories -->
+<div class="space-y-3">
+<label class="text-[10px] font-mono text-slate-500 uppercase tracking-widest px-1">Interface</label>
+<div class="bg-surface-container-high/40 p-3 rounded-lg border border-[#FFFFFF08] flex items-center justify-between">
+<span class="text-sm">High Contrast Data</span>
+<div class="w-8 h-4 bg-secondary rounded-full relative">
+<div class="absolute right-0.5 top-0.5 w-3 h-3 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-auto space-y-2 border-t border-[#FFFFFF14] pt-6">
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-[#FFFFFF0A] transition-colors rounded-lg">
+<span class="material-symbols-outlined" data-icon="support_agent">support_agent</span>
+<span class="text-sm font-headline">Support</span>
+</button>
+<button class="w-full flex items-center gap-3 px-4 py-3 text-slate-300 hover:bg-[#FFFFFF0A] transition-colors rounded-lg">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+<span class="text-sm font-headline">Logout</span>
+</button>
+</div>
+</div>
+</div>
+</body></html>

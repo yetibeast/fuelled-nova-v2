@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fuelled Nova | System Configuration</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-surface": "#d5e4f4",
+                        "secondary": "#63d8d8",
+                        "on-background": "#d5e4f4",
+                        "surface-variant": "#283642",
+                        "on-surface": "#d5e4f4",
+                        "secondary-fixed": "#82f5f4",
+                        "error-container": "#93000a",
+                        "surface-dim": "#061520",
+                        "on-error": "#690005",
+                        "surface": "#061520",
+                        "surface-tint": "#ffb59d",
+                        "background": "#061520",
+                        "on-surface-variant": "#e2bfb4",
+                        "on-tertiary-fixed-variant": "#842600",
+                        "on-primary-fixed": "#390b00",
+                        "on-tertiary": "#5d1800",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#521400",
+                        "tertiary-container": "#f5612c",
+                        "tertiary": "#ffb59d",
+                        "tertiary-fixed": "#ffdbd0",
+                        "inverse-on-surface": "#24323e",
+                        "secondary-container": "#14a1a1",
+                        "on-secondary": "#003737",
+                        "on-primary-container": "#521400",
+                        "surface-container-highest": "#283642",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "outline-variant": "#5a4139",
+                        "primary": "#ffb59d",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed": "#ffdbd0",
+                        "secondary-fixed-dim": "#63d8d8",
+                        "surface-container-lowest": "#020f1a",
+                        "surface-container": "#12212c",
+                        "primary-container": "#f5612c",
+                        "inverse-primary": "#ac3400",
+                        "surface-bright": "#2c3b47",
+                        "on-secondary-container": "#002f2f",
+                        "outline": "#a98a80",
+                        "on-primary-fixed-variant": "#842600",
+                        "on-secondary-fixed": "#002020",
+                        "on-secondary-fixed-variant": "#004f50",
+                        "surface-container-low": "#0e1d28",
+                        "primary-fixed-dim": "#ffb59d",
+                        "on-primary": "#5d1800",
+                        "surface-container-high": "#1d2b37",
+                        "on-tertiary-fixed": "#390b00"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .ghost-border {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .glass-panel {
+            background: rgba(5, 20, 31, 0.8);
+            backdrop-filter: blur(20px);
+        }
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #283642;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body selection:bg-primary/30">
+<!-- SIDE NAV BAR -->
+<aside class="fixed left-0 top-0 h-full w-[220px] bg-[#05141F]/60 backdrop-blur-xl border-r border-[#FFFFFF14] shadow-2xl flex flex-col py-6 z-40">
+<div class="px-6 mb-10">
+<div class="flex items-center gap-3 mb-1">
+<div class="w-8 h-8 rounded bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary-container text-sm" data-icon="rocket_launch">rocket_launch</span>
+</div>
+<h1 class="text-xl font-bold text-secondary font-headline tracking-tight">Fuelled Nova</h1>
+</div>
+<p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">Global Intelligence</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-headline text-sm">Dashboard</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-headline text-sm">Pricing Agent</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined" data-icon="insights">insights</span>
+<span class="font-headline text-sm">Competitive Intelligence</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined" data-icon="factory">factory</span>
+<span class="font-headline text-sm">Manufacturer Intelligence</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-headline text-sm">Market Data</span>
+</a>
+</nav>
+<div class="mt-auto px-4">
+<div class="p-4 rounded-lg bg-surface-container-highest/20 border border-outline-variant/10">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-8 h-8 rounded-full overflow-hidden border border-primary/20">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Professional user avatar for intelligence analyst" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBcyHIYBudhD2NqzWDSvMWrPItK1_VIKYZTX1RAubMWvMePqBlkMleIFuU1xW54TsvJE7kjFbO13Lyr6ybIgM0xXFfgmRZMgLygg3tSfINcdgUo_-95Cy04qpw4uflbPWm7Trt6rLn4CLt3qImuPGoyfbwtwDAH_og_wjrQxUBjYbNLau0lOeIWQbe5_Jnw0XNQwhJmPs_5eweECmk0r4FZiTRGJj9w4k7Gr2O30VXBGXe9JUfUhtXvV7hw5fl4TW_SJdDqlVM6m4tb"/>
+</div>
+<div>
+<p class="text-xs font-bold font-headline">Nova Admin</p>
+<p class="text-[10px] text-slate-500">Tier: Enterprise</p>
+</div>
+</div>
+</div>
+</div>
+</aside>
+<!-- TOP APP BAR -->
+<header class="fixed top-0 right-0 left-[220px] h-16 bg-[#05141F]/40 backdrop-blur-md border-b border-[#FFFFFF14] flex items-center justify-between px-8 z-30">
+<div class="flex items-center gap-4 flex-1 max-w-xl">
+<div class="relative w-full group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-lg group-focus-within:text-primary transition-colors" data-icon="search">search</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-md py-2 pl-10 pr-4 text-sm font-body focus:ring-1 focus:ring-tertiary-container placeholder:text-slate-600" placeholder="Query global intelligence..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400 hover:text-white">
+<span class="material-symbols-outlined" data-icon="help">help</span>
+</button>
+<div class="h-6 w-[1px] bg-[#FFFFFF14] mx-2"></div>
+<button class="text-tertiary-container font-headline font-bold text-sm flex items-center gap-2 px-3 py-1 rounded hover:bg-tertiary-container/10 transition-colors">
+<span class="material-symbols-outlined text-lg" data-icon="settings">settings</span>
+                System Settings
+            </button>
+</div>
+</header>
+<!-- MAIN CONTENT CANVAS -->
+<main class="ml-[220px] pt-16 min-h-screen bg-surface p-8 overflow-hidden">
+<div class="max-w-7xl mx-auto opacity-40 pointer-events-none select-none">
+<!-- BACKGROUND CONTENT (DUMMY) -->
+<div class="grid grid-cols-12 gap-6">
+<div class="col-span-8 space-y-6">
+<div class="h-64 rounded-xl bg-surface-container border border-outline-variant/10 p-6 flex flex-col justify-end">
+<div class="h-4 w-32 bg-slate-800 rounded mb-2"></div>
+<div class="h-8 w-64 bg-slate-700 rounded"></div>
+</div>
+<div class="grid grid-cols-3 gap-6">
+<div class="h-32 bg-surface-container-high rounded-xl border border-outline-variant/5"></div>
+<div class="h-32 bg-surface-container-high rounded-xl border border-outline-variant/5"></div>
+<div class="h-32 bg-surface-container-high rounded-xl border border-outline-variant/5"></div>
+</div>
+</div>
+<div class="col-span-4 h-[500px] bg-surface-container-low rounded-xl border border-outline-variant/10"></div>
+</div>
+</div>
+</main>
+<!-- SETTINGS NAVIGATION DRAWER (Target Component) -->
+<div class="fixed right-0 top-0 h-full w-[400px] z-50 bg-[#05141F]/90 backdrop-blur-2xl border-l border-[#FFFFFF14] shadow-[-20px_0_40px_rgba(0,0,0,0.4)] flex flex-col transform transition-transform duration-300">
+<!-- Header -->
+<div class="p-6 border-b border-[#FFFFFF14]">
+<div class="flex items-center justify-between mb-2">
+<h2 class="text-2xl font-bold font-headline text-secondary tracking-tight">Settings</h2>
+<button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/10 text-slate-400 transition-colors">
+<span class="material-symbols-outlined" data-icon="close">close</span>
+</button>
+</div>
+<p class="text-xs text-slate-500 font-headline uppercase tracking-widest">System Configuration</p>
+</div>
+<!-- Scrollable Content -->
+<div class="flex-1 overflow-y-auto p-6 space-y-10">
+<!-- SECTION: API Usage -->
+<section>
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-secondary text-lg" data-icon="database">database</span>
+<h3 class="font-headline font-bold text-on-surface">API Usage</h3>
+</div>
+<div class="p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/10 space-y-4">
+<div>
+<div class="flex justify-between items-end mb-2">
+<span class="text-[10px] text-slate-500 font-mono">DATA_THROUGHPUT</span>
+<span class="text-xs font-mono text-secondary">78.4%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-[78.4%] shadow-[0_0_10px_rgba(99,216,216,0.5)]"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<div class="space-y-1">
+<p class="text-[10px] text-slate-500 font-mono uppercase">Request Volume</p>
+<p class="text-lg font-mono text-on-surface">1.2M <span class="text-[10px] text-slate-400">/ 1.5M</span></p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] text-slate-500 font-mono uppercase">Avg Latency</p>
+<p class="text-lg font-mono text-on-surface">142ms</p>
+</div>
+</div>
+<div class="pt-2 border-t border-[#FFFFFF0A]">
+<p class="text-[10px] text-slate-500 font-mono uppercase mb-2">Current Billing Rate</p>
+<p class="text-xl font-mono text-primary font-bold">$4,281.00 <span class="text-xs text-slate-400 font-normal">USD / mo</span></p>
+</div>
+<button class="w-full py-2 text-xs font-headline font-bold text-secondary border border-secondary/20 rounded hover:bg-secondary/5 transition-all">
+                        GENERATE_USAGE_REPORT
+                    </button>
+</div>
+</section>
+<!-- SECTION: Feedback Review -->
+<section>
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-lg" data-icon="reviews">reviews</span>
+<h3 class="font-headline font-bold text-on-surface">Feedback Review</h3>
+</div>
+<span class="px-2 py-0.5 rounded-full bg-tertiary/10 text-[10px] text-tertiary font-mono">4 NEW</span>
+</div>
+<div class="space-y-3">
+<div class="p-3 rounded-lg bg-surface-container/40 border border-outline-variant/5 hover:border-outline-variant/20 transition-all group cursor-pointer">
+<div class="flex justify-between items-start mb-1">
+<p class="text-xs font-bold text-on-surface">Inaccurate Pricing Data</p>
+<span class="text-[10px] text-slate-500 font-mono">2m ago</span>
+</div>
+<p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-2">The Manufacturer Intelligence module is showing stale values for APAC regions...</p>
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-error-container/20 text-[9px] text-error border border-error/10">CRITICAL</span>
+<span class="text-[10px] text-secondary font-headline group-hover:underline">Resolve Thread</span>
+</div>
+</div>
+<div class="p-3 rounded-lg bg-surface-container/40 border border-outline-variant/5 hover:border-outline-variant/20 transition-all group cursor-pointer opacity-70">
+<div class="flex justify-between items-start mb-1">
+<p class="text-xs font-bold text-on-surface">UI Latency in Analytics</p>
+<span class="text-[10px] text-slate-500 font-mono">1h ago</span>
+</div>
+<p class="text-[11px] text-slate-400 line-clamp-2 leading-relaxed mb-2">Page transition feels sluggish when loading massive market data sets...</p>
+<div class="flex items-center gap-2">
+<span class="px-1.5 py-0.5 rounded bg-primary-container/20 text-[9px] text-primary border border-primary/10">MODERATE</span>
+<span class="text-[10px] text-secondary font-headline group-hover:underline">Resolve Thread</span>
+</div>
+</div>
+</div>
+<a class="inline-block mt-4 text-[11px] font-bold text-secondary uppercase tracking-widest hover:text-white transition-colors" href="#">View All Submissions →</a>
+</section>
+<!-- SECTION: System Actions -->
+<section>
+<div class="flex items-center gap-2 mb-4">
+<span class="material-symbols-outlined text-slate-400 text-lg" data-icon="terminal">terminal</span>
+<h3 class="font-headline font-bold text-on-surface">System Actions</h3>
+</div>
+<div class="space-y-2">
+<button class="w-full flex items-center justify-between p-3 rounded bg-surface-container-highest/20 border border-outline-variant/10 hover:bg-surface-container-highest/40 transition-colors">
+<span class="text-xs font-headline font-medium text-slate-300">Force Cache Flush</span>
+<span class="material-symbols-outlined text-slate-500 text-sm" data-icon="refresh">refresh</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded bg-surface-container-highest/20 border border-outline-variant/10 hover:bg-surface-container-highest/40 transition-colors">
+<span class="text-xs font-headline font-medium text-slate-300">Rotate API Keys</span>
+<span class="material-symbols-outlined text-slate-500 text-sm" data-icon="key">key</span>
+</button>
+<button class="w-full flex items-center justify-between p-3 rounded bg-error-container/5 border border-error/20 hover:bg-error-container/10 transition-colors group">
+<span class="text-xs font-headline font-medium text-error/80 group-hover:text-error">Initialize Emergency Lockdown</span>
+<span class="material-symbols-outlined text-error/60 text-sm" data-icon="lock">lock</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Footer -->
+<div class="p-6 bg-surface-container-lowest/50 border-t border-[#FFFFFF14]">
+<div class="flex gap-4">
+<button class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-surface-container-high text-slate-300 hover:text-white transition-all text-xs font-headline font-bold border border-outline-variant/10">
+<span class="material-symbols-outlined text-sm" data-icon="support_agent">support_agent</span>
+                    Support
+                </button>
+<button class="flex-1 flex items-center justify-center gap-2 py-3 rounded-lg bg-[#FFFFFF05] text-slate-400 hover:text-white transition-all text-xs font-headline font-bold border border-outline-variant/10">
+<span class="material-symbols-outlined text-sm" data-icon="logout">logout</span>
+                    Logout
+                </button>
+</div>
+<p class="mt-4 text-center text-[9px] text-slate-600 font-mono">FUELLED_NOVA_OS v4.2.1-STABLE</p>
+</div>
+</div>
+<!-- Background Atmospheric Effect -->
+<div class="fixed inset-0 pointer-events-none z-[-1] overflow-hidden">
+<div class="absolute -top-[20%] -right-[10%] w-[60%] h-[60%] rounded-full bg-primary/5 blur-[120px]"></div>
+<div class="absolute -bottom-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-secondary/5 blur-[100px]"></div>
+</div>
+</body></html>

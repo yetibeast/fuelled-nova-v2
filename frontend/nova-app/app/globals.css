@@ -1,0 +1,196 @@
+/* ── Google Fonts ── */
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+
+@import "tailwindcss";
+
+/* ── Design Tokens (Tailwind v4) ── */
+@theme inline {
+  /* Primary palette */
+  --color-primary: #EF5D28;
+  --color-primary-container: #EF5D28;
+  --color-primary-fixed: #ffdcc2;
+  --color-primary-fixed-dim: #EF5D28;
+
+  /* Secondary palette */
+  --color-secondary: #0ABAB5;
+  --color-secondary-container: #0ABAB5;
+  --color-secondary-fixed: #0ABAB5;
+  --color-secondary-fixed-dim: #4adbd5;
+
+  /* Tertiary palette */
+  --color-tertiary: #A8D5CF;
+  --color-tertiary-container: #6f9b96;
+  --color-tertiary-fixed: #beebe5;
+  --color-tertiary-fixed-dim: #A8D5CF;
+
+  /* Error */
+  --color-error: #ffb4ab;
+  --color-error-container: #93000a;
+
+  /* Surface hierarchy */
+  --color-surface: #041522;
+  --color-surface-dim: #041522;
+  --color-surface-bright: #2b3b49;
+  --color-surface-tint: #EF5D28;
+  --color-surface-variant: #263645;
+  --color-surface-container: #10212f;
+  --color-surface-container-low: #0c1d2a;
+  --color-surface-container-lowest: #00101d;
+  --color-surface-container-high: #1b2c3a;
+  --color-surface-container-highest: #263645;
+
+  /* On-colors */
+  --color-on-surface: #d3e4f7;
+  --color-on-surface-variant: #dbc2b0;
+  --color-on-background: #d3e4f7;
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #ffffff;
+  --color-on-primary-fixed: #2e1500;
+  --color-on-primary-fixed-variant: #6d3a00;
+  --color-on-secondary: #003735;
+  --color-on-secondary-container: #00413f;
+  --color-on-secondary-fixed: #00201f;
+  --color-on-secondary-fixed-variant: #00504d;
+  --color-on-tertiary: #053733;
+  --color-on-tertiary-container: #00322e;
+  --color-on-tertiary-fixed: #00201d;
+  --color-on-tertiary-fixed-variant: #224e49;
+  --color-on-error: #690005;
+  --color-on-error-container: #ffdad6;
+
+  /* Misc */
+  --color-background: #041522;
+  --color-outline: #a38c7c;
+  --color-outline-variant: #554336;
+  --color-inverse-surface: #d3e4f7;
+  --color-inverse-on-surface: #223240;
+  --color-inverse-primary: #8f4d00;
+
+  /* Fonts */
+  --font-headline: "Space Grotesk", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, sans-serif;
+  --font-label: "Inter", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* Border radius */
+  --radius: 0.125rem;
+  --radius-lg: 0.25rem;
+  --radius-xl: 0.5rem;
+  --radius-full: 0.75rem;
+}
+
+/* ── Base Styles ── */
+body {
+  background: radial-gradient(circle at center, #001628 0%, #000F1C 100%);
+  min-height: 100vh;
+  margin: 0;
+}
+
+/* ── Glass Utilities ── */
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.glass-card-highlighted {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+.recessed-input {
+  background: #00101d;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.frosted-panel {
+  background: rgba(4, 21, 34, 0.92);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Material Symbols ── */
+.material-symbols-outlined {
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+}
+
+/* ── Status Dots ── */
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-green {
+  background: #4CAF50;
+  box-shadow: 0 0 4px #4CAF50;
+}
+
+.status-yellow {
+  background: #FF9800;
+  box-shadow: 0 0 4px #FF9800;
+}
+
+.status-red {
+  background: #F44336;
+  box-shadow: 0 0 4px #F44336;
+}
+
+/* ── Stat Bars ── */
+.stat-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  overflow: hidden;
+}
+
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+/* ── Glow ── */
+.glow-primary {
+  box-shadow: 0 0 20px rgba(239, 93, 40, 0.3);
+}
+
+/* ── Custom Scrollbar ── */
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(10, 186, 181, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(10, 186, 181, 0.4);
+}
+
+/* ── Pill Pulse Animation ── */
+@keyframes pill-pulse {
+  0%, 100% {
+    border-color: rgba(10, 186, 181, 0.2);
+    box-shadow: 0 0 0 0 rgba(10, 186, 181, 0);
+  }
+  50% {
+    border-color: rgba(10, 186, 181, 0.6);
+    box-shadow: 0 0 8px 0 rgba(10, 186, 181, 0.15);
+  }
+}
+
+.pill-uploading {
+  animation: pill-pulse 1.5s ease-in-out infinite;
+}

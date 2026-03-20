@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Fuelled Nova | Pricing Agent</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "inverse-surface": "#d5e4f4",
+                        "secondary": "#63d8d8",
+                        "on-background": "#d5e4f4",
+                        "surface-variant": "#283642",
+                        "on-surface": "#d5e4f4",
+                        "secondary-fixed": "#82f5f4",
+                        "error-container": "#93000a",
+                        "surface-dim": "#061520",
+                        "on-error": "#690005",
+                        "surface": "#061520",
+                        "surface-tint": "#ffb59d",
+                        "background": "#061520",
+                        "on-surface-variant": "#e2bfb4",
+                        "on-tertiary-fixed-variant": "#842600",
+                        "on-primary-fixed": "#390b00",
+                        "on-tertiary": "#5d1800",
+                        "error": "#ffb4ab",
+                        "on-tertiary-container": "#521400",
+                        "tertiary-container": "#f5612c",
+                        "tertiary": "#ffb59d",
+                        "tertiary-fixed": "#ffdbd0",
+                        "inverse-on-surface": "#24323e",
+                        "secondary-container": "#14a1a1",
+                        "on-secondary": "#003737",
+                        "on-primary-container": "#521400",
+                        "surface-container-highest": "#283642",
+                        "tertiary-fixed-dim": "#ffb59d",
+                        "outline-variant": "#5a4139",
+                        "primary": "#ffb59d",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed": "#ffdbd0",
+                        "secondary-fixed-dim": "#63d8d8",
+                        "surface-container-lowest": "#020f1a",
+                        "surface-container": "#12212c",
+                        "primary-container": "#f5612c",
+                        "inverse-primary": "#ac3400",
+                        "surface-bright": "#2c3b47",
+                        "on-secondary-container": "#002f2f",
+                        "outline": "#a98a80",
+                        "on-primary-fixed-variant": "#842600",
+                        "on-secondary-fixed": "#002020",
+                        "on-secondary-fixed-variant": "#004f50",
+                        "surface-container-low": "#0e1d28",
+                        "primary-fixed-dim": "#ffb59d",
+                        "on-primary": "#5d1800",
+                        "surface-container-high": "#1d2b37",
+                        "on-tertiary-fixed": "#390b00"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-panel {
+            background: rgba(18, 33, 44, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .ghost-border {
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #283642;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface selection:bg-primary-container selection:text-on-primary-container overflow-hidden">
+<!-- SideNavBar (Shared Component) -->
+<nav class="fixed left-0 top-0 h-full w-[220px] bg-[#05141F]/60 backdrop-blur-xl border-r border-[#FFFFFF14] shadow-2xl flex flex-col py-6 z-40">
+<div class="px-6 mb-10">
+<h1 class="font-headline text-xl font-bold text-secondary tracking-tight">Fuelled Nova</h1>
+<p class="text-[10px] uppercase tracking-[0.2em] text-slate-500 font-medium">Global Intelligence</p>
+</div>
+<div class="flex-1 space-y-1">
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="font-label text-sm">Dashboard</span>
+</a>
+<a class="border-l-4 border-[#EF5D28] bg-[#FFFFFF0A] text-[#EF5D28] font-bold px-4 py-3 flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined text-[20px]">payments</span>
+<span class="font-label text-sm">Pricing Agent</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-[20px]">insights</span>
+<span class="font-label text-sm">Competitive Intelligence</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-[20px]">factory</span>
+<span class="font-label text-sm">Manufacturer Intelligence</span>
+</a>
+<a class="text-slate-400 hover:text-white px-4 py-3 flex items-center gap-3 transition-colors hover:bg-[#FFFFFF05]" href="#">
+<span class="material-symbols-outlined text-[20px]">analytics</span>
+<span class="font-label text-sm">Market Data</span>
+</a>
+</div>
+<div class="mt-auto px-4">
+<div class="flex items-center gap-3 p-3 bg-surface-container-highest/20 rounded-xl border border-white/5">
+<div class="h-8 w-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-xs">
+                    ON
+                </div>
+<div class="overflow-hidden">
+<p class="text-xs font-bold truncate">Orange N Circle Logo</p>
+<p class="text-[10px] text-slate-500">Premium Tier</p>
+</div>
+</div>
+</div>
+</nav>
+<!-- TopAppBar (Shared Component) -->
+<header class="fixed top-0 right-0 left-[220px] h-16 bg-[#05141F]/40 backdrop-blur-md border-b border-[#FFFFFF14] flex items-center justify-between px-8 z-30">
+<div class="flex items-center flex-1 max-w-xl">
+<div class="relative w-full focus-within:ring-1 focus-within:ring-[#EF5D28] rounded-lg transition-all">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">search</span>
+<input class="w-full bg-surface-container-lowest/50 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-0 placeholder:text-slate-600 font-label" placeholder="Search industrial assets, serial numbers, or market trends..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="hover:bg-[#FFFFFF0A] rounded-full p-2 transition-all text-slate-400">
+<span class="material-symbols-outlined">help</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-surface-variant overflow-hidden border border-white/10">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Minimalist avatar placeholder for user profile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCJ7Z8fA1O03BWeqP8b1uAlDuLZFOO_vvCaYQG2bRnsgpOXr57HjOYM_rklEh3kWDh0zZMaE5ghsHwwoKArA05JrHKCV8aK-8msS1RXM5n-7BTThLfzZavwkws7z7BKq8Rlu07z8orbJAwOXlFC4xLjRUQQBs-Rx1erXfOKlUdtDMZeyZcGFYHgeDcNzReJmkjl-ksJ5EkfgRu9zxvx3wrY9jYZjYZnQTjavn3agDPWxFqi2JAQ_96UCv66sPNCBgE8QARyQy14h9Ru"/>
+</div>
+</div>
+</header>
+<!-- Main Content Grid -->
+<main class="pt-16 pl-[220px] h-screen flex overflow-hidden">
+<!-- Left Panel: Chat Conversation -->
+<section class="w-1/2 flex flex-col border-r border-white/5 bg-surface-container-lowest/30">
+<div class="flex-1 overflow-y-auto p-8 custom-scrollbar flex flex-col gap-6">
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="max-w-[80%] glass-panel rounded-2xl rounded-tr-none px-5 py-3">
+<p class="text-sm leading-relaxed text-on-surface">Nova, provide a valuation for a 2018 Caterpillar 980M Wheel Loader located in Alberta, Canada with approx 8,500 hours.</p>
+<span class="text-[10px] text-slate-500 mt-2 block font-mono">14:02 EST</span>
+</div>
+</div>
+<!-- Nova Response -->
+<div class="flex justify-start">
+<div class="flex gap-4 max-w-[90%]">
+<div class="h-8 w-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-primary text-lg">bolt</span>
+</div>
+<div class="space-y-4">
+<div class="glass-panel rounded-2xl rounded-tl-none px-5 py-4 border-l-2 border-secondary">
+<p class="text-sm leading-relaxed text-on-surface">Analyzing real-time auction data and dealer listings for the Western Canada region. I've identified several comparables and adjusted for regional volatility and engine hour tier.</p>
+<p class="text-sm leading-relaxed text-on-surface mt-2">The calculated Fair Market Value (FMV) is presented in the intelligence stack on your right.</p>
+</div>
+<!-- Embedded miniature table in chat -->
+<div class="glass-panel rounded-xl p-4 overflow-hidden">
+<p class="text-[11px] font-mono text-secondary mb-3 uppercase tracking-wider">Quick Signal: Alberta Market</p>
+<div class="grid grid-cols-2 gap-4">
+<div class="bg-surface-container-high/40 p-3 rounded-lg border border-white/5">
+<p class="text-[10px] text-slate-400 font-label">Supply Index</p>
+<p class="text-lg font-mono font-bold text-on-surface">0.82 <span class="text-[10px] text-error">▼ 4%</span></p>
+</div>
+<div class="bg-surface-container-high/40 p-3 rounded-lg border border-white/5">
+<p class="text-[10px] text-slate-400 font-label">Demand Velocity</p>
+<p class="text-lg font-mono font-bold text-on-surface">HIGH</p>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex justify-end">
+<div class="max-w-[80%] glass-panel rounded-2xl rounded-tr-none px-5 py-3">
+<p class="text-sm leading-relaxed text-on-surface">What is the projected value in 6 months if the hours reach 10,000?</p>
+<span class="text-[10px] text-slate-500 mt-2 block font-mono">14:05 EST</span>
+</div>
+</div>
+</div>
+<!-- Chat Input Area -->
+<div class="p-6 border-t border-white/5">
+<div class="glass-panel rounded-2xl p-2 flex items-center gap-2">
+<button class="p-2 text-secondary hover:bg-secondary/10 rounded-xl transition-all">
+<span class="material-symbols-outlined">attachment</span>
+</button>
+<button class="p-2 text-secondary hover:bg-secondary/10 rounded-xl transition-all">
+<span class="material-symbols-outlined">analytics</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-sm placeholder:text-slate-600 py-3 px-2" placeholder="Inquire about risk, residuals, or logistics..." type="text"/>
+<button class="bg-[#EF5D28] text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-[#EF5D28]/20 hover:brightness-110 transition-all flex items-center gap-2">
+<span>SEND</span>
+<span class="material-symbols-outlined text-sm">send</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Right Panel: Intelligence Panel Stacks -->
+<section class="flex-1 flex flex-col p-8 overflow-y-auto custom-scrollbar gap-6">
+<!-- 1. Valuation Card -->
+<div class="glass-panel rounded-xl overflow-hidden border-l-[6px] border-[#EF5D28] relative">
+<div class="p-6">
+<div class="flex justify-between items-start mb-4">
+<div>
+<p class="text-xs font-mono text-slate-400 uppercase tracking-[0.1em]">Target Fair Market Value</p>
+<h2 class="text-4xl font-mono font-bold mt-1 text-on-surface">
+<span class="text-[#EF5D28]">$</span>125,000 <span class="text-slate-500 font-light">–</span> 145,000
+                                <span class="text-sm font-label text-slate-500 ml-2">CAD</span>
+</h2>
+</div>
+<div class="bg-surface-container-highest px-3 py-1 rounded-full border border-white/10">
+<p class="text-[10px] font-mono font-bold text-secondary">CONFIDENCE: 94%</p>
+</div>
+</div>
+<div class="h-2 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-gradient-to-r from-secondary to-primary-container w-[75%]"></div>
+</div>
+<div class="flex justify-between mt-2">
+<p class="text-[10px] font-mono text-slate-500">LIQUIDATION: $102K</p>
+<p class="text-[10px] font-mono text-slate-500">RETAIL ASKING: $158K</p>
+</div>
+</div>
+</div>
+<!-- 2. Comparables Table -->
+<div class="glass-panel rounded-xl overflow-hidden">
+<div class="px-6 py-4 border-b border-white/5 flex justify-between items-center bg-white/[0.02]">
+<h3 class="text-xs font-headline font-bold uppercase tracking-widest flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+                        12 Matches Found
+                    </h3>
+<button class="text-[10px] font-mono text-secondary hover:underline">VIEW ALL DATA</button>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left">
+<thead>
+<tr class="bg-surface-container-low/50">
+<th class="px-6 py-3 text-[10px] font-mono text-slate-400 uppercase">Asset</th>
+<th class="px-6 py-3 text-[10px] font-mono text-slate-400 uppercase">Region</th>
+<th class="px-6 py-3 text-[10px] font-mono text-slate-400 uppercase text-right">Hours</th>
+<th class="px-6 py-3 text-[10px] font-mono text-slate-400 uppercase text-right">Price (CAD)</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-white/5">
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-4 text-xs font-medium">Cat 980M (2018)</td>
+<td class="px-6 py-4 text-xs text-slate-400">Edmonton, AB</td>
+<td class="px-6 py-4 text-xs font-mono text-right">8,210</td>
+<td class="px-6 py-4 text-xs font-mono font-bold text-on-surface text-right">$138,500</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-4 text-xs font-medium">Cat 980M (2017)</td>
+<td class="px-6 py-4 text-xs text-slate-400">Calgary, AB</td>
+<td class="px-6 py-4 text-xs font-mono text-right">9,400</td>
+<td class="px-6 py-4 text-xs font-mono font-bold text-on-surface text-right">$124,000</td>
+</tr>
+<tr class="hover:bg-white/[0.02] transition-colors">
+<td class="px-6 py-4 text-xs font-medium">Cat 980M (2018)</td>
+<td class="px-6 py-4 text-xs text-slate-400">Fort McMurray, AB</td>
+<td class="px-6 py-4 text-xs font-mono text-right">7,850</td>
+<td class="px-6 py-4 text-xs font-mono font-bold text-on-surface text-right">$142,200</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<!-- 3. Risk Factors -->
+<div class="glass-panel rounded-xl p-5 border border-primary-container/20 bg-primary-container/5">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-primary-container">warning</span>
+<h3 class="text-sm font-headline font-bold text-[#EF5D28]">Technical Risk Advisory</h3>
+</div>
+<div class="space-y-3">
+<div class="flex gap-3">
+<span class="h-1.5 w-1.5 rounded-full bg-primary-container mt-1.5 shrink-0"></span>
+<p class="text-xs text-on-surface leading-relaxed">Engine hour tier approaching major transmission overhaul interval (10k hrs).</p>
+</div>
+<div class="flex gap-3">
+<span class="h-1.5 w-1.5 rounded-full bg-primary-container mt-1.5 shrink-0"></span>
+<p class="text-xs text-on-surface leading-relaxed">Regional emission standards update in AB scheduled for Q3 may impact non-tier-4 resale values.</p>
+</div>
+</div>
+</div>
+<!-- 4. Collapsible Methodology -->
+<details class="glass-panel rounded-xl group overflow-hidden">
+<summary class="px-6 py-4 cursor-pointer flex justify-between items-center bg-white/[0.02] group-open:border-b group-open:border-white/5">
+<h3 class="text-xs font-headline font-medium text-slate-400">How Nova priced this</h3>
+<span class="material-symbols-outlined text-slate-500 transition-transform group-open:rotate-180">expand_more</span>
+</summary>
+<div class="p-6 space-y-4">
+<p class="text-[11px] text-slate-400 leading-relaxed font-label">
+                        Our algorithm uses a Bayesian regression model weighted by geographical proximity (Alberta/Saskatchewan context) and localized supply chain constraints. Heavy equipment depreciation is calculated using a non-linear decay function adjusted by historical maintenance log consistency (where available via telematics).
+                    </p>
+<div class="flex gap-4">
+<div class="flex-1 h-[2px] bg-secondary/20"></div>
+<div class="flex-1 h-[2px] bg-secondary/20"></div>
+<div class="flex-1 h-[2px] bg-secondary/50"></div>
+</div>
+</div>
+</details>
+<!-- 5. Actions & Feedback -->
+<div class="flex items-center justify-between gap-4 mt-auto pt-6">
+<div class="flex gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl glass-panel text-slate-400 hover:text-secondary hover:border-secondary transition-all">
+<span class="material-symbols-outlined text-lg">thumb_up</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl glass-panel text-slate-400 hover:text-error hover:border-error transition-all">
+<span class="material-symbols-outlined text-lg">thumb_down</span>
+</button>
+</div>
+<button class="flex-1 flex items-center justify-center gap-2 border border-[#EF5D28] text-[#EF5D28] rounded-xl py-3 px-6 font-bold text-sm hover:bg-[#EF5D28]/10 transition-all">
+<span class="material-symbols-outlined">description</span>
+                    Export Comprehensive Intelligence Report
+                </button>
+</div>
+</section>
+</main>
+<!-- NavigationDrawer (Shared Component) - Initially Hidden -->
+<aside class="fixed right-0 top-0 h-full w-80 z-50 bg-[#05141F]/80 backdrop-blur-2xl border-l border-[#FFFFFF14] shadow-[-20px_0_40px_rgba(0,0,0,0.4)] flex-col p-6 hidden">
+<div class="mb-8">
+<h2 class="font-headline text-xl font-bold text-[#EF5D28]">Settings</h2>
+<p class="text-xs text-slate-500">System Configuration</p>
+</div>
+<div class="flex-1 space-y-4">
+<!-- Settings Items Placeholder -->
+</div>
+<div class="mt-auto space-y-1">
+<a class="text-slate-300 hover:bg-[#FFFFFF0A] p-3 rounded-lg flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="text-sm">Support</span>
+</a>
+<a class="text-slate-300 hover:bg-[#FFFFFF0A] p-3 rounded-lg flex items-center gap-3 transition-all" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</div>
+</aside>
+</body></html>
