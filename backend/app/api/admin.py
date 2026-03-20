@@ -184,7 +184,9 @@ _NEIGHBOR_QUERY = """
     FROM listing_neighbors
     WHERE asking_price < median_price * :threshold
       AND source {source_filter}
-    ORDER BY discount_pct DESC
+      AND category_normalized IN ('compressors', 'separators', 'generators', 'pumps', 'tanks', 'production', 'engines', 'turbines', 'electrical')
+      AND asking_price >= 10000
+    ORDER BY (median_price - asking_price) DESC
     LIMIT 10
 """
 

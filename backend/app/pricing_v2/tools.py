@@ -1,6 +1,10 @@
 from __future__ import annotations
+import logging
 from sqlalchemy import text
 from app.db.session import get_session
+from app.pricing_v2.rcn_engine.calculator import calculate_rcn as _rcn_calculate
+
+log = logging.getLogger(__name__)
 
 
 async def search_comparables(keywords: list[str], category: str | None = None,
@@ -182,15 +186,28 @@ async def lookup_rcn(equipment_type: str, manufacturer: str | None = None, model
             "HP scaling: base * (target_hp / base_hp) ^ 0.6")
 
 
-AGE_CURVES = {
+# ── Simple fallback curves (kept if rcn_engine fails) ────────────────
+
+_SIMPLE_AGE_CURVES = {
     "rotating":    [(1,0.90),(3,0.80),(5,0.65),(8,0.50),(12,0.38),(15,0.28),(20,0.20),(25,0.15),(30,0.10),(999,0.08)],
     "static":      [(1,0.92),(3,0.85),(5,0.75),(8,0.65),(12,0.55),(15,0.45),(20,0.35),(25,0.25),(30,0.18),(999,0.12)],
     "pump_jack":   [(1,0.92),(3,0.85),(5,0.78),(8,0.70),(12,0.60),(15,0.50),(20,0.40),(25,0.30),(30,0.22),(999,0.15)],
     "electrical":  [(1,0.90),(3,0.82),(5,0.72),(8,0.60),(12,0.48),(15,0.38),(20,0.28),(25,0.20),(30,0.14),(999,0.10)],
 }
-CONDITION = {"A": 1.00, "B": 0.75, "C": 0.50, "D": 0.20}
-HOURS_FACTORS = [(5000,1.10),(15000,1.00),(30000,0.85),(50000,0.70),(999999,0.55)]
-SERVICE_FACTORS = {"sweet": 1.00, "sour": 1.15, "sour_high_h2s": 1.25}
+_SIMPLE_CONDITION = {"A": 1.00, "B": 0.75, "C": 0.50, "D": 0.20}
+_SIMPLE_HOURS = [(5000,1.10),(15000,1.00),(30000,0.85),(50000,0.70),(999999,0.55)]
+_SIMPLE_SERVICE = {"sweet": 1.00, "sour": 1.15, "sour_high_h2s": 1.25}
+
+# Map simple condition grades to rcn_engine condition strings
+_CONDITION_GRADE_MAP = {"A": "EXCELLENT", "B": "GOOD", "C": "FAIR", "D": "POOR"}
+
+# Map simple equipment_class to rcn_engine category
+_CLASS_TO_CATEGORY = {
+    "rotating": "compressor",
+    "static": "separator",
+    "pump_jack": "pump_jack",
+    "electrical": "electrical",
+}
 
 
 def _lookup(table, value):
@@ -200,15 +217,14 @@ def _lookup(table, value):
     return table[-1][1]
 
 
-def calculate_fmv(rcn: float, equipment_class: str, age_years: int, condition: str = "B",
-                  hours: int | None = None, service: str = "sweet",
-                  vfd_equipped: bool = False, turnkey_package: bool = False,
-                  nace_rated: bool = False) -> str:
-    curve = AGE_CURVES.get(equipment_class, AGE_CURVES["rotating"])
+def _simple_fmv(rcn, equipment_class, age_years, condition, hours, service,
+                vfd_equipped, turnkey_package, nace_rated):
+    """Original simple FMV calculation — used as fallback."""
+    curve = _SIMPLE_AGE_CURVES.get(equipment_class, _SIMPLE_AGE_CURVES["rotating"])
     age_f = _lookup(curve, age_years)
-    cond_f = CONDITION.get(condition.upper(), 0.75)
-    hrs_f = _lookup(HOURS_FACTORS, hours) if hours is not None and equipment_class == "rotating" else 1.00
-    svc_f = SERVICE_FACTORS.get(service, 1.00)
+    cond_f = _SIMPLE_CONDITION.get(condition.upper(), 0.75)
+    hrs_f = _lookup(_SIMPLE_HOURS, hours) if hours is not None and equipment_class == "rotating" else 1.00
+    svc_f = _SIMPLE_SERVICE.get(service, 1.00)
     prem = (1.05 if vfd_equipped else 1.0) * (1.05 if turnkey_package else 1.0) * (1.15 if nace_rated else 1.0)
     combined = age_f * cond_f * hrs_f * svc_f * prem
     mid = rcn * combined
@@ -220,13 +236,87 @@ def calculate_fmv(rcn: float, equipment_class: str, age_years: int, condition: s
     factors += f" × Service({service})={svc_f:.2f}"
     if prem != 1.0:
         factors += f" × Premiums={prem:.2f}"
-    return (f"FMV CALCULATION:\n"
+    return (f"FMV CALCULATION (simple fallback):\n"
             f"  RCN: ${rcn:,.0f}\n"
             f"  Factors: {factors}\n"
             f"  Combined factor: {combined:.4f}\n"
             f"  FMV Range: ${low:,.0f} — ${mid:,.0f} — ${high:,.0f}\n"
             f"  Recommended list price: ${list_price:,.0f}\n"
             f"  Walk-away floor: ${walkaway:,.0f}")
+
+
+def calculate_fmv(rcn: float, equipment_class: str, age_years: int, condition: str = "B",
+                  hours: int | None = None, service: str = "sweet",
+                  vfd_equipped: bool = False, turnkey_package: bool = False,
+                  nace_rated: bool = False) -> str:
+    """Calculate FMV using the rcn_engine v2, with simple-curve fallback."""
+    try:
+        category = _CLASS_TO_CATEGORY.get(equipment_class, equipment_class)
+        condition_str = _CONDITION_GRADE_MAP.get(condition.upper(), "GOOD")
+        is_sour = service in ("sour", "sour_high_h2s")
+
+        result = _rcn_calculate(category, {
+            "year": 2026 - age_years,
+            "hours": hours,
+            "condition": condition_str,
+            "is_nace_compliant": nace_rated,
+            "years_h2s_exposure": age_years if is_sour else None,
+            "drive_type": None,
+            "material": None,
+            "spec_modifiers": None,
+        })
+
+        # Use the provided RCN (from lookup_rcn) rather than the engine's computed base
+        # The engine gives us the factor breakdown; we apply those factors to the caller's RCN
+        fa = result.factors_applied
+        age_f = fa["age_factor"]
+        cond_f = fa["condition_factor"]
+        market_heat = fa["market_heat"]
+        geo_f = fa["geography_factor"]
+        h2s_mult = fa["h2s_age_multiplier"]
+
+        # Build premium from caller's flags (engine handles nace separately)
+        prem = (1.05 if vfd_equipped else 1.0) * (1.05 if turnkey_package else 1.0)
+
+        combined = age_f * cond_f * market_heat * geo_f * prem
+        mid = rcn * combined
+        low, high = mid * 0.85, mid * 1.15
+        list_price, walkaway = mid * 1.12, low * 0.92
+
+        conf = fa.get("confidence_breakdown", {})
+        conf_score = conf.get("composite", 0)
+        curve_used = result.depreciation_curve_used
+
+        factors_str = (
+            f"Age({age_years}yr, eff={fa['effective_age']:.1f})={age_f:.4f}"
+            f" × Cond({condition_str})={cond_f:.4f}"
+        )
+        if h2s_mult > 1.0:
+            factors_str += f" × H2S_aging={h2s_mult:.2f}"
+        if market_heat != 1.0:
+            factors_str += f" × MarketHeat={market_heat:.4f}"
+        if geo_f != 1.0:
+            factors_str += f" × Geo={geo_f:.2f}"
+        if prem != 1.0:
+            factors_str += f" × Premiums={prem:.2f}"
+
+        return (
+            f"FMV CALCULATION (rcn_engine v2):\n"
+            f"  RCN: ${rcn:,.0f}\n"
+            f"  Curve: {curve_used} (category: {fa['category_key']})\n"
+            f"  Factors: {factors_str}\n"
+            f"  Combined factor: {combined:.4f}\n"
+            f"  FMV Range: ${low:,.0f} — ${mid:,.0f} — ${high:,.0f}\n"
+            f"  Recommended list price: ${list_price:,.0f}\n"
+            f"  Walk-away floor: ${walkaway:,.0f}\n"
+            f"  Confidence: {conf_score:.1%} (rcn_src={conf.get('rcn_source_score', 0):.2f}"
+            f" vol={conf.get('data_volume_score', 0):.2f}"
+            f" spec={conf.get('specificity_score', 0):.2f})"
+        )
+    except Exception as exc:
+        log.warning("rcn_engine failed, using simple fallback: %s", exc)
+        return _simple_fmv(rcn, equipment_class, age_years, condition, hours, service,
+                           vfd_equipped, turnkey_package, nace_rated)
 
 
 def check_equipment_risks(equipment_type: str, age_years: int, hours: int | None = None,
