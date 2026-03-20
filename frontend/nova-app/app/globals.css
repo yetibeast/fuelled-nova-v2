@@ -85,6 +85,11 @@
   }
 }
 
+/* ── Material Symbols ── */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
 /* ── Component Classes ──
    In @layer components so Tailwind utilities can override individual properties.
    e.g. glass-card sets background, but bg-surface-container-highest/40 can override it. */
