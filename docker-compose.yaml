@@ -1,8 +1,6 @@
 services:
   backend:
     build: ./backend
-    ports:
-      - "8100:8100"
     env_file:
       - ./backend/.env
     volumes:
@@ -11,8 +9,6 @@ services:
 
   frontend:
     image: nginx:alpine
-    ports:
-      - "80:80"
     volumes:
       - ./frontend/chat-interface:/usr/share/nginx/html/chat-interface:ro
       - ./frontend/app:/usr/share/nginx/html/app:ro
