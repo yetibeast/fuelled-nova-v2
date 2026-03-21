@@ -1,6 +1,7 @@
 """Professional .docx report generation for equipment valuations."""
 from __future__ import annotations
 import datetime
+import re
 from io import BytesIO
 from docx import Document
 from docx.shared import Inches, Pt, RGBColor
@@ -141,6 +142,23 @@ def _factor_display(f):
     return str(val)
 
 
+def _strip_markdown(text: str) -> str:
+    """Remove markdown formatting from text for clean Word document insertion."""
+    if not text:
+        return ""
+    # Remove header markers
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+    # Remove bold/italic markers
+    text = re.sub(r'\*{1,3}([^*]+)\*{1,3}', r'\1', text)
+    # Remove horizontal rules
+    text = re.sub(r'^-{3,}$', '', text, flags=re.MULTILINE)
+    # Remove bullet markers at start of lines
+    text = re.sub(r'^\s*[\*\-]\s+', '', text, flags=re.MULTILINE)
+    # Collapse multiple blank lines
+    text = re.sub(r'\n{3,}', '\n\n', text)
+    return text.strip()
+
+
 # ── Main entry point ───────────────────────────────────────────
 
 def generate_report(structured: dict, response_text: str, user_message: str) -> bytes:
@@ -175,7 +193,11 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     factors = v.get("factors", [])
     fmv_low, fmv_high, rcn = v.get("fmv_low"), v.get("fmv_high"), v.get("rcn")
     confidence = v.get("confidence", "MEDIUM")
-    equip_title = user_message[:100] if user_message else "Equipment Valuation"
+    equip_title = (
+        v.get("title")
+        or v.get("type")
+        or "Equipment Valuation"
+    )
 
     # ═══════════════════════════════════════════════════
     # 1. COVER PAGE
@@ -231,9 +253,20 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
         ("Effective Date", today),
     ])
     doc.add_paragraph()
-    if response_text:
-        summary = response_text[:600] + ("..." if len(response_text) > 600 else "")
-        _para(doc, summary)
+    # Build a clean executive summary from structured data
+    summary_parts = [
+        f"This report provides a fair market value assessment for {equip_title}."
+    ]
+    if fmv_low and fmv_high:
+        summary_parts.append(
+            f"Based on RCN methodology with market validation, the estimated FMV range "
+            f"is {_price(fmv_low)} \u2014 {_price(fmv_high)} with {confidence} confidence."
+        )
+    if comps:
+        summary_parts.append(
+            f"{len(comps)} market comparable(s) were identified to support the valuation."
+        )
+    _para(doc, " ".join(summary_parts))
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
@@ -241,7 +274,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     # ═══════════════════════════════════════════════════
     _heading(doc, "EQUIPMENT DESCRIPTION")
     _subheading(doc, "Technical Specifications")
-    specs = [("Equipment Description", equip_title)]
+    specs = [("Equipment", equip_title)]
     if rcn:
         specs.append(("Replacement Cost New", _price(rcn)))
     if fmv_low:
@@ -265,7 +298,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     if factors:
         _table(doc, ["Factor", "Multiplier", "Rationale"],
                [(f.get("label", ""), _factor_display(f),
-                 f.get("rationale", "Applied per Fuelled depreciation curves"))
+                 _strip_markdown(f.get("rationale", "Applied per Fuelled depreciation curves")))
                 for f in factors])
     else:
         _para(doc, "Depreciation factors not available for this valuation.")
@@ -285,8 +318,9 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     _heading(doc, "MARKET COMPARABLES")
     if comps:
         _table(doc, ["Description", "Price", "Year", "Location", "Source"],
-               [(c.get("title", "?"), _price(c.get("price")), str(c.get("year", "-")),
-                 c.get("location", "-"), c.get("source", "Fuelled")) for c in comps])
+               [(_strip_markdown(c.get("title", "?")), _price(c.get("price")),
+                 str(c.get("year", "-")), c.get("location", "-"),
+                 c.get("source", "Fuelled")) for c in comps])
         doc.add_paragraph()
         _subheading(doc, "Comparables Analysis")
         _para(doc, f"{len(comps)} comparable(s) identified from the Fuelled marketplace database "
