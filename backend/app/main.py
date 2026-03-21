@@ -55,4 +55,5 @@ async def root():
     return FileResponse(_FRONTEND_HTML)
 
 
-app.mount("/images", StaticFiles(directory=_IMAGES_DIR), name="images")
+if os.path.isdir(_IMAGES_DIR):
+    app.mount("/images", StaticFiles(directory=_IMAGES_DIR), name="images")
