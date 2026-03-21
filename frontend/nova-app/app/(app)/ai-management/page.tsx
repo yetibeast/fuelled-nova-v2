@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable } from "@/components/ui/data-table";
 import { ConfidencePill } from "@/components/ui/confidence-pill";
-import { fetchAIPrompt, fetchAIUsage, fetchAITools, getStoredUser } from "@/lib/api";
+import { fetchAIPrompt, fetchAIUsage, fetchAITools } from "@/lib/api";
 import { formatFileSize } from "@/lib/utils";
 
 interface PromptInfo {
@@ -32,7 +31,6 @@ interface ToolInfo {
 }
 
 export default function AIManagementPage() {
-  const router = useRouter();
   const [prompt, setPrompt] = useState<PromptInfo | null>(null);
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [tools, setTools] = useState<ToolInfo[]>([]);
@@ -40,12 +38,10 @@ export default function AIManagementPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = getStoredUser();
-    if (user?.role !== "admin") { router.replace("/"); return; }
     Promise.all([fetchAIPrompt(), fetchAIUsage(), fetchAITools()])
       .then(([p, u, t]) => { setPrompt(p); setUsage(u); setTools(t); })
       .catch((e: Error) => setError(e.message));
-  }, [router]);
+  }, []);
 
   if (error) return <div className="text-red-400 font-mono text-sm p-4">Error: {error}</div>;
 

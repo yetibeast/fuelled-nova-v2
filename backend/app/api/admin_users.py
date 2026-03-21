@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime
+from typing import Optional
 
 import bcrypt
 from fastapi import APIRouter, HTTPException, Query
@@ -27,8 +28,8 @@ class CreateUserRequest(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
-    role: str | None = None
-    status: str | None = None
+    role: Optional[str] = None
+    status: Optional[str] = None
 
 
 @router.get("/users")

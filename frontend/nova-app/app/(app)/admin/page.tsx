@@ -1,8 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getStoredUser } from "@/lib/api";
+import { useState } from "react";
 import { UsersTab } from "@/components/admin/users-tab";
 import { FeedbackTab } from "@/components/admin/feedback-tab";
 import { ValuationsTab } from "@/components/admin/valuations-tab";
@@ -11,13 +9,7 @@ const TABS = ["Users", "Feedback Log", "Valuation Log"] as const;
 type Tab = (typeof TABS)[number];
 
 export default function AdminPage() {
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>("Users");
-
-  useEffect(() => {
-    const user = getStoredUser();
-    if (user?.role !== "admin") router.replace("/");
-  }, [router]);
 
   return (
     <>

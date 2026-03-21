@@ -1,10 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { MetricCard } from "@/components/ui/metric-card";
 import { DataTable } from "@/components/ui/data-table";
-import { fetchScrapers, getStoredUser } from "@/lib/api";
+import { fetchScrapers } from "@/lib/api";
 import { timeAgo, statusDotClass } from "@/lib/utils";
 
 interface Source {
@@ -27,18 +26,15 @@ function statusLabel(s: Source): string {
 }
 
 export default function ScrapersPage() {
-  const router = useRouter();
   const [sources, setSources] = useState<Source[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const user = getStoredUser();
-    if (user?.role !== "admin") { router.replace("/"); return; }
     fetchScrapers()
       .then((data: Source[]) => setSources(data))
       .catch((e: Error) => setError(e.message));
-  }, [router]);
+  }, []);
 
   const totalListings = sources.reduce((sum, s) => sum + s.total_listings, 0);
   const lastRefresh = sources
