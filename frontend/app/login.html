@@ -844,7 +844,7 @@
 <script>
 (function() {
   if (localStorage.getItem('nova_authenticated') === 'true') {
-    window.location.replace('/app');
+    window.location.replace('/app/');
     return;
   }
 
@@ -885,19 +885,19 @@
       localStorage.setItem('nova_authenticated', 'true');
       btnLabel.textContent = 'Signed in';
       setTimeout(function() {
-        window.location.href = '/app';
+        window.location.href = '/app/';
       }, 400);
     }, 600);
   });
 
   document.getElementById('btn-google').addEventListener('click', function() {
     localStorage.setItem('nova_authenticated', 'true');
-    window.location.href = '/app';
+    window.location.href = '/app/';
   });
 
   document.getElementById('btn-microsoft').addEventListener('click', function() {
     localStorage.setItem('nova_authenticated', 'true');
-    window.location.href = '/app';
+    window.location.href = '/app/';
   });
 })();
 </script>

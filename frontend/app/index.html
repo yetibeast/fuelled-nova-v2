@@ -9,7 +9,7 @@
 <script>
 // Auth guard — redirect to login if not authenticated
 if (localStorage.getItem('nova_authenticated') !== 'true') {
-  window.location.replace('/login');
+  window.location.replace('/app/login.html');
 }
 </script>
 <script>
@@ -1063,7 +1063,7 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
   // ── Logout ──
   document.getElementById('btn-logout').addEventListener('click', function() {
     localStorage.removeItem('nova_authenticated');
-    window.location.href = '/login';
+    window.location.href = '/app/login.html';
   });
 
   // ── Init ──
