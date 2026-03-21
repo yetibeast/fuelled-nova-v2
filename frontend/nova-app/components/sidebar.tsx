@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { logout } from "@/lib/api";
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: string; adminOnly?: boolean }[] = [
   { section: "INTELLIGENCE" },
   { label: "Dashboard", icon: "grid_view", href: "/" },
   { label: "Pricing Agent", icon: "chat", href: "/pricing" },
@@ -13,6 +13,10 @@ const NAV_ITEMS = [
   { label: "Manufacturers", icon: "factory", href: "/manufacturers" },
   { section: "DATA" },
   { label: "Market Data", icon: "database", href: "/market" },
+  { section: "OPERATIONS", adminOnly: true },
+  { label: "Scrapers", icon: "cloud_sync", href: "/scrapers", adminOnly: true },
+  { label: "AI Management", icon: "psychology", href: "/ai-management", adminOnly: true },
+  { label: "Admin", icon: "admin_panel_settings", href: "/admin", adminOnly: true },
 ];
 
 interface SidebarProps {
@@ -75,6 +79,7 @@ export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
         {/* Nav */}
         <nav className="flex-1 py-3 overflow-y-auto">
           {NAV_ITEMS.map((item, i) => {
+            if (item.adminOnly && !isAdmin) return null;
             if ("section" in item && item.section) {
               if (collapsed) return null;
               return (

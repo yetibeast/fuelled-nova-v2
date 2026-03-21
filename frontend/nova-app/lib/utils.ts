@@ -72,6 +72,10 @@ export function fileIcon(name: string): string {
   return "\uD83D\uDCC4";
 }
 
+export function formatFmvRange(low: number | null | undefined, high: number | null | undefined): string {
+  return low != null && high != null ? `${formatPrice(low)} – ${formatPrice(high)}` : "---";
+}
+
 export function formatFileSize(bytes: number): string {
   if (bytes < 1024) return bytes + " B";
   if (bytes < 1048576) return Math.round(bytes / 1024) + " KB";

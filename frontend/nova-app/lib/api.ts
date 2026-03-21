@@ -157,3 +157,57 @@ export async function generateReport(formData: FormData) {
   if (!res.ok) throw new Error("Report generation failed");
   return res.blob();
 }
+
+/* ---------- Admin: Scrapers ---------- */
+
+async function adminGet(path: string) {
+  const res = await fetch(path, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export function fetchScrapers() { return adminGet("/api/admin/scrapers"); }
+
+/* ---------- Admin: AI ---------- */
+
+export function fetchAIPrompt() { return adminGet("/api/admin/ai/prompt"); }
+export function fetchAIUsage() { return adminGet("/api/admin/ai/usage"); }
+export function fetchAITools() { return adminGet("/api/admin/ai/tools"); }
+
+/* ---------- Admin: Users ---------- */
+
+export function fetchUsers() { return adminGet("/api/admin/users"); }
+
+export async function createUser(data: { name: string; email: string; role: string; password: string }) {
+  const res = await fetch("/api/admin/users", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to create user" }));
+    throw new Error(body.detail || "Failed to create user");
+  }
+  return res.json();
+}
+
+export async function updateUser(id: string, data: { role?: string; status?: string }) {
+  const res = await fetch(`/api/admin/users/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to update user" }));
+    throw new Error(body.detail || "Failed to update user");
+  }
+  return res.json();
+}
+
+/* ---------- Admin: Logs ---------- */
+
+export function fetchAdminValuations() { return adminGet("/api/admin/valuations"); }
+
+export function fetchAdminFeedback(negativeOnly = false) {
+  return adminGet(negativeOnly ? "/api/admin/feedback?negative_only=true" : "/api/admin/feedback");
+}
