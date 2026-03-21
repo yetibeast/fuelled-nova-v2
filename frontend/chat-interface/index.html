@@ -209,9 +209,7 @@
 <div class="flex justify-start">
 <div class="glass-card p-6 rounded-xl max-w-[85%]">
 <div class="flex items-center gap-3 mb-3">
-<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">
-<span class="material-symbols-outlined" data-icon="precision_manufacturing" style="">precision_manufacturing</span>
-</div>
+<div style="width:36px;height:36px;background:#EF5D28;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;color:white;flex-shrink:0;">N</div>
 <span class="font-headline font-bold text-sm tracking-tight" style="">Nova Intelligence</span>
 </div>
 <p class="text-on-surface/90 leading-relaxed" style="">Welcome back. I have updated market indices for oil &amp; gas compression assets. How can I assist with your valuation today?</p>
@@ -622,9 +620,7 @@ document.addEventListener('DOMContentLoaded', function() {
       '<div id="nova-thinking" class="flex justify-start">' +
         '<div class="glass-card p-6 rounded-xl max-w-[85%]">' +
           '<div class="flex items-center gap-3">' +
-            '<div class="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-white">' +
-              '<span class="material-symbols-outlined">precision_manufacturing</span>' +
-            '</div>' +
+            '<div style="width:36px;height:36px;background:#EF5D28;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:18px;color:white;flex-shrink:0;">N</div>' +
             '<span class="font-headline font-bold text-sm tracking-tight">Nova Intelligence</span>' +
             '<span id="nova-thinking-text" class="text-secondary animate-pulse font-mono text-xs">' + _thinkingMsgs[0] + '</span>' +
           '</div>' +
@@ -800,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
           // Send immediately
           fetch('/api/feedback', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '')},
             body: JSON.stringify({
               rating: 'up',
               conversation_id: currentConvoId || '',
@@ -830,7 +826,7 @@ document.addEventListener('DOMContentLoaded', function() {
             var comment = commentInput.value.trim();
             fetch('/api/feedback', {
               method: 'POST',
-              headers: {'Content-Type': 'application/json'},
+              headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '')},
               body: JSON.stringify({
                 rating: 'down',
                 comment: comment,
@@ -939,7 +935,7 @@ document.addEventListener('DOMContentLoaded', function() {
     selectedFiles.forEach(function(f) { fd.append('files', f); });
     selectedFiles = []; renderFilePills(); updatePlaceholder();
     try {
-      var res = await fetch('/api/price', { method: 'POST', body: fd });
+      var res = await fetch('/api/price', { method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '') } });
       var data = await res.json();
       console.log('[Nova] Response:', data);
       removeThinking();
@@ -1006,7 +1002,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fd.append('structured_data', JSON.stringify(lastResponse.structured));
         fd.append('response_text', lastResponse.response || '');
         fd.append('user_message', lastUserMsg || 'Equipment Valuation');
-        var res = await fetch('/api/report', { method: 'POST', body: fd });
+        var res = await fetch('/api/report', { method: 'POST', body: fd, headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '') } });
         if (!res.ok) throw new Error('Report generation failed');
         var blob = await res.blob();
         var url = URL.createObjectURL(blob);

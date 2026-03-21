@@ -843,7 +843,8 @@
 
 <script>
 (function() {
-  if (localStorage.getItem('nova_authenticated') === 'true') {
+  // If already authenticated, redirect
+  if (localStorage.getItem('nova_token')) {
     window.location.replace('/app/');
     return;
   }
@@ -867,12 +868,18 @@
   var btnLabel = document.getElementById('btn-label');
   var errorBanner = document.getElementById('error-banner');
 
-  form.addEventListener('submit', function(e) {
+  form.addEventListener('submit', async function(e) {
     e.preventDefault();
 
     var email = document.getElementById('email').value.trim();
+    var password = document.getElementById('password').value;
     if (!email) {
       errorBanner.textContent = 'Email is required.';
+      errorBanner.classList.add('visible');
+      return;
+    }
+    if (!password) {
+      errorBanner.textContent = 'Password is required.';
       errorBanner.classList.add('visible');
       return;
     }
@@ -881,23 +888,40 @@
     btnSubmit.disabled = true;
     btnLabel.innerHTML = '<span class="spinner"></span> Signing in';
 
-    setTimeout(function() {
-      localStorage.setItem('nova_authenticated', 'true');
+    try {
+      var res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email, password: password })
+      });
+
+      if (!res.ok) {
+        var err = await res.json().catch(function() { return {}; });
+        throw new Error(err.detail || 'Invalid credentials');
+      }
+
+      var data = await res.json();
+      localStorage.setItem('nova_token', data.token);
+      localStorage.setItem('nova_user', JSON.stringify(data.user));
       btnLabel.textContent = 'Signed in';
-      setTimeout(function() {
-        window.location.href = '/app/';
-      }, 400);
-    }, 600);
+      setTimeout(function() { window.location.href = '/app/'; }, 400);
+    } catch (err) {
+      errorBanner.textContent = err.message || 'Login failed. Please try again.';
+      errorBanner.classList.add('visible');
+      btnSubmit.disabled = false;
+      btnLabel.textContent = 'Sign in to Nova';
+    }
   });
 
+  // SSO buttons — coming soon
   document.getElementById('btn-google').addEventListener('click', function() {
-    localStorage.setItem('nova_authenticated', 'true');
-    window.location.href = '/app/';
+    errorBanner.textContent = 'Google SSO coming soon.';
+    errorBanner.classList.add('visible');
   });
 
   document.getElementById('btn-microsoft').addEventListener('click', function() {
-    localStorage.setItem('nova_authenticated', 'true');
-    window.location.href = '/app/';
+    errorBanner.textContent = 'Microsoft SSO coming soon.';
+    errorBanner.classList.add('visible');
   });
 })();
 </script>

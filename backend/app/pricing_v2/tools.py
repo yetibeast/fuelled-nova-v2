@@ -1,5 +1,7 @@
 from __future__ import annotations
 import logging
+import re as _re
+import aiohttp
 from sqlalchemy import text
 from app.db.session import get_session
 from app.pricing_v2.rcn_engine.calculator import calculate_rcn as _rcn_calculate
@@ -7,6 +9,21 @@ from app.pricing_v2.equipment.parsing import parse_compound_description
 from app.pricing_v2.equipment.aliases import normalize_manufacturer, normalize_model
 
 log = logging.getLogger(__name__)
+
+
+async def fetch_listing(url: str) -> str:
+    """Fetch equipment details from a Fuelled or competitor listing URL."""
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                if resp.status != 200:
+                    return f"Could not fetch URL (status {resp.status}). Please paste the listing description directly."
+                html = await resp.text()
+                text = _re.sub('<[^<]+?>', ' ', html)
+                text = _re.sub(r'\s+', ' ', text).strip()
+                return f"Listing content from {url}:\n{text[:3000]}"
+    except Exception as e:
+        return f"Could not fetch URL: {str(e)}. Please paste the listing description directly."
 
 
 async def search_comparables(keywords: list[str], category: str | None = None,

@@ -1,5 +1,16 @@
 TOOLS = [
     {
+        "name": "fetch_listing",
+        "description": "Fetch equipment details from a Fuelled or competitor listing URL. Use this when a user pastes a URL to a listing. Extracts the page content so you can read the equipment specs before pricing.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "url": {"type": "string", "description": "The full URL of the equipment listing to fetch"},
+            },
+            "required": ["url"],
+        },
+    },
+    {
         "name": "search_comparables",
         "description": "Search the Fuelled marketplace database for comparable equipment listings. Use this to find real asking prices for similar equipment. Keywords are OR'd together against listing titles.",
         "input_schema": {

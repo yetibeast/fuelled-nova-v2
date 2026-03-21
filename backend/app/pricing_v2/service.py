@@ -13,6 +13,7 @@ from app.pricing_v2 import tools as tool_fns
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
 TOOL_MAP = {
+    "fetch_listing": tool_fns.fetch_listing,
     "search_comparables": tool_fns.search_comparables,
     "get_category_stats": tool_fns.get_category_stats,
     "lookup_rcn": tool_fns.lookup_rcn,
@@ -20,7 +21,7 @@ TOOL_MAP = {
     "check_equipment_risks": tool_fns.check_equipment_risks,
 }
 
-ASYNC_TOOLS = {"search_comparables", "get_category_stats", "lookup_rcn"}
+ASYNC_TOOLS = {"fetch_listing", "search_comparables", "get_category_stats", "lookup_rcn"}
 
 
 async def _call_tool(name: str, args: dict) -> str:

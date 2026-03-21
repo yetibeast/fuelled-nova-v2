@@ -7,10 +7,19 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono:wght@400;500;700&amp;display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
 <script>
-// Auth guard — redirect to login if not authenticated
-if (localStorage.getItem('nova_authenticated') !== 'true') {
-  window.location.replace('/app/login.html');
-}
+// Auth guard — verify token with backend
+(async function() {
+  var token = localStorage.getItem('nova_token');
+  if (!token) { window.location.replace('/app/login.html'); return; }
+  try {
+    var res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (!res.ok) throw new Error();
+  } catch (e) {
+    localStorage.removeItem('nova_token');
+    localStorage.removeItem('nova_user');
+    window.location.replace('/app/login.html');
+  }
+})();
 </script>
 <script>
 tailwind.config = {
@@ -157,7 +166,7 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
     <div class="nav-item" data-page="settings"><span class="material-symbols-outlined text-[20px]">settings</span>Settings</div>
   </nav>
   <div class="px-5 py-4 border-t border-white/[0.06] flex items-center justify-between">
-    <div class="text-[9px] font-mono text-on-surface/20 leading-relaxed">Fuelled Energy<br>Marketing Inc.</div>
+    <div class="text-[9px] font-mono text-on-surface/20 leading-relaxed"><span id="user-display-name">Fuelled Energy</span><br>Marketing Inc.</div>
     <button id="btn-logout" class="text-on-surface/30 hover:text-primary transition-colors" title="Sign out">
       <span class="material-symbols-outlined text-[18px]">logout</span>
     </button>
@@ -1060,9 +1069,16 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
     });
   }
 
+  // ── User name ──
+  try {
+    var user = JSON.parse(localStorage.getItem('nova_user') || '{}');
+    if (user.name) document.getElementById('user-display-name').textContent = user.name;
+  } catch(e) {}
+
   // ── Logout ──
   document.getElementById('btn-logout').addEventListener('click', function() {
-    localStorage.removeItem('nova_authenticated');
+    localStorage.removeItem('nova_token');
+    localStorage.removeItem('nova_user');
     window.location.href = '/app/login.html';
   });
 

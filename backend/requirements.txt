@@ -5,5 +5,8 @@ sqlalchemy
 asyncpg
 python-dotenv
 python-multipart
+aiohttp
 
 python-docx
+bcrypt
+PyJWT
