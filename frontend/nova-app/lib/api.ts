@@ -1,37 +1,109 @@
 // API fetch wrappers — all requests go through Next.js rewrite proxy to FastAPI :8100
 
+/* ---------- Auth helpers ---------- */
+
+export interface NovaUser {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+}
+
+function getToken(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("nova_token");
+}
+
+function authHeaders(): Record<string, string> {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export function getStoredUser(): NovaUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem("nova_user");
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function login(email: string, password: string): Promise<{ token: string; user: NovaUser }> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Login failed" }));
+    throw new Error(body.detail || "Login failed");
+  }
+  const data = await res.json();
+  localStorage.setItem("nova_token", data.token);
+  localStorage.setItem("nova_user", JSON.stringify(data.user));
+  return data;
+}
+
+export async function verifyAuth(): Promise<NovaUser | null> {
+  const token = getToken();
+  if (!token) return null;
+  try {
+    const res = await fetch("/api/auth/me", {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) {
+      localStorage.removeItem("nova_token");
+      localStorage.removeItem("nova_user");
+      return null;
+    }
+    const user = await res.json();
+    localStorage.setItem("nova_user", JSON.stringify(user));
+    return user;
+  } catch {
+    return null;
+  }
+}
+
+export function logout() {
+  localStorage.removeItem("nova_token");
+  localStorage.removeItem("nova_user");
+}
+
+/* ---------- Data fetchers ---------- */
+
 export async function fetchHealth() {
   const res = await fetch("/api/health");
   return res.json();
 }
 
 export async function fetchRecentValuations() {
-  const res = await fetch("/api/valuations/recent");
+  const res = await fetch("/api/valuations/recent", { headers: authHeaders() });
   return res.json();
 }
 
 export async function fetchMarketCategories() {
-  const res = await fetch("/api/market/categories");
+  const res = await fetch("/api/market/categories", { headers: authHeaders() });
   return res.json();
 }
 
 export async function fetchMarketSources() {
-  const res = await fetch("/api/market/sources");
+  const res = await fetch("/api/market/sources", { headers: authHeaders() });
   return res.json();
 }
 
 export async function fetchMarketOpportunities() {
-  const res = await fetch("/api/market/opportunities");
+  const res = await fetch("/api/market/opportunities", { headers: authHeaders() });
   return res.json();
 }
 
 export async function fetchMarketRepricing() {
-  const res = await fetch("/api/market/repricing");
+  const res = await fetch("/api/market/repricing", { headers: authHeaders() });
   return res.json();
 }
 
 export async function fetchRiskRules() {
-  const res = await fetch("/api/methodology/risk-rules");
+  const res = await fetch("/api/methodology/risk-rules", { headers: authHeaders() });
   return res.json();
 }
 
@@ -39,7 +111,7 @@ export async function fetchFeedback(rating?: string) {
   const url = rating && rating !== "all"
     ? `/api/feedback/recent?rating=${rating}`
     : "/api/feedback/recent";
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: authHeaders() });
   return res.json();
 }
 
@@ -54,18 +126,34 @@ export async function submitFeedback(data: {
 }) {
   return fetch("/api/feedback", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(data),
   });
 }
 
 export async function sendPriceQuery(formData: FormData) {
-  const res = await fetch("/api/price", { method: "POST", body: formData });
+  const res = await fetch("/api/price", {
+    method: "POST",
+    body: formData,
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.text();
+      if (body) detail += `: ${body}`;
+    } catch { /* ignore */ }
+    throw new Error(detail);
+  }
   return res.json();
 }
 
 export async function generateReport(formData: FormData) {
-  const res = await fetch("/api/report", { method: "POST", body: formData });
+  const res = await fetch("/api/report", {
+    method: "POST",
+    body: formData,
+    headers: authHeaders(),
+  });
   if (!res.ok) throw new Error("Report generation failed");
   return res.blob();
 }

@@ -8,7 +8,9 @@ services:
     restart: unless-stopped
 
   frontend:
-    build: ./frontend
+    build: ./frontend/nova-app
+    environment:
+      - BACKEND_URL=http://backend:8100
     depends_on:
       - backend
     restart: unless-stopped

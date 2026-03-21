@@ -82,18 +82,55 @@ export function UserMessage({ text, files }: UserMessageProps) {
 
 interface NovaMessageProps {
   text: string;
+  isLatest?: boolean;
+  isError?: boolean;
+  errorDetail?: string;
 }
 
-export function NovaMessage({ text }: NovaMessageProps) {
-  const [expanded, setExpanded] = useState(false);
+export function NovaMessage({ text, isLatest, isError, errorDetail }: NovaMessageProps) {
+  const [expanded, setExpanded] = useState(isLatest ?? false);
+  const [showDetail, setShowDetail] = useState(false);
 
-  const needsTruncation = text.length > 200;
+  const needsTruncation = !isError && text.length > 200;
   const truncated = needsTruncation
     ? text.slice(0, 200).replace(/\s+\S*$/, "") + "..."
     : text;
 
   const displayText = !needsTruncation || expanded ? text : truncated;
 
+  if (isError) {
+    return (
+      <div className="flex justify-start">
+        <div className="max-w-[90%] space-y-2">
+          <div className="glass-card p-5 rounded-xl border-red-500/30 bg-red-500/5">
+            <div className="flex items-center gap-2 mb-2">
+              <span className="material-symbols-outlined text-red-400 text-lg">error</span>
+              <span className="text-red-400 font-medium text-sm">Something went wrong</span>
+            </div>
+            <p className="text-on-surface/70 text-sm">{text}</p>
+            {errorDetail && (
+              <>
+                <button
+                  onClick={() => setShowDetail(!showDetail)}
+                  className="text-on-surface/40 hover:text-on-surface/60 text-xs mt-2 transition-colors cursor-pointer"
+                >
+                  {showDetail ? "▾ Hide details" : "▸ Show details"}
+                </button>
+                {showDetail && (
+                  <pre className="text-xs text-on-surface/30 mt-2 bg-white/[0.03] rounded p-3 overflow-x-auto whitespace-pre-wrap break-words">
+                    {errorDetail}
+                  </pre>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Note: renderMarkdown uses escapeHtml internally to sanitize all text content
+  // before applying markdown formatting, preventing XSS from API responses
   return (
     <div className="flex justify-start">
       <div className="max-w-[90%] space-y-4">
@@ -105,7 +142,7 @@ export function NovaMessage({ text }: NovaMessageProps) {
             onClick={() => setExpanded(!expanded)}
             className="text-secondary hover:text-secondary/80 text-sm font-medium mt-2 transition-colors cursor-pointer"
           >
-            {expanded ? "\u25BE Collapse" : "Show full analysis \u25B8"}
+            {expanded ? "▾ Collapse" : "Show full analysis ▸"}
           </button>
         )}
       </div>

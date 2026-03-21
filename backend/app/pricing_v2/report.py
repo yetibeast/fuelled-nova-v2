@@ -196,6 +196,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     equip_title = (
         v.get("title")
         or v.get("type")
+        or (user_message if user_message and user_message != "Equipment Valuation" else None)
         or "Equipment Valuation"
     )
 

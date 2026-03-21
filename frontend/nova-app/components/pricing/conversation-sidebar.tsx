@@ -3,8 +3,12 @@
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { relativeTime } from "@/lib/utils";
+import { getStoredUser } from "@/lib/api";
 
-const STORAGE_KEY = "nova_conversations";
+function getStorageKey(): string {
+  const user = getStoredUser();
+  return user?.id ? `nova_conversations_${user.id}` : "nova_conversations";
+}
 
 export interface Conversation {
   id: string;
@@ -27,7 +31,7 @@ export interface ResponseData {
 
 export function loadConversations(): Conversation[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(getStorageKey());
     const arr: Conversation[] = raw ? JSON.parse(raw) : [];
     arr.sort((a, b) => b.created - a.created);
     return arr;
@@ -37,7 +41,7 @@ export function loadConversations(): Conversation[] {
 }
 
 export function saveConversations(convos: Conversation[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(convos));
+  localStorage.setItem(getStorageKey(), JSON.stringify(convos));
 }
 
 interface ConversationSidebarProps {

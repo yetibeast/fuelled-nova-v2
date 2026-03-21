@@ -387,7 +387,9 @@ document.addEventListener('DOMContentLoaded', function() {
   while (convo.children.length > 1) convo.removeChild(convo.lastChild);
 
   // --- Conversation Storage ---
-  var STORAGE_KEY = 'nova_conversations';
+  var _userId = (function() { try { return JSON.parse(localStorage.getItem('nova_user') || '{}').id || ''; } catch(e) { return ''; } })();
+  var STORAGE_KEY = _userId ? 'nova_conversations_' + _userId : 'nova_conversations';
+  var SIDEBAR_KEY = _userId ? 'nova_sidebar_' + _userId : 'nova_sidebar';
   var currentConvoId = null;
 
   function loadConversations() {
@@ -533,14 +535,14 @@ document.addEventListener('DOMContentLoaded', function() {
       [appHeader, appMain, appBottom].forEach(function(el) {
         if (el) { el.classList.add('content-shift'); el.classList.remove('content-shift-collapsed'); }
       });
-      localStorage.setItem('nova_sidebar', 'open');
+      localStorage.setItem(SIDEBAR_KEY, 'open');
     } else {
       sidebar.classList.add('collapsed');
       toggleIcon.textContent = 'chevron_right';
       [appHeader, appMain, appBottom].forEach(function(el) {
         if (el) { el.classList.remove('content-shift'); el.classList.add('content-shift-collapsed'); }
       });
-      localStorage.setItem('nova_sidebar', 'closed');
+      localStorage.setItem(SIDEBAR_KEY, 'closed');
     }
   }
 
@@ -551,7 +553,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
 
   // Default sidebar state
-  var savedSidebar = localStorage.getItem('nova_sidebar');
+  var savedSidebar = localStorage.getItem(SIDEBAR_KEY);
   if (savedSidebar === 'open' && window.innerWidth >= 768) {
     setSidebarState(true);
   } else if (savedSidebar === null && window.innerWidth >= 768) {

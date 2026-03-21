@@ -4,27 +4,31 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Sidebar } from "@/components/sidebar";
 import { SettingsDrawer } from "@/components/settings-drawer";
+import { verifyAuth, type NovaUser } from "@/lib/api";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const [user, setUser] = useState<NovaUser | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (localStorage.getItem("nova_authenticated") !== "true") {
+    if (typeof window === "undefined") return;
+    verifyAuth().then((u) => {
+      if (!u) {
         router.replace("/login");
         return;
       }
+      setUser(u);
       setReady(true);
-    }
+    });
   }, [router]);
 
   if (!ready) return null;
 
   return (
     <>
-      <Sidebar onSettingsClick={() => setSettingsOpen(true)} />
+      <Sidebar onSettingsClick={() => setSettingsOpen(true)} userRole={user?.role} />
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <main className="ml-[220px] min-h-screen p-7 max-md:ml-12 max-md:p-4 transition-[margin] duration-200">
         {children}

@@ -38,7 +38,7 @@ export function IntelligencePanel({
     url?: string;
   }[];
   const risks = (s.risks || []) as string[];
-  const methodology = (s.methodology || "") as string;
+  const methodology = (s.methodology || lastResponse.response || "") as string;
 
   const hasContent =
     (valuation && valuation.fmv_low != null) ||

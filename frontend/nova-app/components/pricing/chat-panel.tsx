@@ -23,6 +23,8 @@ interface ChatEntry {
   text: string;
   files?: { name: string; size?: number }[];
   data?: ResponseData | null;
+  isError?: boolean;
+  errorDetail?: string;
 }
 
 interface ChatPanelProps {
@@ -198,7 +200,13 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     } catch (err) {
       console.error("[Nova] Error:", err);
       setIsThinking(false);
-      const errorEntry: ChatEntry = { role: "nova", text: "Connection error. Please try again." };
+      const errMsg = err instanceof Error ? err.message : String(err);
+      const errorEntry: ChatEntry = {
+        role: "nova",
+        text: "Something went wrong. Please try again.",
+        isError: true,
+        errorDetail: errMsg,
+      };
       setEntries([...newEntries, errorEntry]);
     }
 
@@ -250,7 +258,16 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
                 <UserMessage key={i} text={entry.text} files={entry.files} />
               );
             }
-            return <NovaMessage key={i} text={entry.text} />;
+            const isLatest = i === entries.length - 1 || (i === entries.length - 2 && isThinking);
+            return (
+              <NovaMessage
+                key={i}
+                text={entry.text}
+                isLatest={isLatest}
+                isError={entry.isError}
+                errorDetail={entry.errorDetail}
+              />
+            );
           })}
 
           {isThinking && <ThinkingIndicator />}

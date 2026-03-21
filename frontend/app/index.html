@@ -655,6 +655,15 @@ body { background: radial-gradient(circle at center, #001628 0%, #000F1C 100%); 
 
 <script>
 (function() {
+  var _userRole = (function() { try { return JSON.parse(localStorage.getItem('nova_user') || '{}').role || ''; } catch(e) { return ''; } })();
+  var isAdmin = _userRole === 'admin';
+
+  // Hide settings nav item for non-admin users
+  if (!isAdmin) {
+    var settingsNav = document.querySelector('.nav-item[data-page="settings"]');
+    if (settingsNav) settingsNav.style.display = 'none';
+  }
+
   var pages = ['dashboard','pricing','market','methodology','settings'];
   var navItems = document.querySelectorAll('.nav-item[data-page]');
   var sidebar = document.getElementById('sidebar');

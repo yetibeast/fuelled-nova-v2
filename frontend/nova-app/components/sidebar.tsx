@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
+import { logout } from "@/lib/api";
 
 const NAV_ITEMS = [
   { section: "INTELLIGENCE" },
@@ -16,9 +17,11 @@ const NAV_ITEMS = [
 
 interface SidebarProps {
   onSettingsClick: () => void;
+  userRole?: string;
 }
 
-export function Sidebar({ onSettingsClick }: SidebarProps) {
+export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
+  const isAdmin = userRole === "admin";
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
@@ -35,7 +38,7 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
   }
 
   function handleLogout() {
-    localStorage.removeItem("nova_authenticated");
+    logout();
     router.push("/login");
   }
 
@@ -106,16 +109,18 @@ export function Sidebar({ onSettingsClick }: SidebarProps) {
           })}
         </nav>
 
-        {/* Settings button */}
-        <button
-          onClick={onSettingsClick}
-          className={`flex items-center gap-3 py-3 border-t border-white/[0.06] transition-colors text-on-surface/50 hover:text-on-surface/80 hover:bg-white/[0.04] ${
-            collapsed ? "px-3 justify-center" : "px-5"
-          }`}
-        >
-          <MaterialIcon icon="settings" className="text-[20px]" />
-          {!collapsed && <span className="text-[13px] font-medium">Settings</span>}
-        </button>
+        {/* Settings button — admin only */}
+        {isAdmin && (
+          <button
+            onClick={onSettingsClick}
+            className={`flex items-center gap-3 py-3 border-t border-white/[0.06] transition-colors text-on-surface/50 hover:text-on-surface/80 hover:bg-white/[0.04] ${
+              collapsed ? "px-3 justify-center" : "px-5"
+            }`}
+          >
+            <MaterialIcon icon="settings" className="text-[20px]" />
+            {!collapsed && <span className="text-[13px] font-medium">Settings</span>}
+          </button>
+        )}
 
         {/* Footer */}
         <div className={`px-5 py-4 border-t border-white/[0.06] flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>

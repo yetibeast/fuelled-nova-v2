@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, FormEvent } from "react";
+import { login, getStoredUser } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,12 +13,12 @@ export default function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && localStorage.getItem("nova_authenticated") === "true") {
+    if (typeof window !== "undefined" && getStoredUser()) {
       router.replace("/");
     }
   }, [router]);
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!email.trim()) {
       setError("Email is required.");
@@ -25,15 +26,17 @@ export default function LoginPage() {
     }
     setError("");
     setSubmitting(true);
-    setTimeout(() => {
-      localStorage.setItem("nova_authenticated", "true");
-      setTimeout(() => router.push("/"), 400);
-    }, 600);
+    try {
+      await login(email.trim().toLowerCase(), password);
+      router.push("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed");
+      setSubmitting(false);
+    }
   }
 
   function handleSSO() {
-    localStorage.setItem("nova_authenticated", "true");
-    router.push("/");
+    setError("SSO is not yet configured. Please use email and password.");
   }
 
   return (
