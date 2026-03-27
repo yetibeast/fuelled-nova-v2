@@ -328,6 +328,62 @@ export async function deleteConversation(id: string) {
   return res.ok;
 }
 
+/* ---------- Evidence ---------- */
+
+export async function captureEvidence(data: {
+  user_message: string;
+  structured_data: Record<string, unknown>;
+  confidence: string;
+  tools_used: string[];
+}) {
+  const res = await fetch("/api/evidence/capture", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function flagEvidenceReview(data: {
+  evidence_id: string;
+  comment?: string;
+  user_correction?: number;
+}) {
+  const res = await fetch("/api/evidence/flag-review", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export function fetchReviewQueue() { return adminGet("/api/admin/evidence/review-queue"); }
+
+export async function promoteEvidence(id: string) {
+  const res = await fetch(`/api/admin/evidence/promote/${id}`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Promote failed");
+  return res.json();
+}
+
+/* ---------- Reports ---------- */
+
+export function fetchRecentReports() { return adminGet("/api/reports/recent"); }
+
+export async function generateReportFromData(data: { type: string; data: unknown }) {
+  const res = await fetch("/api/reports/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Report generation failed");
+  return res.blob();
+}
+
 /* ---------- Calibration ---------- */
 
 export function fetchGoldenFixtures() { return adminGet("/api/admin/calibration/golden-fixtures"); }

@@ -9,6 +9,7 @@ const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: strin
   { section: "INTELLIGENCE" },
   { label: "Dashboard", icon: "grid_view", href: "/" },
   { label: "Pricing Agent", icon: "chat", href: "/pricing" },
+  { label: "Reports", icon: "description", href: "/reports" },
   { label: "Competitive", icon: "monitoring", href: "/competitive" },
   { label: "Methodology", icon: "science", href: "/methodology" },
   { label: "Manufacturers", icon: "factory", href: "/manufacturers" },

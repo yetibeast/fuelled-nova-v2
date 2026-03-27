@@ -1,12 +1,14 @@
 from __future__ import annotations
 import base64
 import json
-from fastapi import APIRouter, Form, File, UploadFile
+import logging
+from fastapi import APIRouter, Form, File, Header, UploadFile
 from fastapi.responses import Response
 from app.pricing_v2.service import run_pricing
 from app.pricing_v2.report import generate_report
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 MEDIA_MAP = {
     "application/pdf": "document",
@@ -21,6 +23,7 @@ async def post_price(
     message: str = Form(...),
     files: list[UploadFile] = File(default=[]),
     history: str = Form(default=""),
+    authorization: str = Header(default=""),
 ):
     attachments = []
     for f in files:
@@ -41,6 +44,22 @@ async def post_price(
         attachments if attachments else None,
         conversation_history,
     )
+
+    # Auto-capture evidence (fire-and-forget)
+    try:
+        from app.api.evidence import capture_evidence
+        await capture_evidence(
+            {
+                "user_message": message,
+                "structured_data": result.get("structured", {}),
+                "confidence": result.get("confidence", "LOW"),
+                "tools_used": result.get("tools_used", []),
+            },
+            authorization=authorization,
+        )
+    except Exception as e:
+        _log.warning("Evidence capture failed: %s", e)
+
     return result
 
 

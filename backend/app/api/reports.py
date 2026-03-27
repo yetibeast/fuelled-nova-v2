@@ -1,0 +1,116 @@
+"""Reports API — generate and list valuation reports."""
+from __future__ import annotations
+
+import json
+import os
+import datetime
+
+import jwt
+from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import Response
+
+from app.config import JWT_SECRET
+from app.pricing_v2.report import generate_report
+from app.pricing_v2.portfolio_report import generate_portfolio_report
+
+router = APIRouter(prefix="/reports", tags=["reports"])
+
+_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+
+
+def _require_auth(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload["sub"]
+
+
+def _log_report(entry: dict):
+    os.makedirs(_LOG_DIR, exist_ok=True)
+    path = os.path.join(_LOG_DIR, "reports_log.jsonl")
+    with open(path, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+@router.get("/recent")
+async def reports_recent(authorization: str = Header(None)):
+    _require_auth(authorization)
+    path = os.path.join(_LOG_DIR, "reports_log.jsonl")
+    if not os.path.exists(path):
+        return []
+    entries = []
+    with open(path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                entries.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return entries[-20:]
+
+
+@router.post("/generate")
+async def generate(body: dict, authorization: str = Header(None)):
+    _require_auth(authorization)
+
+    report_type = body.get("type", "single")
+    data = body.get("data", {})
+
+    if report_type == "portfolio":
+        results = data if isinstance(data, list) else data.get("results", [])
+        summary = {
+            "total": len(results),
+            "completed": len(results),
+            "failed": 0,
+            "total_fmv_low": sum(
+                (r.get("structured", {}).get("valuation", {}).get("fmv_low", 0) or 0)
+                for r in results
+            ),
+            "total_fmv_high": sum(
+                (r.get("structured", {}).get("valuation", {}).get("fmv_high", 0) or 0)
+                for r in results
+            ),
+        }
+        docx_bytes = generate_portfolio_report(results, summary)
+        filename = "Fuelled_Portfolio_Report.docx"
+        items = len(results)
+        title = f"Portfolio — {items} items"
+        fmv_range = f"${summary['total_fmv_low']:,.0f} – ${summary['total_fmv_high']:,.0f}"
+    else:
+        structured = data.get("structured", data)
+        response_text = data.get("response_text", data.get("response", ""))
+        user_message = data.get("user_message", "Equipment Valuation")
+        docx_bytes = generate_report(
+            structured=structured,
+            response_text=response_text,
+            user_message=user_message,
+        )
+        filename = "Fuelled_Valuation_Report.docx"
+        v = structured.get("valuation", {})
+        title = user_message[:60]
+        items = 1
+        lo = v.get("fmv_low", 0) or 0
+        hi = v.get("fmv_high", 0) or 0
+        fmv_range = f"${lo:,.0f} – ${hi:,.0f}" if lo else "---"
+
+    _log_report({
+        "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "type": report_type,
+        "title": title,
+        "items": items,
+        "fmv_range": fmv_range,
+        "status": "Generated",
+    })
+
+    return Response(
+        content=docx_bytes,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )

@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { DataTable } from "@/components/ui/data-table";
-import { fetchAdminFeedback } from "@/lib/api";
+import { MaterialIcon } from "@/components/ui/material-icon";
+import { fetchAdminFeedback, fetchReviewQueue, promoteEvidence } from "@/lib/api";
 import { timeAgo, formatFmvRange } from "@/lib/utils";
 
 interface FeedbackEntry {
@@ -13,13 +14,29 @@ interface FeedbackEntry {
   fmv_low: number | null;
   fmv_mid: number | null;
   fmv_high: number | null;
+  evidence_id?: string;
+}
+
+interface ReviewItem {
+  id: string;
+  manufacturer: string;
+  model: string;
+  category: string;
+  price_value: number | null;
+  confidence: string;
+  user_message: string;
+  comment: string;
+  user_corrected_fmv: number | null;
+  created_at: string;
 }
 
 export function FeedbackTab() {
   const [entries, setEntries] = useState<FeedbackEntry[]>([]);
+  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>([]);
   const [issuesOnly, setIssuesOnly] = useState(false);
   const [expanded, setExpanded] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [promoting, setPromoting] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAdminFeedback(issuesOnly)
@@ -27,12 +44,74 @@ export function FeedbackTab() {
       .catch((e: Error) => setError(e.message));
   }, [issuesOnly]);
 
+  useEffect(() => {
+    fetchReviewQueue()
+      .then(setReviewQueue)
+      .catch(() => {});
+  }, []);
+
+  async function handlePromote(id: string) {
+    setPromoting(id);
+    try {
+      await promoteEvidence(id);
+      setReviewQueue((prev) => prev.filter((r) => r.id !== id));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Promote failed");
+    } finally {
+      setPromoting(null);
+    }
+  }
+
   if (error) return <div className="text-red-400 font-mono text-xs">Error: {error}</div>;
 
   const fmvRange = (e: FeedbackEntry) => formatFmvRange(e.fmv_low, e.fmv_high);
 
   return (
     <>
+      {/* Review Queue */}
+      {reviewQueue.length > 0 && (
+        <div className="mb-6">
+          <DataTable
+            title="Review Queue"
+            badge={`${reviewQueue.length} NEEDS REVIEW`}
+            headers={["TIME", "EQUIPMENT", "ORIGINAL FMV", "USER CORRECTION", "COMMENT", ""]}
+            headerAligns={["left", "left", "right", "right", "left", "left"]}
+          >
+            {reviewQueue.map((r) => (
+              <tr key={r.id} className="hover:bg-white/[0.04] transition-colors border-l-2 border-l-primary">
+                <td className="px-6 py-3 text-on-surface/50">{r.created_at ? timeAgo(r.created_at) : "---"}</td>
+                <td className="px-6 py-3 text-on-surface font-medium">
+                  {r.manufacturer} {r.model}
+                  <div className="text-[10px] text-on-surface/40">{r.category}</div>
+                </td>
+                <td className="px-6 py-3 text-right text-on-surface/70">
+                  {r.price_value ? `$${r.price_value.toLocaleString()}` : "---"}
+                </td>
+                <td className="px-6 py-3 text-right">
+                  {r.user_corrected_fmv ? (
+                    <span className="text-secondary font-bold">${r.user_corrected_fmv.toLocaleString()}</span>
+                  ) : (
+                    <span className="text-on-surface/30">---</span>
+                  )}
+                </td>
+                <td className="px-6 py-3 text-on-surface/40 italic">{r.comment || "---"}</td>
+                <td className="px-6 py-3">
+                  <button
+                    onClick={() => handlePromote(r.id)}
+                    disabled={promoting === r.id}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-secondary/10 text-secondary text-[10px] font-mono hover:bg-secondary/20 disabled:opacity-50 transition-colors"
+                  >
+                    <MaterialIcon icon="arrow_upward" className="text-sm" />
+                    Promote to Gold
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </DataTable>
+        </div>
+      )}
+
+      {/* Standard Feedback */}
       <div className="flex gap-2 mb-4">
         {["All", "Issues Only"].map((label) => {
           const active = label === "Issues Only" ? issuesOnly : !issuesOnly;
@@ -69,7 +148,7 @@ export function FeedbackTab() {
                 {e.user_message && e.user_message.length > 50 ? "..." : ""}
               </td>
               <td className="px-6 py-3 text-on-surface/70">{fmvRange(e)}</td>
-              <td className="px-6 py-3">{isDown ? "👎" : "👍"}</td>
+              <td className="px-6 py-3">{isDown ? "\uD83D\uDC4E" : "\uD83D\uDC4D"}</td>
               <td className="px-6 py-3 text-on-surface/40 italic">{e.comment || "---"}</td>
             </tr>
           );

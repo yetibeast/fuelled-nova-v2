@@ -1,13 +1,15 @@
 from __future__ import annotations
 import json
+import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Header, Query
 from app.db.session import get_session
 from sqlalchemy import text
 
 router = APIRouter()
+_log = logging.getLogger(__name__)
 
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
@@ -133,7 +135,7 @@ async def market_sources():
 # ---------------------------------------------------------------------------
 
 @router.post("/feedback")
-async def post_feedback(body: dict):
+async def post_feedback(body: dict, authorization: str = Header(default="")):
     os.makedirs(_LOG_DIR, exist_ok=True)
     path = os.path.join(_LOG_DIR, "feedback_log.jsonl")
 
@@ -146,10 +148,22 @@ async def post_feedback(body: dict):
         "structured_data": body.get("structured_data"),
         "user_message": body.get("user_message"),
         "response_text": body.get("response_text"),
+        "evidence_id": body.get("evidence_id"),
     }
 
     with open(path, "a") as f:
         f.write(json.dumps(entry) + "\n")
+
+    # On thumbs-down, flag evidence for review
+    if body.get("rating") == "down" and body.get("evidence_id"):
+        try:
+            from app.api.evidence import flag_review
+            await flag_review(
+                {"evidence_id": body["evidence_id"], "comment": body.get("comment", "")},
+                authorization=authorization,
+            )
+        except Exception as e:
+            _log.warning("Evidence flag-review failed: %s", e)
 
     return {"status": "saved"}
 
