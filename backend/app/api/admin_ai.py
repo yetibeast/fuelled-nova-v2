@@ -5,9 +5,26 @@ import os
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter
+import jwt
+from fastapi import APIRouter, Header, HTTPException
+
+from app.config import JWT_SECRET
 
 router = APIRouter(prefix="/admin")
+
+
+def _require_admin(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return payload["sub"]
 
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 _REFS_DIR = os.path.join(os.path.dirname(__file__), "..", "pricing_v2", "references")
@@ -146,8 +163,9 @@ async def ai_recent():
 
 
 @router.get("/ai/cost-history")
-async def ai_cost_history():
+async def ai_cost_history(authorization: str = Header(None)):
     """30-day daily cost breakdown: queries + estimated cost per day."""
+    _require_admin(authorization)
     entries = _read_pricing_log()
     now = datetime.now(timezone.utc)
     cost_per_query = 1.50
@@ -180,8 +198,9 @@ async def ai_cost_history():
 
 
 @router.get("/ai/model-breakdown")
-async def ai_model_breakdown():
+async def ai_model_breakdown(authorization: str = Header(None)):
     """Queries and cost grouped by model."""
+    _require_admin(authorization)
     entries = _read_pricing_log()
     cost_per_query = 1.50
     model_counts: Counter = Counter()

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
 import jwt
 from fastapi import APIRouter, Header, HTTPException
@@ -39,8 +40,8 @@ class NewConversation(BaseModel):
 
 class NewMessage(BaseModel):
     role: str  # "user" | "nova"
-    text: str | None = None
-    data: dict | None = None
+    text: Optional[str] = None
+    data: Optional[dict] = None
 
 
 # ── Ensure tables ────────────────────────────────────────────────────────────
