@@ -20,6 +20,8 @@ The revenue-generating page. Everything else supports this.
 - [ ] Follow-up questions in same context (conversation memory)
 - [ ] Fetch listing tool (read Fuelled/competitor URLs)
 - [ ] Report quality fixes (markdown cleanup, equipment title extraction)
+- [ ] Source references in intelligence panel (show which DB comps/gold data were used)
+- [ ] Evidence panel — drill into citations with full detail modal (from V1 traceability concept)
 
 ### 2. Dashboard
 Command center — quick overview of all systems.
@@ -56,11 +58,22 @@ Deep dive into the data layer.
 - [ ] Coverage gaps (categories with no RCN data)
 - [ ] Trend tracking (30-day price direction)
 
+### 6. Reports (NEW — from V1 gap analysis)
+Dedicated page for report generation and template management.
+- [ ] Template picker (Pricing Report, Portfolio Report, Market Report)
+- [ ] Parameter configuration (equipment type, region, date range, client name)
+- [ ] Report preview before export
+- [ ] Single-item .docx export (uses existing report.py)
+- [ ] Multi-item portfolio report (PwC format — from punch list P1)
+- [ ] Batch report from spreadsheet upload results
+- [ ] Report history (previously generated reports)
+- [ ] Scheduled delivery (daily/weekly/monthly — future)
+
 ---
 
 ## Operations Pages
 
-### 6. Scrapers
+### 7. Scrapers
 Standalone page for scraper management.
 - [ ] Source list with status (running, idle, failed, last run)
 - [ ] Listing count per source
@@ -72,7 +85,7 @@ Standalone page for scraper management.
 - [ ] Scrape history (runs over time, items added/removed)
 - [ ] IronHub Patchright status (special case — cookie persistence)
 
-### 7. AI Management
+### 8. AI Management
 Everything related to the intelligence layer.
 
 **Prompts:**
@@ -87,6 +100,13 @@ Everything related to the intelligence layer.
 - [ ] Token usage tracking (per query, daily, monthly)
 - [ ] Cost tracking ($X.XX per query, daily/monthly totals)
 - [ ] Rate limit monitoring
+
+**Cost & Spend Dashboard (NEW — from V1 gap analysis):**
+- [ ] KPI cards: today's spend, monthly total, avg cost/query, total queries
+- [ ] Daily spend area chart (7d/14d/30d toggle)
+- [ ] Model breakdown (Sonnet vs Opus usage and cost)
+- [ ] Tool cost attribution (which tools cost the most per query)
+- [ ] Budget alert threshold (warn when daily/monthly spend exceeds limit)
 
 **Tools:**
 - [ ] View registered tools (5 current + any new)
@@ -106,7 +126,7 @@ Everything related to the intelligence layer.
 - [ ] View accuracy metrics (median error by category)
 - [ ] Compare engine versions (before/after changes)
 
-### 8. Administration
+### 9. Administration
 
 **Users:**
 - [ ] User list (name, email, role, status, last login)
@@ -131,7 +151,7 @@ Everything related to the intelligence layer.
 
 ---
 
-## Priority Matrix
+## Priority Matrix (Updated March 27, 2026)
 
 ### Ship This Week (beta → production)
 1. Report quality fixes (markdown, title)
@@ -149,14 +169,30 @@ Everything related to the intelligence layer.
 11. Basic admin (user list, feedback log)
 
 ### Sprint 3 (weeks 3-4)
-12. AI management page
+12. AI management page (including cost/spend dashboard)
 13. Gold table viewer/editor
 14. Conversation persistence in database
 15. Calibration harness
 16. Email intake automation
 
 ### Sprint 4 (month 2)
-17. Manufacturer intelligence
-18. Weekly automated reports
-19. Client portal (external users)
-20. MCP server for Cowork/Claude Code integration
+17. Reports page — template picker, parameter config, preview, batch export
+18. Source references in intelligence panel (simple evidence/provenance)
+19. Manufacturer intelligence
+20. Weekly automated reports
+
+### Sprint 5+ (month 2-3)
+21. Evidence panel — full drill-down citations from intelligence panel
+22. Client portal (external users)
+23. MCP server for Cowork/Claude Code integration
+24. Scheduled report delivery
+
+## Design Decisions (March 27, 2026)
+
+- **Chart library:** Recharts (carried from V1 — works well with the design system)
+- **Cost tracking:** Folded into AI Management page, not a standalone page
+- **Reports page:** Dedicated page added to roadmap (Sprint 4)
+- **Traceability:** Simple source references first (Sprint 4), full evidence panel later (Sprint 5+)
+- **⌘K command palette:** Deferred — not a priority
+- **Activity feed in sidebar:** Deferred — not a priority
+- **Inline charts in chat:** Deferred — complexity not justified yet

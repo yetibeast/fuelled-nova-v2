@@ -116,11 +116,15 @@ def infer_condition_from_hours(
     hours: int | float | None,
     category_curve: str,
 ) -> str | None:
-    """Infer condition tier from operating hours with category-specific thresholds."""
+    """Infer condition tier from operating hours with category-specific thresholds.
+
+    Returns None for hours <= 0 (treat as "no data") to stay consistent with
+    compute_effective_age(), which also treats 0 hours as missing.
+    """
     if hours is None:
         return None
     numeric_hours = float(hours)
-    if numeric_hours < 0:
+    if numeric_hours <= 0:
         return None
 
     thresholds = HOURS_CONDITION_THRESHOLDS.get(

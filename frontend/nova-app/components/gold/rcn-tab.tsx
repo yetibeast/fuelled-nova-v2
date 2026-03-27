@@ -1,0 +1,138 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { DataTable } from "@/components/ui/data-table";
+import { MaterialIcon } from "@/components/ui/material-icon";
+import { fetchGoldRcn, updateGoldRcn, deleteGoldRcn } from "@/lib/api";
+import { formatPrice } from "@/lib/utils";
+
+interface RcnRow {
+  id: string;
+  canonical_manufacturer: string;
+  canonical_model: string;
+  equipment_class: string | null;
+  drive_type: string | null;
+  stage_config: string | null;
+  escalated_rcn_cad: number | null;
+  confidence: number | null;
+  validation_status: string | null;
+  notes: string | null;
+  effective_date: string | null;
+}
+
+export function RcnTab() {
+  const [rows, setRows] = useState<RcnRow[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editRcn, setEditRcn] = useState("");
+  const [editStatus, setEditStatus] = useState("");
+
+  useEffect(() => {
+    fetchGoldRcn()
+      .then(setRows)
+      .catch((e: Error) => setError(e.message));
+  }, []);
+
+  async function handleSave(id: string) {
+    try {
+      const updates: Record<string, unknown> = {};
+      if (editRcn) updates.escalated_rcn_cad = parseFloat(editRcn);
+      if (editStatus) updates.validation_status = editStatus;
+      await updateGoldRcn(id, updates);
+      setEditId(null);
+      const fresh = await fetchGoldRcn();
+      setRows(fresh);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Update failed");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      await deleteGoldRcn(id);
+      setRows((prev) => prev.filter((r) => r.id !== id));
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Delete failed");
+    }
+  }
+
+  if (error) return <div className="text-red-400 font-mono text-sm p-4">Error: {error}</div>;
+
+  return (
+    <DataTable
+      title="RCN Price References"
+      badge={`${rows.length} REFS`}
+      headers={["MANUFACTURER", "MODEL", "CLASS", "DRIVE", "RCN (CAD)", "CONF", "STATUS", ""]}
+      headerAligns={["left", "left", "left", "left", "right", "right", "left", "left"]}
+    >
+      {rows.map((r) => {
+        const isEditing = editId === r.id;
+        return (
+          <tr key={r.id} className="hover:bg-white/[0.04] transition-colors">
+            <td className="px-6 py-3 text-on-surface font-medium">{r.canonical_manufacturer}</td>
+            <td className="px-6 py-3 text-on-surface/70">{r.canonical_model}</td>
+            <td className="px-6 py-3 text-on-surface/50">{r.equipment_class || "---"}</td>
+            <td className="px-6 py-3 text-on-surface/50">{r.drive_type || "---"}</td>
+            <td className="px-6 py-3 text-right text-secondary font-bold">
+              {isEditing ? (
+                <input
+                  className="w-24 bg-surface-container-lowest rounded px-2 py-1 text-xs text-right text-on-surface"
+                  defaultValue={r.escalated_rcn_cad ?? ""}
+                  onChange={(e) => setEditRcn(e.target.value)}
+                />
+              ) : (
+                formatPrice(r.escalated_rcn_cad)
+              )}
+            </td>
+            <td className="px-6 py-3 text-right text-on-surface/50">
+              {r.confidence != null ? (r.confidence * 100).toFixed(0) + "%" : "---"}
+            </td>
+            <td className="px-6 py-3">
+              {isEditing ? (
+                <select
+                  className="bg-surface-container-lowest rounded px-2 py-1 text-xs text-on-surface"
+                  defaultValue={r.validation_status || "pending"}
+                  onChange={(e) => setEditStatus(e.target.value)}
+                >
+                  <option value="pending">pending</option>
+                  <option value="validated">validated</option>
+                  <option value="rejected">rejected</option>
+                </select>
+              ) : (
+                <span className={`text-xs font-mono ${
+                  r.validation_status === "validated" ? "text-emerald-400" :
+                  r.validation_status === "rejected" ? "text-red-400" : "text-on-surface/40"
+                }`}>
+                  {r.validation_status || "pending"}
+                </span>
+              )}
+            </td>
+            <td className="px-6 py-3">
+              {isEditing ? (
+                <div className="flex gap-2">
+                  <button onClick={() => handleSave(r.id)} className="text-emerald-400 hover:text-emerald-300">
+                    <MaterialIcon icon="check" className="text-[16px]" />
+                  </button>
+                  <button onClick={() => setEditId(null)} className="text-on-surface/40 hover:text-on-surface/70">
+                    <MaterialIcon icon="close" className="text-[16px]" />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditId(r.id); setEditRcn(""); setEditStatus(""); }}
+                    className="text-on-surface/30 hover:text-primary">
+                    <MaterialIcon icon="edit" className="text-[16px]" />
+                  </button>
+                  <button onClick={() => handleDelete(r.id)}
+                    className="text-on-surface/30 hover:text-red-400">
+                    <MaterialIcon icon="delete" className="text-[16px]" />
+                  </button>
+                </div>
+              )}
+            </td>
+          </tr>
+        );
+      })}
+    </DataTable>
+  );
+}

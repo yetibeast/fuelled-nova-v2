@@ -15,9 +15,9 @@ from app.db.session import get_session
 
 USERS = [
     ("curtis@arcanosai.com", "Curtis Lynn", "admin"),
-    ("harsh@arcanosai.com", "Harsh Kansara", "analyst"),
-    ("mark@fuelledmarketing.com", "Mark Le Dain", "admin"),
-    ("raj@fuelledmarketing.com", "Raj Singh", "analyst"),
+    ("harsh.kansara@fuelled.com", "Harsh Kansara", "analyst"),
+    ("mark.ledain@fuelled.com", "Mark Le Dain", "admin"),
+    ("raj.singh@fuelled.com", "Raj Singh", "analyst"),
 ]
 
 PASSWORD = "fuelled2026"

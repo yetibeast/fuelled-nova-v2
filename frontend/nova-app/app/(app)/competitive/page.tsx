@@ -6,7 +6,17 @@ import { MaterialIcon } from "@/components/ui/material-icon";
 import { CompetitiveSourceCoverage } from "@/components/competitive/source-coverage";
 import { OpportunitiesTable } from "@/components/competitive/opportunities";
 import { RepricingTable } from "@/components/competitive/repricing";
-import { fetchMarketSources, fetchMarketOpportunities, fetchMarketRepricing } from "@/lib/api";
+import {
+  fetchCompetitiveSummary,
+  fetchMarketOpportunities,
+  fetchMarketRepricing,
+} from "@/lib/api";
+
+interface Summary {
+  competitor_total: number;
+  new_this_week: number;
+  stale_count: number;
+}
 
 interface Opportunity {
   title?: string;
@@ -20,7 +30,7 @@ interface Opportunity {
 }
 
 export default function CompetitivePage() {
-  const [competitorCount, setCompetitorCount] = useState("--");
+  const [summary, setSummary] = useState<Summary | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -28,13 +38,8 @@ export default function CompetitivePage() {
   const [repricing, setRepricing] = useState<Opportunity[]>([]);
 
   useEffect(() => {
-    fetchMarketSources()
-      .then((data: { source: string; total: number }[]) => {
-        const nonFuelled = data
-          .filter((s) => (s.source || "").toLowerCase() !== "fuelled")
-          .reduce((sum, s) => sum + (s.total || 0), 0);
-        setCompetitorCount(nonFuelled.toLocaleString());
-      })
+    fetchCompetitiveSummary()
+      .then((data: Summary) => setSummary(data))
       .catch(() => {});
   }, []);
 
@@ -64,19 +69,28 @@ export default function CompetitivePage() {
         </p>
       </div>
 
-      {/* Metric cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <MetricCard label="Competitor Data" value={competitorCount} subtitle="Non-Fuelled listings" />
-        <MetricCard label="New This Week" value="847" subtitle="Across all sources" />
-        <MetricCard label="Stale Inventory" value="3,210" subtitle="Listed > 1 year w/ no sale" />
+        <MetricCard
+          label="Competitor Data"
+          value={summary ? summary.competitor_total.toLocaleString() : "--"}
+          subtitle="Non-Fuelled listings"
+        />
+        <MetricCard
+          label="New This Week"
+          value={summary ? summary.new_this_week.toLocaleString() : "--"}
+          subtitle="Across all sources"
+        />
+        <MetricCard
+          label="Stale Inventory"
+          value={summary ? summary.stale_count.toLocaleString() : "--"}
+          subtitle="Listed > 1 year w/ no sale"
+        />
       </div>
 
-      {/* Source coverage */}
       <div className="mb-6">
         <CompetitiveSourceCoverage />
       </div>
 
-      {/* Opportunities (lazy-loaded) */}
       <div className="glass-card rounded-xl overflow-hidden mb-6">
         <div className="px-6 py-4 flex justify-between items-center">
           <div>
@@ -93,12 +107,12 @@ export default function CompetitivePage() {
             >
               {loading ? (
                 <>
-                  <MaterialIcon icon="progress_activity" className="text-[16px] animate-spin" />
+                  <MaterialIcon icon="autorenew" className="text-[16px] animate-spin" />
                   Analyzing...
                 </>
               ) : (
                 <>
-                  <MaterialIcon icon="query_stats" className="text-[16px]" />
+                  <MaterialIcon icon="insights" className="text-[16px]" />
                   Load Analysis
                 </>
               )}
