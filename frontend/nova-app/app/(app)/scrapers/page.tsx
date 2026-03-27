@@ -29,11 +29,12 @@ export default function ScrapersPage() {
   const [sources, setSources] = useState<Source[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchScrapers()
-      .then((data: Source[]) => setSources(data))
-      .catch((e: Error) => setError(e.message));
+      .then((data: Source[]) => { setSources(data); setLoading(false); })
+      .catch((e: Error) => { setError(e.message); setLoading(false); });
   }, []);
 
   const totalListings = sources.reduce((sum, s) => sum + s.total_listings, 0);
@@ -42,6 +43,16 @@ export default function ScrapersPage() {
     .sort((a, b) => new Date(b.last_run_at!).getTime() - new Date(a.last_run_at!).getTime())[0]?.last_run_at;
 
   if (error) return <div className="text-red-400 font-mono text-sm p-4">Error loading scrapers: {error}</div>;
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div><div className="h-6 w-52 bg-white/[0.06] rounded animate-pulse" /><div className="h-3 w-72 bg-white/[0.04] rounded animate-pulse mt-2" /></div>
+        <div className="grid grid-cols-3 gap-4">{[1,2,3].map(i => <div key={i} className="glass-card rounded-xl p-5"><div className="h-3 w-16 bg-white/[0.06] rounded animate-pulse mb-2" /><div className="h-7 w-12 bg-white/[0.04] rounded animate-pulse" /></div>)}</div>
+        <div className="glass-card rounded-xl p-6"><div className="h-4 w-24 bg-white/[0.06] rounded animate-pulse mb-4" /><div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-10 bg-white/[0.04] rounded animate-pulse" />)}</div></div>
+      </div>
+    );
+  }
 
   return (
     <>

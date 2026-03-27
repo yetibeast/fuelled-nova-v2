@@ -113,3 +113,33 @@ async def ai_tools():
         }
         for name, count in tool_counts.most_common()
     ]
+
+
+@router.get("/ai/daily-usage")
+async def ai_daily_usage():
+    entries = _read_pricing_log()
+    now = datetime.now(timezone.utc)
+    days: dict[str, int] = {}
+    for i in range(7):
+        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        days[d] = 0
+    for e in entries:
+        ts = e.get("timestamp", "")[:10]
+        if ts in days:
+            days[ts] += 1
+    return [{"date": d, "count": c} for d, c in sorted(days.items())]
+
+
+@router.get("/ai/recent")
+async def ai_recent():
+    entries = _read_pricing_log()
+    recent = entries[-3:] if len(entries) >= 3 else entries
+    recent.reverse()
+    return [
+        {
+            "title": e.get("user_message", "")[:60],
+            "confidence": e.get("confidence", "LOW"),
+            "timestamp": e.get("timestamp", ""),
+        }
+        for e in recent
+    ]

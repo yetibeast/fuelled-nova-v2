@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
-import { logout } from "@/lib/api";
+import { logout, fetchRecentPricing } from "@/lib/api";
 
 const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: string; adminOnly?: boolean }[] = [
   { section: "INTELLIGENCE" },
@@ -26,16 +26,27 @@ interface SidebarProps {
   userRole?: string;
 }
 
+interface RecentItem {
+  title: string;
+  confidence: string;
+  timestamp: string;
+}
+
 export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
   const isAdmin = userRole === "admin";
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
+  const [activity, setActivity] = useState<RecentItem[]>([]);
 
   useEffect(() => {
     if (typeof window !== "undefined" && window.innerWidth < 768) {
       setCollapsed(true);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchRecentPricing().then(setActivity).catch(() => {});
   }, []);
 
   function isActive(href: string) {
@@ -116,6 +127,25 @@ export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
           })}
         </nav>
 
+        {/* Activity feed */}
+        {!collapsed && activity.length > 0 && (
+          <div className="px-5 py-3 border-t border-white/[0.06]">
+            <div className="text-[9px] font-mono text-secondary/60 uppercase tracking-[0.2em] mb-2">Recent</div>
+            {activity.map((a, i) => (
+              <button
+                key={i}
+                onClick={() => { router.push("/pricing"); if (window.innerWidth < 768) setCollapsed(true); }}
+                className="w-full text-left py-1.5 group"
+              >
+                <div className="text-[11px] text-on-surface/50 group-hover:text-on-surface/80 truncate transition-colors">
+                  {a.title}
+                </div>
+                <div className="text-[9px] font-mono text-on-surface/20">{a.timestamp?.slice(0, 10)}</div>
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Settings button — admin only */}
         {isAdmin && (
           <button
@@ -132,13 +162,13 @@ export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
         {/* Footer */}
         <div className={`px-5 py-4 border-t border-white/[0.06] flex items-center ${collapsed ? "justify-center" : "justify-between"}`}>
           {!collapsed && (
-            <div className="text-[9px] font-mono text-on-surface/20 leading-relaxed">
-              Fuelled Energy<br />Marketing Inc.
+            <div className="text-[9px] font-mono text-on-surface/30 leading-relaxed min-w-0">
+              Fuelled Energy Marketing Inc.
             </div>
           )}
           <button
             onClick={handleLogout}
-            className="text-on-surface/30 hover:text-primary transition-colors"
+            className="text-on-surface/30 hover:text-primary transition-colors shrink-0"
             title="Sign out"
           >
             <MaterialIcon icon="logout" className="text-[18px]" />

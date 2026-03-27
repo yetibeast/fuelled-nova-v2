@@ -241,3 +241,45 @@ export async function deleteGoldRcn(id: string) {
 /* ---------- Competitive ---------- */
 
 export function fetchCompetitiveSummary() { return adminGet("/api/competitive/summary"); }
+
+/* ---------- Batch Pricing ---------- */
+
+export async function uploadBatchSpreadsheet(file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/price/batch/upload", {
+    method: "POST",
+    body: fd,
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(body.detail || "Upload failed");
+  }
+  return res.json();
+}
+
+export async function exportBatchSpreadsheet(results: unknown[]) {
+  const res = await fetch("/api/price/batch/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ results }),
+  });
+  if (!res.ok) throw new Error("Export failed");
+  return res.blob();
+}
+
+export async function exportBatchReport(results: unknown[], summary?: Record<string, unknown>) {
+  const res = await fetch("/api/price/batch/report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ results, summary: summary || {} }),
+  });
+  if (!res.ok) throw new Error("Report generation failed");
+  return res.blob();
+}
+
+/* ---------- AI Daily Usage ---------- */
+
+export function fetchDailyUsage() { return adminGet("/api/admin/ai/daily-usage"); }
+export function fetchRecentPricing() { return adminGet("/api/admin/ai/recent"); }

@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { UsersTab } from "@/components/admin/users-tab";
 import { FeedbackTab } from "@/components/admin/feedback-tab";
 import { ValuationsTab } from "@/components/admin/valuations-tab";
 
 const TABS = ["Users", "Feedback Log", "Valuation Log"] as const;
 type Tab = (typeof TABS)[number];
+
+function AdminSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="flex gap-1 border-b border-white/[0.06] pb-2">{[1,2,3].map(i => <div key={i} className="h-6 w-24 bg-white/[0.06] rounded animate-pulse" />)}</div>
+      <div className="glass-card rounded-xl p-6"><div className="h-4 w-24 bg-white/[0.06] rounded animate-pulse mb-4" /><div className="space-y-3">{[1,2,3,4,5].map(i => <div key={i} className="h-10 bg-white/[0.04] rounded animate-pulse" />)}</div></div>
+    </div>
+  );
+}
 
 export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("Users");
@@ -35,9 +44,11 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {tab === "Users" && <UsersTab />}
-      {tab === "Feedback Log" && <FeedbackTab />}
-      {tab === "Valuation Log" && <ValuationsTab />}
+      <Suspense fallback={<AdminSkeleton />}>
+        {tab === "Users" && <UsersTab />}
+        {tab === "Feedback Log" && <FeedbackTab />}
+        {tab === "Valuation Log" && <ValuationsTab />}
+      </Suspense>
     </>
   );
 }

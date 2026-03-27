@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, FormEvent } from "react";
-import { login, getStoredUser } from "@/lib/api";
+import { login, getStoredUser, fetchHealth } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,11 +11,13 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [listingCount, setListingCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (typeof window !== "undefined" && getStoredUser()) {
       router.replace("/");
     }
+    fetchHealth().then((d) => setListingCount(d.listings_count)).catch(() => {});
   }, [router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -77,13 +79,14 @@ export default function LoginPage() {
           {/* Brand */}
           <div className="absolute top-9 left-9 z-[3] flex items-center gap-2.5">
             <div
-              className="w-[34px] h-[34px] flex items-center justify-center rounded-[9px] text-white font-mono text-[13px] font-bold tracking-tighter"
+              className="w-[34px] h-[34px] flex items-center justify-center rounded-[9px] text-white text-[16px] font-bold"
               style={{
-                background: "linear-gradient(135deg, #f97316 0%, #00b4d8 100%)",
-                boxShadow: "0 2px 10px rgba(249,115,22,0.25)",
+                fontFamily: "'Space Grotesk', sans-serif",
+                background: "#EF5D28",
+                boxShadow: "0 2px 10px rgba(239,93,40,0.25)",
               }}
             >
-              fn
+              N
             </div>
             <div className="text-[#edf1f5] text-lg font-semibold tracking-wide" style={{ fontFamily: "'Space Grotesk', sans-serif", textShadow: "0 1px 8px rgba(0,0,0,0.5)" }}>
               fuelled<span className="text-[#00b4d8] font-light">nova</span>
@@ -109,7 +112,7 @@ export default function LoginPage() {
 
             <div className="flex gap-7 mt-5 pt-4 border-t border-white/[0.07]">
               <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-base font-bold text-[#f97316]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>25,104</span>
+                <span className="font-mono text-base font-bold text-[#f97316]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>{listingCount != null ? listingCount.toLocaleString() : "---"}</span>
                 <span className="text-[#556178] text-[0.67rem] uppercase tracking-wider">Listings tracked</span>
               </div>
               <div className="flex flex-col gap-0.5">
