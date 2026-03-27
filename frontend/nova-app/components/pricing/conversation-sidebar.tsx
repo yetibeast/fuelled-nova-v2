@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { relativeTime } from "@/lib/utils";
-import { getStoredUser } from "@/lib/api";
+import { getStoredUser, fetchConversations } from "@/lib/api";
 
 function getStorageKey(): string {
   const user = getStoredUser();
@@ -15,6 +15,7 @@ export interface Conversation {
   title: string;
   messages: ConversationMessage[];
   created: number;
+  created_at?: string;
   _lastResponse?: ResponseData | null;
 }
 
@@ -29,6 +30,8 @@ export interface ResponseData {
   structured?: Record<string, unknown>;
 }
 
+/* ── localStorage helpers (offline fallback) ── */
+
 export function loadConversations(): Conversation[] {
   try {
     const raw = localStorage.getItem(getStorageKey());
@@ -42,6 +45,24 @@ export function loadConversations(): Conversation[] {
 
 export function saveConversations(convos: Conversation[]) {
   localStorage.setItem(getStorageKey(), JSON.stringify(convos));
+}
+
+/* ── API-backed loader (falls back to localStorage) ── */
+
+export async function loadConversationsFromAPI(): Promise<Conversation[]> {
+  try {
+    const remote = await fetchConversations();
+    if (Array.isArray(remote) && remote.length > 0) {
+      return remote.map((r: { id: string; title: string; created_at?: string }) => ({
+        id: r.id,
+        title: r.title || "New conversation",
+        messages: [],
+        created: r.created_at ? new Date(r.created_at).getTime() : Date.now(),
+        created_at: r.created_at,
+      }));
+    }
+  } catch { /* fall back to local */ }
+  return loadConversations();
 }
 
 interface ConversationSidebarProps {
@@ -59,7 +80,7 @@ export function ConversationSidebar({
   const [convos, setConvos] = useState<Conversation[]>([]);
 
   useEffect(() => {
-    setConvos(loadConversations());
+    loadConversationsFromAPI().then(setConvos);
   }, [currentId]);
 
   return (

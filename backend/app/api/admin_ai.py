@@ -143,3 +143,59 @@ async def ai_recent():
         }
         for e in recent
     ]
+
+
+@router.get("/ai/cost-history")
+async def ai_cost_history():
+    """30-day daily cost breakdown: queries + estimated cost per day."""
+    entries = _read_pricing_log()
+    now = datetime.now(timezone.utc)
+    cost_per_query = 1.50
+
+    days: dict[str, int] = {}
+    for i in range(30):
+        d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
+        days[d] = 0
+
+    for e in entries:
+        ts = e.get("timestamp", "")[:10]
+        if ts in days:
+            days[ts] += 1
+
+    daily = [
+        {"date": d, "queries": c, "cost": round(c * cost_per_query, 2)}
+        for d, c in sorted(days.items())
+    ]
+
+    total_month = sum(d["queries"] for d in daily)
+    avg_daily = round(total_month / 30, 1) if total_month else 0
+    projected = round(avg_daily * 30 * cost_per_query, 2)
+
+    return {
+        "daily": daily,
+        "monthly_total": round(total_month * cost_per_query, 2),
+        "avg_daily": avg_daily,
+        "projected_monthly": projected,
+    }
+
+
+@router.get("/ai/model-breakdown")
+async def ai_model_breakdown():
+    """Queries and cost grouped by model."""
+    entries = _read_pricing_log()
+    cost_per_query = 1.50
+    model_counts: Counter = Counter()
+
+    for e in entries:
+        model = e.get("model", "claude-sonnet-4-20250514")
+        model_counts[model] += 1
+
+    return [
+        {
+            "model": model,
+            "queries": count,
+            "cost": round(count * cost_per_query, 2),
+            "pct": round(count / len(entries) * 100, 1) if entries else 0,
+        }
+        for model, count in model_counts.most_common()
+    ]

@@ -16,6 +16,7 @@ const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: strin
   { label: "Market Data", icon: "database", href: "/market" },
   { section: "OPERATIONS", adminOnly: true },
   { label: "Gold Tables", icon: "table_chart", href: "/gold-tables", adminOnly: true },
+  { label: "Calibration", icon: "tune", href: "/calibration", adminOnly: true },
   { label: "Scrapers", icon: "cloud_sync", href: "/scrapers", adminOnly: true },
   { label: "AI Management", icon: "psychology", href: "/ai-management", adminOnly: true },
   { label: "Admin", icon: "admin_panel_settings", href: "/admin", adminOnly: true },

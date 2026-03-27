@@ -279,7 +279,80 @@ export async function exportBatchReport(results: unknown[], summary?: Record<str
   return res.blob();
 }
 
-/* ---------- AI Daily Usage ---------- */
+/* ---------- AI Daily Usage & Cost ---------- */
 
 export function fetchDailyUsage() { return adminGet("/api/admin/ai/daily-usage"); }
 export function fetchRecentPricing() { return adminGet("/api/admin/ai/recent"); }
+export function fetchCostHistory() { return adminGet("/api/admin/ai/cost-history"); }
+export function fetchModelBreakdown() { return adminGet("/api/admin/ai/model-breakdown"); }
+
+/* ---------- Conversations ---------- */
+
+export async function fetchConversations() {
+  const res = await fetch("/api/conversations", { headers: authHeaders() });
+  if (!res.ok) return [];
+  return res.json();
+}
+
+export async function createConversation(title = "New conversation") {
+  const res = await fetch("/api/conversations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ title }),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function fetchConversation(id: string) {
+  const res = await fetch(`/api/conversations/${id}`, { headers: authHeaders() });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function addConversationMessage(convoId: string, msg: { role: string; text?: string; data?: Record<string, unknown> | null }) {
+  const res = await fetch(`/api/conversations/${convoId}/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify(msg),
+  });
+  if (!res.ok) return null;
+  return res.json();
+}
+
+export async function deleteConversation(id: string) {
+  const res = await fetch(`/api/conversations/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  return res.ok;
+}
+
+/* ---------- Calibration ---------- */
+
+export function fetchGoldenFixtures() { return adminGet("/api/admin/calibration/golden-fixtures"); }
+export function fetchCalibrationResults() { return adminGet("/api/admin/calibration/results"); }
+
+export async function runGoldenCalibration() {
+  const res = await fetch("/api/admin/calibration/golden", {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Calibration failed");
+  return res.json();
+}
+
+export async function runCalibrationUpload(file: File) {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/calibration/run", {
+    method: "POST",
+    body: fd,
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(body.detail || "Calibration failed");
+  }
+  return res.json();
+}

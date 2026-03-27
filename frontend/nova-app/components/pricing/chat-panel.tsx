@@ -2,7 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
-import { sendPriceQuery } from "@/lib/api";
+import {
+  sendPriceQuery,
+  createConversation,
+  fetchConversation,
+  addConversationMessage,
+} from "@/lib/api";
 import { ChatInput } from "@/components/pricing/chat-input";
 import { UserMessage, NovaMessage } from "@/components/pricing/chat-message";
 import { ThinkingIndicator } from "@/components/pricing/thinking-indicator";
@@ -10,6 +15,7 @@ import {
   ConversationSidebar,
   loadConversations,
   saveConversations,
+  loadConversationsFromAPI,
 } from "@/components/pricing/conversation-sidebar";
 import type {
   Conversation,
@@ -46,12 +52,14 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
   /* ---------- Init ---------- */
 
   useEffect(() => {
-    const convos = loadConversations();
-    if (convos.length === 0) {
-      createNewConversation();
-    } else {
-      loadConversation(convos[0].id);
-    }
+    (async () => {
+      const convos = await loadConversationsFromAPI();
+      if (convos.length === 0) {
+        createNewConversation();
+      } else {
+        loadConversation(convos[0].id);
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -70,6 +78,7 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     currentEntries: ChatEntry[],
     currentLastResponse: ResponseData | null,
   ) {
+    // Save to localStorage as fallback
     const convos = loadConversations();
     const idx = convos.findIndex((c) => c.id === convoId);
     if (idx === -1) return;
@@ -90,12 +99,51 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     saveConversations(convos);
   }
 
-  function loadConversation(id: string) {
+  async function loadConversation(id: string) {
+    setCurrentConvoId(id);
+
+    // Try loading from API first
+    try {
+      const remote = await fetchConversation(id);
+      if (remote && remote.messages && remote.messages.length > 0) {
+        const newEntries: ChatEntry[] = [];
+        const newHistory: { role: string; content: string }[] = [];
+        let resp: ResponseData | null = null;
+
+        for (const m of remote.messages) {
+          if (m.role === "user") {
+            newEntries.push({ role: "user", text: m.text || "" });
+            newHistory.push({ role: "user", content: m.text || "" });
+          } else if (m.role === "nova") {
+            const data = m.data as ResponseData | null;
+            newEntries.push({ role: "nova", text: data?.response || m.text || "", data });
+            newHistory.push({ role: "assistant", content: data?.response || m.text || "" });
+            if (data) resp = data;
+          }
+        }
+
+        setEntries(newEntries);
+        setChatHistory(newHistory);
+        setLastResponse(resp);
+        onResponse(resp, {
+          conversationId: id,
+          messageIndex: newEntries.filter((e) => e.role === "nova").length - 1,
+          userMessage: newHistory.filter((h) => h.role === "user").pop()?.content || "",
+        });
+        return;
+      }
+    } catch { /* fall back to local */ }
+
+    // Fallback: load from localStorage
     const convos = loadConversations();
     const c = convos.find((cv) => cv.id === id);
-    if (!c) return;
-
-    setCurrentConvoId(id);
+    if (!c) {
+      setEntries([]);
+      setChatHistory([]);
+      setLastResponse(null);
+      onResponse(null, { conversationId: id, messageIndex: 0, userMessage: "" });
+      return;
+    }
 
     const newEntries: ChatEntry[] = [];
     const newHistory: { role: string; content: string }[] = [];
@@ -124,10 +172,22 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     });
   }
 
-  const createNewConversation = useCallback(() => {
+  const createNewConversation = useCallback(async () => {
+    // Try API first
+    let newId: string | null = null;
+    try {
+      const result = await createConversation("New conversation");
+      if (result?.id) newId = result.id;
+    } catch { /* fall back to local */ }
+
+    if (!newId) {
+      newId = "c_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8);
+    }
+
+    // Also store locally as fallback
     const convos = loadConversations();
     const newConvo: Conversation = {
-      id: "c_" + Date.now() + "_" + Math.random().toString(36).substring(2, 8),
+      id: newId,
       title: "New conversation",
       messages: [],
       created: Date.now(),
@@ -136,13 +196,13 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     convos.unshift(newConvo);
     saveConversations(convos);
 
-    setCurrentConvoId(newConvo.id);
+    setCurrentConvoId(newId);
     setEntries([]);
     setChatHistory([]);
     setInputValue("");
     setSelectedFiles([]);
     setLastResponse(null);
-    onResponse(null, { conversationId: newConvo.id, messageIndex: 0, userMessage: "" });
+    onResponse(null, { conversationId: newId, messageIndex: 0, userMessage: "" });
   }, [onResponse]);
 
   /* ---------- Send ---------- */
@@ -162,6 +222,11 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     setInputValue("");
     setIsThinking(true);
     scrollToBottom();
+
+    // Persist user message to API (fire-and-forget)
+    if (currentConvoId) {
+      addConversationMessage(currentConvoId, { role: "user", text: msg }).catch(() => {});
+    }
 
     // Build FormData
     const fd = new FormData();
@@ -193,6 +258,15 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
         messageIndex: novaCount - 1,
         userMessage: msg,
       });
+
+      // Persist nova message to API (fire-and-forget)
+      if (currentConvoId) {
+        addConversationMessage(currentConvoId, {
+          role: "nova",
+          text: data.response || "",
+          data: data as Record<string, unknown>,
+        }).catch(() => {});
+      }
 
       if (currentConvoId) {
         saveCurrentState(currentConvoId, updatedEntries, data);
