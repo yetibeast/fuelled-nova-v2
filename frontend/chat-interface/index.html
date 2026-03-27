@@ -365,6 +365,11 @@
 <span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform" data-icon="folder_open" style="">folder_open</span>
 <span class="font-mono text-[11px] uppercase tracking-[0.15em] font-medium" style="">Attachments</span>
 </a>
+<a id="batch-upload-btn" class="flex items-center gap-3 bg-white/8 border border-secondary/25 text-secondary/80 rounded-full py-2.5 px-8 hover:bg-white/12 hover:text-secondary transition-all group" href="#" style="">
+<span class="material-symbols-outlined text-xl group-hover:scale-110 transition-transform" data-icon="upload_file" style="">upload_file</span>
+<span class="font-mono text-[11px] uppercase tracking-[0.15em] font-medium" style="">Batch Upload</span>
+</a>
+<input id="batch-file-picker" type="file" accept=".xlsx,.csv" class="hidden">
 <a id="new-query-btn" class="flex items-center gap-3 bg-white/8 border border-secondary/25 text-secondary/80 rounded-full py-2.5 px-8 hover:bg-white/12 hover:text-secondary transition-all" href="#" style="">
 <span class="material-symbols-outlined text-xl" data-icon="terminal" style="">terminal</span>
 <span class="font-mono text-[11px] uppercase tracking-[0.15em] font-bold" style="">New Query</span>
@@ -1018,6 +1023,164 @@ document.addEventListener('DOMContentLoaded', function() {
         exportBtn.textContent = origText;
         exportBtn.disabled = false;
         exportBtn.classList.remove('opacity-50', 'cursor-wait');
+      }
+    });
+  }
+
+  // --- Batch Upload ---
+  var batchBtn = document.getElementById('batch-upload-btn');
+  var batchPicker = document.getElementById('batch-file-picker');
+  var _batchResults = null;
+
+  function addBatchSummaryCard(data) {
+    var s = data.summary || {};
+    var errHtml = '';
+    if (data.errors && data.errors.length) {
+      errHtml = '<div class="mt-3 pt-3 border-t border-white/5">' +
+        '<span class="text-[10px] font-mono text-primary uppercase tracking-widest">Errors</span>' +
+        data.errors.map(function(e) {
+          return '<div class="text-xs text-on-surface/60 mt-1">' + esc(e.title) + ': ' + esc(e.error) + '</div>';
+        }).join('') + '</div>';
+    }
+    var card = el(
+      '<div class="space-y-4">' +
+        '<div class="glass-card p-6 rounded-xl border-l-4 border-l-secondary">' +
+          '<div class="flex items-center gap-3 mb-4">' +
+            '<div style="width:36px;height:36px;background:#0ABAB5;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:14px;color:white;flex-shrink:0;">B</div>' +
+            '<span class="font-headline font-bold text-sm tracking-tight">Batch Valuation Complete</span>' +
+          '</div>' +
+          '<div class="grid grid-cols-2 md:grid-cols-4 gap-4">' +
+            '<div class="flex flex-col"><span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1">Total Items</span><span class="font-mono text-lg text-white">' + (s.total || 0) + '</span></div>' +
+            '<div class="flex flex-col"><span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1">Completed</span><span class="font-mono text-lg text-secondary">' + (s.completed || 0) + '</span></div>' +
+            '<div class="flex flex-col"><span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1">FMV Range</span><span class="font-mono text-lg text-white">' + fmtPrice(s.total_fmv_low || 0) + ' - ' + fmtPrice(s.total_fmv_high || 0) + '</span></div>' +
+            '<div class="flex flex-col"><span class="text-[10px] text-on-surface/40 uppercase tracking-widest mb-1">Errors</span><span class="font-mono text-lg ' + ((s.failed || 0) > 0 ? 'text-primary' : 'text-secondary') + '">' + (s.failed || 0) + '</span></div>' +
+          '</div>' +
+          errHtml +
+        '</div>' +
+        '<div class="flex flex-wrap gap-3">' +
+          '<button id="batch-dl-xlsx" class="flex items-center gap-2 bg-white/8 border border-secondary/25 text-secondary rounded-full py-2 px-6 hover:bg-white/12 transition-all">' +
+            '<span class="material-symbols-outlined text-lg">table_chart</span>' +
+            '<span class="font-mono text-[11px] uppercase tracking-wider font-medium">Download Spreadsheet</span>' +
+          '</button>' +
+          '<button id="batch-dl-report" class="flex items-center gap-2 bg-white/8 border border-primary/25 text-primary rounded-full py-2 px-6 hover:bg-white/12 transition-all">' +
+            '<span class="material-symbols-outlined text-lg">description</span>' +
+            '<span class="font-mono text-[11px] uppercase tracking-wider font-medium">Download Report</span>' +
+          '</button>' +
+        '</div>' +
+      '</div>'
+    );
+    convo.appendChild(card);
+
+    // Wire download buttons
+    card.querySelector('#batch-dl-xlsx').addEventListener('click', async function() {
+      if (!_batchResults) return;
+      this.disabled = true; this.classList.add('opacity-50');
+      try {
+        var res = await fetch('/api/price/batch/export', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '')},
+          body: JSON.stringify({results: _batchResults.results})
+        });
+        if (!res.ok) throw new Error('Export failed');
+        var blob = await res.blob();
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = 'Fuelled_Batch_Valuations.xlsx'; a.click();
+        URL.revokeObjectURL(url);
+      } catch(err) { alert('Export failed: ' + err.message); }
+      finally { this.disabled = false; this.classList.remove('opacity-50'); }
+    });
+
+    card.querySelector('#batch-dl-report').addEventListener('click', async function() {
+      if (!_batchResults) return;
+      this.disabled = true; this.classList.add('opacity-50');
+      try {
+        var res = await fetch('/api/price/batch/report', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '')},
+          body: JSON.stringify({results: _batchResults.results, summary: _batchResults.summary})
+        });
+        if (!res.ok) throw new Error('Report failed');
+        var blob = await res.blob();
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a'); a.href = url; a.download = 'Fuelled_Portfolio_Report.docx'; a.click();
+        URL.revokeObjectURL(url);
+      } catch(err) { alert('Report failed: ' + err.message); }
+      finally { this.disabled = false; this.classList.remove('opacity-50'); }
+    });
+
+    scrollBottom();
+  }
+
+  if (batchBtn && batchPicker) {
+    batchBtn.addEventListener('click', function(e) { e.preventDefault(); batchPicker.click(); });
+    batchPicker.addEventListener('change', async function() {
+      var file = batchPicker.files[0];
+      if (!file) return;
+      batchPicker.value = '';
+
+      // Show user bubble with file info
+      addUserBubble('Batch upload: ' + file.name, [{name: file.name, size: file.size}], true);
+
+      // Show progress indicator
+      var progressEl = el(
+        '<div id="batch-progress" class="flex justify-start">' +
+          '<div class="glass-card p-6 rounded-xl max-w-[85%]">' +
+            '<div class="flex items-center gap-3">' +
+              '<div style="width:36px;height:36px;background:#0ABAB5;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:\'Space Grotesk\',sans-serif;font-weight:700;font-size:14px;color:white;flex-shrink:0;">B</div>' +
+              '<span class="font-headline font-bold text-sm tracking-tight">Batch Processing</span>' +
+              '<span id="batch-progress-text" class="text-secondary animate-pulse font-mono text-xs">Uploading spreadsheet...</span>' +
+            '</div>' +
+            '<div class="mt-3 w-full bg-white/5 rounded-full h-1.5">' +
+              '<div id="batch-progress-bar" class="bg-secondary h-1.5 rounded-full transition-all" style="width:10%"></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>'
+      );
+      convo.appendChild(progressEl);
+      scrollBottom();
+
+      var bar = document.getElementById('batch-progress-bar');
+      var statusText = document.getElementById('batch-progress-text');
+
+      // Animate progress bar while waiting
+      var pct = 10;
+      var progressTimer = setInterval(function() {
+        pct = Math.min(pct + Math.random() * 8, 90);
+        if (bar) bar.style.width = pct + '%';
+        if (statusText) {
+          if (pct < 30) statusText.textContent = 'Parsing spreadsheet...';
+          else if (pct < 60) statusText.textContent = 'Pricing items...';
+          else statusText.textContent = 'Finalizing valuations...';
+        }
+      }, 2000);
+
+      try {
+        var fd = new FormData();
+        fd.append('file', file);
+        var res = await fetch('/api/price/batch/upload', {
+          method: 'POST',
+          body: fd,
+          headers: {'Authorization': 'Bearer ' + (localStorage.getItem('nova_token') || '')}
+        });
+        clearInterval(progressTimer);
+        var data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Batch upload failed');
+
+        // Remove progress, stop pulse on pills
+        var prog = document.getElementById('batch-progress'); if (prog) prog.remove();
+        convo.querySelectorAll('.pill-uploading').forEach(function(p) { p.classList.remove('pill-uploading'); });
+
+        _batchResults = data;
+        addBatchSummaryCard(data);
+      } catch(err) {
+        clearInterval(progressTimer);
+        var prog = document.getElementById('batch-progress'); if (prog) prog.remove();
+        convo.querySelectorAll('.pill-uploading').forEach(function(p) { p.classList.remove('pill-uploading'); });
+        convo.appendChild(el(
+          '<div class="flex justify-start"><div class="glass-card p-6 rounded-xl max-w-[85%]">' +
+            '<p class="text-error leading-relaxed">Batch upload error: ' + esc(err.message) + '</p></div></div>'
+        ));
+        scrollBottom();
       }
     });
   }

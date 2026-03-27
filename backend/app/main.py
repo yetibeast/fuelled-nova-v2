@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from app.config import CORS_ORIGINS
-from app.api import price, admin, admin_scrapers, admin_ai, admin_users, admin_gold, competitive, auth
+from app.api import price, batch, admin, admin_scrapers, admin_ai, admin_users, admin_gold, competitive, auth
 from app.db.session import get_session
 
 _FRONTEND_HTML = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "chat-interface", "index.html")
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(price.router, prefix="/api")
+app.include_router(batch.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
 app.include_router(admin_scrapers.router, prefix="/api")

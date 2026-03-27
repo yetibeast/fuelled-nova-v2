@@ -8,5 +8,6 @@ python-multipart
 aiohttp
 
 python-docx
+openpyxl
 bcrypt
 PyJWT
