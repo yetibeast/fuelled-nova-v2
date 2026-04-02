@@ -85,7 +85,7 @@ export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
           </button>
           {!collapsed && (
             <div className="overflow-hidden">
-              <div className="font-headline font-bold text-sm text-on-surface tracking-tight">Nova v2</div>
+              <div className="font-headline font-bold text-sm text-on-surface tracking-tight">Fuelled Nova</div>
               <div className="text-[9px] font-mono text-secondary tracking-widest">PRICING ENGINE</div>
             </div>
           )}
