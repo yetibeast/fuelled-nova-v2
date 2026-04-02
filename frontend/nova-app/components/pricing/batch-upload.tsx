@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
-import { uploadBatchSpreadsheet, exportBatchSpreadsheet, exportBatchReport } from "@/lib/api";
+import { uploadBatchSpreadsheet, exportBatchSpreadsheet, exportBatchReport, startBatchJob, pollBatchStatus } from "@/lib/api";
 
 interface BatchResult {
   results: Record<string, unknown>[];
@@ -10,14 +10,27 @@ interface BatchResult {
   summary: { total: number; completed: number; failed: number; total_fmv_low: number; total_fmv_high: number };
 }
 
-export function BatchUpload() {
+interface BatchUploadProps {
+  onBatchResults?: (results: Record<string, unknown>[], summary: Record<string, unknown>) => void;
+}
+
+export function BatchUpload({ onBatchResults }: BatchUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [result, setResult] = useState<BatchResult | null>(null);
   const [error, setError] = useState("");
+  const [jobId, setJobId] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, []);
 
   const handleFile = useCallback((f: File) => {
     setFile(f);
@@ -32,20 +45,72 @@ export function BatchUpload() {
     if (f) handleFile(f);
   }, [handleFile]);
 
+  function stopPolling() {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+    setJobId(null);
+  }
+
+  function startPolling(id: string) {
+    setJobId(id);
+    pollingRef.current = setInterval(async () => {
+      try {
+        const status = await pollBatchStatus(id);
+        if (status.current_item) {
+          setProgress(`Pricing item ${status.completed ?? 0} of ${status.total ?? "?"}... ${status.current_item}`);
+        }
+        if (status.status === "completed") {
+          stopPolling();
+          const data: BatchResult = {
+            results: status.results ?? [],
+            errors: status.errors ?? [],
+            summary: status.summary ?? { total: 0, completed: 0, failed: 0, total_fmv_low: 0, total_fmv_high: 0 },
+          };
+          setResult(data);
+          setProgress("");
+          setLoading(false);
+          if (onBatchResults) onBatchResults(data.results, data.summary);
+        } else if (status.status === "failed") {
+          stopPolling();
+          setError(status.error ?? "Batch job failed");
+          setProgress("");
+          setLoading(false);
+        }
+      } catch {
+        stopPolling();
+        setError("Lost connection to batch job");
+        setProgress("");
+        setLoading(false);
+      }
+    }, 2000);
+  }
+
   async function upload() {
     if (!file) return;
     setLoading(true);
     setError("");
-    setProgress("Uploading and pricing items...");
+    setProgress("Starting batch job...");
+
+    // Try async polling mode first, fall back to synchronous upload
     try {
-      const data = await uploadBatchSpreadsheet(file);
-      setResult(data);
-      setProgress("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed");
-      setProgress("");
-    } finally {
-      setLoading(false);
+      const { job_id } = await startBatchJob(file);
+      startPolling(job_id);
+    } catch {
+      // Fallback to synchronous upload
+      setProgress("Uploading and pricing items...");
+      try {
+        const data = await uploadBatchSpreadsheet(file);
+        setResult(data);
+        setProgress("");
+        if (onBatchResults) onBatchResults(data.results, data.summary);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Upload failed");
+        setProgress("");
+      } finally {
+        setLoading(false);
+      }
     }
   }
 
