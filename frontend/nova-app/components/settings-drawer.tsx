@@ -12,7 +12,6 @@ interface SettingsDrawerProps {
 
 export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
   const [queries, setQueries] = useState("--");
-  const [cost, setCost] = useState("--");
   const [monthly, setMonthly] = useState("--");
   const [feedback, setFeedback] = useState<Array<Record<string, unknown>>>([]);
 
@@ -25,8 +24,7 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
         const today = rows.filter((r) => (r.timestamp || "").slice(0, 10) === now).length;
         const monthlyCount = rows.filter((r) => (r.timestamp || "").slice(0, 7) === month).length;
         setQueries(String(today));
-        setCost("$" + (today * 1.5).toFixed(2));
-        setMonthly(monthlyCount + " queries");
+        setMonthly(String(monthlyCount));
       })
       .catch(() => {});
     fetchFeedback("down")
@@ -79,17 +77,13 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
           {/* API Usage */}
           <div>
             <h3 className="font-headline font-bold text-sm tracking-tight mb-4">API Usage</h3>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <div className="text-[10px] font-mono text-on-surface/40 uppercase tracking-widest mb-1">Today</div>
-                <div className="text-lg font-mono font-bold text-white">{queries}</div>
+                <div className="text-lg font-mono font-bold text-white">{queries} <span className="text-xs font-normal text-on-surface/40">queries</span></div>
               </div>
               <div>
-                <div className="text-[10px] font-mono text-on-surface/40 uppercase tracking-widest mb-1">Cost</div>
-                <div className="text-lg font-mono font-bold text-secondary">{cost}</div>
-              </div>
-              <div>
-                <div className="text-[10px] font-mono text-on-surface/40 uppercase tracking-widest mb-1">Monthly</div>
+                <div className="text-[10px] font-mono text-on-surface/40 uppercase tracking-widest mb-1">This Month</div>
                 <div className="text-lg font-mono font-bold text-white">{monthly}</div>
               </div>
             </div>

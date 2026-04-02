@@ -2,16 +2,56 @@ from __future__ import annotations
 import asyncio
 import datetime
 import json
+import logging
 import os
 import re
 import anthropic
-from app.config import ANTHROPIC_API_KEY
+from app.config import (
+    ANTHROPIC_API_KEY,
+    LANGFUSE_PUBLIC_KEY,
+    LANGFUSE_SECRET_KEY,
+    LANGFUSE_HOST,
+)
 from app.pricing_v2.prompts import build_system_prompt
 from app.pricing_v2.schemas import TOOLS
 from app.pricing_v2 import tools as tool_fns
 from app.pricing_v2.normalize import normalize_structured
 
+_log = logging.getLogger(__name__)
+
 _client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+
+# ── Langfuse (optional — graceful no-op when keys are missing) ──────────
+_langfuse = None
+try:
+    from langfuse import Langfuse
+    from langfuse.decorators import observe, langfuse_context
+
+    if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
+        _langfuse = Langfuse(
+            public_key=LANGFUSE_PUBLIC_KEY,
+            secret_key=LANGFUSE_SECRET_KEY,
+            host=LANGFUSE_HOST,
+        )
+except Exception:  # pragma: no cover
+    _log.debug("Langfuse not available — observability disabled")
+
+if _langfuse is None:
+    # Provide no-op fallbacks so decorators and context calls work without Langfuse
+    def observe(**_kw):  # type: ignore[misc]
+        def _noop(fn):
+            return fn
+        return _noop
+
+    class _NoopContext:
+        @staticmethod
+        def update_current_observation(**_kw): pass
+        @staticmethod
+        def update_current_trace(**_kw): pass
+        @staticmethod
+        def get_current_trace_id(): return None
+
+    langfuse_context = _NoopContext()  # type: ignore[assignment]
 
 TOOL_MAP = {
     "fetch_listing": tool_fns.fetch_listing,
@@ -46,9 +86,16 @@ def _strip_json_block(text: str) -> str:
     return re.sub(r"```json\s*\{.*?\}\s*```\s*", "", text, flags=re.DOTALL).strip()
 
 
-async def run_pricing(user_message: str, attachments: list[dict] | None = None,
-                      conversation_history: list[dict] | None = None) -> dict:
+@observe()
+async def run_pricing(
+    user_message: str,
+    attachments: list[dict] | None = None,
+    conversation_history: list[dict] | None = None,
+    user_id: str | None = None,
+    conversation_id: str | None = None,
+) -> dict:
     system_prompt = build_system_prompt()
+    _model = "claude-sonnet-4-20250514"
 
     # Build messages
     messages = []
@@ -73,15 +120,19 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
     messages.append({"role": "user", "content": user_content})
 
     tools_used = []
+    total_input_tokens = 0
+    total_output_tokens = 0
 
     # Initial API call
     response = await _client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=_model,
         system=system_prompt,
         tools=TOOLS,
         messages=messages,
         max_tokens=8192,
     )
+    total_input_tokens += getattr(response.usage, "input_tokens", 0)
+    total_output_tokens += getattr(response.usage, "output_tokens", 0)
 
     # Tool loop
     while response.stop_reason == "tool_use":
@@ -108,12 +159,14 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
 
         # Call Claude again
         response = await _client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model=_model,
             system=system_prompt,
             tools=TOOLS,
             messages=messages,
             max_tokens=8192,
         )
+        total_input_tokens += getattr(response.usage, "input_tokens", 0)
+        total_output_tokens += getattr(response.usage, "output_tokens", 0)
 
     # Extract final text
     full_text = "".join(b.text for b in response.content if hasattr(b, "text"))
@@ -133,11 +186,30 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
     else:
         confidence = "LOW"
 
+    # ── Langfuse trace metadata ─────────────────────────────────
+    trace_id = None
+    if _langfuse:
+        try:
+            langfuse_context.update_current_observation(
+                metadata={"tools_used": tools_used, "confidence": confidence},
+            )
+            langfuse_context.update_current_trace(
+                user_id=user_id,
+                session_id=conversation_id,
+            )
+            trace_id = langfuse_context.get_current_trace_id()
+        except Exception:
+            _log.debug("Langfuse trace update failed", exc_info=True)
+
+    # ── Cost calculation (Sonnet: $3/M input, $15/M output) ─────
+    cost_usd = (total_input_tokens * 3 / 1_000_000) + (total_output_tokens * 15 / 1_000_000)
+
     result = {
         "response": clean_text,
         "structured": structured or {},
         "tools_used": tools_used,
         "confidence": confidence,
+        "trace_id": trace_id,
     }
 
     # Append log entry (non-blocking)
@@ -150,6 +222,11 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
         "confidence": confidence,
         "structured": structured or {},
         "response_length": len(clean_text),
+        "input_tokens": total_input_tokens,
+        "output_tokens": total_output_tokens,
+        "model": _model,
+        "cost_usd": round(cost_usd, 6),
+        "trace_id": trace_id,
     }
 
     def _write_log():

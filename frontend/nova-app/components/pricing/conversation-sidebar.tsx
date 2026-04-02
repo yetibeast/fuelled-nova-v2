@@ -28,6 +28,7 @@ export interface ConversationMessage {
 export interface ResponseData {
   response?: string;
   structured?: Record<string, unknown>;
+  trace_id?: string;
 }
 
 /* ── localStorage helpers (offline fallback) ── */

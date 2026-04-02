@@ -24,9 +24,10 @@ async def post_price(
     message: str = Form(...),
     files: list[UploadFile] = File(default=[]),
     history: str = Form(default=""),
+    conversation_id: str = Form(default=""),
     authorization: str = Header(default=""),
 ):
-    _require_auth(authorization)
+    user_id = _require_auth(authorization)
     attachments = []
     for f in files:
         content = await f.read(10_485_761)
@@ -48,6 +49,8 @@ async def post_price(
         message,
         attachments if attachments else None,
         conversation_history,
+        user_id=user_id,
+        conversation_id=conversation_id or None,
     )
 
     # Auto-capture evidence (fire-and-forget)

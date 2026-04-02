@@ -150,6 +150,7 @@ export function IntelligencePanel({
           userMessage={userMessage}
           structuredData={s}
           responseText={lastResponse.response || ""}
+          traceId={lastResponse.trace_id}
         />
         <ExportButton
           structuredData={s}

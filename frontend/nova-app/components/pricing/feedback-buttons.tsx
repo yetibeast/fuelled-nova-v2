@@ -9,6 +9,7 @@ interface FeedbackButtonsProps {
   userMessage: string;
   structuredData: Record<string, unknown>;
   responseText: string;
+  traceId?: string;
 }
 
 export function FeedbackButtons({
@@ -17,6 +18,7 @@ export function FeedbackButtons({
   userMessage,
   structuredData,
   responseText,
+  traceId,
 }: FeedbackButtonsProps) {
   const [submitted, setSubmitted] = useState<"up" | "down" | null>(null);
   const [showComment, setShowComment] = useState(false);
@@ -34,6 +36,7 @@ export function FeedbackButtons({
       response_text: responseText,
       user_email: user?.email,
       user_name: user?.name,
+      trace_id: traceId,
     });
   }
 

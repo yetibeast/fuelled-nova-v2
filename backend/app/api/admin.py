@@ -9,11 +9,25 @@ import jwt
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST
 from app.db.session import get_session
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
+
+# ── Langfuse client for feedback scores (optional) ──────────────────────
+_langfuse = None
+try:
+    from langfuse import Langfuse
+
+    if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
+        _langfuse = Langfuse(
+            public_key=LANGFUSE_PUBLIC_KEY,
+            secret_key=LANGFUSE_SECRET_KEY,
+            host=LANGFUSE_HOST,
+        )
+except Exception:
+    pass
 
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
@@ -175,6 +189,19 @@ async def post_feedback(body: dict, authorization: str = Header(default="")):
 
     with open(path, "a") as f:
         f.write(json.dumps(entry) + "\n")
+
+    # Send score to Langfuse if trace_id is present
+    trace_id = body.get("trace_id")
+    if trace_id and _langfuse:
+        try:
+            _langfuse.score(
+                trace_id=trace_id,
+                name="user_feedback",
+                value=1 if body.get("rating") == "up" else 0,
+                comment=body.get("comment"),
+            )
+        except Exception:
+            pass  # Don't fail feedback on Langfuse errors
 
     # On thumbs-down, flag evidence for review
     if body.get("rating") == "down" and body.get("evidence_id"):

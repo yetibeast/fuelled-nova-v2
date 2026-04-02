@@ -125,6 +125,7 @@ export async function submitFeedback(data: {
   response_text: string;
   user_email?: string;
   user_name?: string;
+  trace_id?: string;
 }) {
   return fetch("/api/feedback", {
     method: "POST",

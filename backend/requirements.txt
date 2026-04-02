@@ -12,3 +12,4 @@ openpyxl
 bcrypt
 PyJWT
 fastmcp
+langfuse
