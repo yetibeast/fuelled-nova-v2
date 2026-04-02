@@ -155,3 +155,53 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
         f.write(json.dumps(entry) + "\n")
 
     return result
+
+
+# ── Portfolio synthesis ──────────────────────────────────────
+
+
+def prepare_synthesis_input(results: list[dict]) -> str:
+    """Compress batch results for portfolio synthesis — structured JSON only, <50K tokens."""
+    items = []
+    for r in results:
+        s = r.get("structured", {})
+        v = s.get("valuation", {})
+        items.append({
+            "title": r.get("title", ""),
+            "fmv_low": v.get("fmv_low"),
+            "fmv_high": v.get("fmv_high"),
+            "confidence": v.get("confidence"),
+            "currency": v.get("currency", "CAD"),
+            "risks": s.get("risks", [])[:3],
+            "comps_count": len(s.get("comparables", [])),
+        })
+    return json.dumps(items, indent=None)
+
+
+async def run_portfolio_synthesis(results: list[dict], summary: dict) -> dict:
+    """Generate portfolio-level analysis from batch results using Claude."""
+    synthesis_input = prepare_synthesis_input(results)
+
+    # For now, generate synthesis from the structured data without an API call
+    # This keeps costs down and is deterministic
+    categories: dict[str, dict] = {}
+    for r in results:
+        v = r.get("structured", {}).get("valuation", {})
+        cat = v.get("type") or r.get("title", "Equipment")[:30]
+        if cat not in categories:
+            categories[cat] = {"count": 0, "fmv_low": 0, "fmv_high": 0}
+        categories[cat]["count"] += 1
+        categories[cat]["fmv_low"] += v.get("fmv_low", 0) or 0
+        categories[cat]["fmv_high"] += v.get("fmv_high", 0) or 0
+
+    total_low = summary.get("total_fmv_low", 0)
+    total_high = summary.get("total_fmv_high", 0)
+
+    return {
+        "executive_summary": f"Portfolio of {len(results)} items valued at ${total_low:,.0f} — ${total_high:,.0f}.",
+        "category_breakdown": [
+            {"category": cat, **vals} for cat, vals in categories.items()
+        ],
+        "data_quality_notes": None,
+        "disposition_strategy": None,
+    }
