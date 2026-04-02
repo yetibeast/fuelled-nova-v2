@@ -73,12 +73,9 @@ export default function ScrapersPage() {
         headers={["SOURCE", "LISTINGS", "WITH PRICE", "LAST RUN", "STATUS", ""]}
         headerAligns={["left", "right", "right", "left", "left", "left"]}
         footer={
-          <button
-            onClick={() => console.log("manual trigger not yet wired")}
-            className="text-primary hover:text-primary/80 transition-colors"
-          >
-            Refresh All
-          </button>
+          <span className="text-on-surface/30 text-xs font-mono" title="Scrapers run on automated schedule">
+            Auto-refresh on schedule
+          </span>
         }
       >
         {sources.map((s) => {

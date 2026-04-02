@@ -1,12 +1,30 @@
 from __future__ import annotations
 
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+
+import jwt
+from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 from sqlalchemy import text
+
+from app.config import JWT_SECRET
 from app.db.session import get_session
 
 router = APIRouter()
+
+
+def _require_admin(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return payload["sub"]
 
 class RCNCreate(BaseModel):
     canonical_manufacturer: str
@@ -29,7 +47,8 @@ class RCNUpdate(BaseModel):
     notes: Optional[str] = None
 
 @router.get("/admin/gold/rcn")
-async def list_rcn():
+async def list_rcn(authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT id, canonical_manufacturer, canonical_model, equipment_class,
@@ -50,7 +69,8 @@ async def list_rcn():
     ]
 
 @router.post("/admin/gold/rcn")
-async def create_rcn(body: RCNCreate):
+async def create_rcn(body: RCNCreate, authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """INSERT INTO rcn_price_references
@@ -71,7 +91,8 @@ async def create_rcn(body: RCNCreate):
     return {"id": str(new_id)}
 
 @router.put("/admin/gold/rcn/{rcn_id}")
-async def update_rcn(rcn_id: str, body: RCNUpdate):
+async def update_rcn(rcn_id: str, body: RCNUpdate, authorization: str = Header(None)):
+    _require_admin(authorization)
     sets, params = [], {"rid": rcn_id}
     if body.escalated_rcn_cad is not None:
         sets.append("escalated_rcn_cad = :rcn"); params["rcn"] = body.escalated_rcn_cad
@@ -89,14 +110,16 @@ async def update_rcn(rcn_id: str, body: RCNUpdate):
     return {"status": "updated"}
 
 @router.delete("/admin/gold/rcn/{rcn_id}")
-async def delete_rcn(rcn_id: str):
+async def delete_rcn(rcn_id: str, authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         await session.execute(text("DELETE FROM rcn_price_references WHERE id = :rid"), {"rid": rcn_id})
         await session.commit()
     return {"status": "deleted"}
 
 @router.get("/admin/gold/market")
-async def list_market():
+async def list_market(authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT id, canonical_manufacturer, canonical_model, value_type,
@@ -113,7 +136,8 @@ async def list_market():
     ]
 
 @router.get("/admin/gold/depreciation")
-async def list_depreciation():
+async def list_depreciation(authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT id, equipment_class, canonical_manufacturer, canonical_model,
@@ -132,7 +156,8 @@ async def list_depreciation():
     ]
 
 @router.get("/admin/gold/gaps")
-async def coverage_gaps():
+async def coverage_gaps(authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT l.category_normalized, COUNT(*) as listing_count,

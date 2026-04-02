@@ -11,6 +11,7 @@ interface ValuationData {
   fmv_low: number;
   fmv_high: number;
   confidence: string;
+  currency?: string;
   rcn?: number;
   factors?: Factor[];
 }
@@ -21,6 +22,7 @@ interface ValuationCardProps {
 
 export function ValuationCard({ data }: ValuationCardProps) {
   const confColor = confidenceColor(data.confidence);
+  const currency = data.currency || "CAD";
 
   return (
     <div className="glass-card p-8 rounded-xl w-full border-l-4 border-l-primary">
@@ -36,7 +38,7 @@ export function ValuationCard({ data }: ValuationCardProps) {
             <h2 className="text-4xl font-headline font-bold text-white tracking-tight">
               {formatPrice(data.fmv_low)} - {formatPrice(data.fmv_high)}
             </h2>
-            <span className="font-mono text-sm text-secondary">CAD</span>
+            <span className="font-mono text-sm text-secondary">{currency}</span>
           </div>
           <div className="flex items-center gap-2 mt-2">
             <span
@@ -59,7 +61,7 @@ export function ValuationCard({ data }: ValuationCardProps) {
             </span>
             <span className="text-2xl font-mono text-primary font-bold tracking-tighter">
               {formatRcn(data.rcn)}{" "}
-              <span className="text-sm font-normal">CAD</span>
+              <span className="text-sm font-normal">{currency}</span>
             </span>
           </div>
         )}

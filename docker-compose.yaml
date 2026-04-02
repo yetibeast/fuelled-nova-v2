@@ -6,11 +6,18 @@ services:
     volumes:
       - './seeds:/app/seeds:ro'
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
 
   frontend:
     build: ./frontend/nova-app
     environment:
       - BACKEND_URL=http://backend:8100
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     restart: unless-stopped

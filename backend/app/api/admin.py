@@ -4,9 +4,13 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Optional
-from fastapi import APIRouter, Header, Query
-from app.db.session import get_session
+
+import jwt
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
+
+from app.config import JWT_SECRET
+from app.db.session import get_session
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -14,12 +18,25 @@ _log = logging.getLogger(__name__)
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 
+def _require_auth(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload["sub"]
+
+
 # ---------------------------------------------------------------------------
 # 1. GET /valuations/recent
 # ---------------------------------------------------------------------------
 
 @router.get("/valuations/recent")
-async def valuations_recent():
+async def valuations_recent(authorization: str = Header(None)):
+    _require_auth(authorization)
     path = os.path.join(_LOG_DIR, "pricing_log.jsonl")
     if not os.path.exists(path):
         return []
@@ -58,7 +75,8 @@ async def valuations_recent():
 # ---------------------------------------------------------------------------
 
 @router.get("/market/categories")
-async def market_categories():
+async def market_categories(authorization: str = Header(None)):
+    _require_auth(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """
@@ -96,7 +114,8 @@ async def market_categories():
 # ---------------------------------------------------------------------------
 
 @router.get("/market/sources")
-async def market_sources():
+async def market_sources(authorization: str = Header(None)):
+    _require_auth(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """
@@ -206,7 +225,8 @@ _NEIGHBOR_QUERY = """
 
 
 @router.get("/market/opportunities")
-async def market_opportunities():
+async def market_opportunities(authorization: str = Header(None)):
+    _require_auth(authorization)
     query = _NEIGHBOR_QUERY.format(source_filter="!= 'fuelled'")
     async with get_session() as session:
         result = await session.execute(text(query), {"threshold": 0.5})
@@ -229,7 +249,8 @@ async def market_opportunities():
 
 
 @router.get("/market/repricing")
-async def market_repricing():
+async def market_repricing(authorization: str = Header(None)):
+    _require_auth(authorization)
     query = _NEIGHBOR_QUERY.format(source_filter="= 'fuelled'")
     async with get_session() as session:
         result = await session.execute(text(query), {"threshold": 0.6})
@@ -256,7 +277,8 @@ async def market_repricing():
 # ---------------------------------------------------------------------------
 
 @router.get("/feedback/recent")
-async def feedback_recent(rating: Optional[str] = Query(default=None)):
+async def feedback_recent(rating: Optional[str] = Query(default=None), authorization: str = Header(None)):
+    _require_auth(authorization)
     path = os.path.join(_LOG_DIR, "feedback_log.jsonl")
     if not os.path.exists(path):
         return []

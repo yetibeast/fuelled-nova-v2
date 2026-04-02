@@ -58,7 +58,7 @@ TOOLS = [
         "input_schema": {
             "type": "object",
             "properties": {
-                "rcn": {"type": "number", "description": "Replacement Cost New in CAD"},
+                "rcn": {"type": "number", "description": "Replacement Cost New (in the valuation currency — CAD or USD)"},
                 "equipment_class": {"type": "string", "enum": ["rotating", "static", "pump_jack", "electrical"], "description": "Equipment class for depreciation curve selection"},
                 "age_years": {"type": "integer", "description": "Age of equipment in years"},
                 "condition": {"type": "string", "enum": ["A", "B", "C", "D"], "default": "B", "description": "Condition grade: A=excellent, B=good, C=fair, D=poor"},

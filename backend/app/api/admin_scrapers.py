@@ -1,16 +1,33 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+import jwt
+from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
 from sqlalchemy.exc import ProgrammingError
 
+from app.config import JWT_SECRET
 from app.db.session import get_session
 
 router = APIRouter(prefix="/admin")
 
 
+def _require_admin(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return payload["sub"]
+
+
 @router.get("/scrapers")
-async def list_scrapers():
+async def list_scrapers(authorization: str = Header(None)):
+    _require_admin(authorization)
     """List sources with listing counts and optional scrape run info."""
     async with get_session() as session:
         result = await session.execute(text("""

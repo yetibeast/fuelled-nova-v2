@@ -1,10 +1,25 @@
 from __future__ import annotations
 
-from fastapi import APIRouter
+import jwt
+from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
+
+from app.config import JWT_SECRET
 from app.db.session import get_session
 
 router = APIRouter()
+
+
+def _require_auth(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    return payload["sub"]
 
 
 # ---------------------------------------------------------------------------
@@ -12,7 +27,8 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 
 @router.get("/competitive/summary")
-async def competitive_summary():
+async def competitive_summary(authorization: str = Header(None)):
+    _require_auth(authorization)
     async with get_session() as session:
         # Total non-fuelled listings
         r1 = await session.execute(text(
@@ -49,7 +65,8 @@ async def competitive_summary():
 # ---------------------------------------------------------------------------
 
 @router.get("/competitive/new")
-async def competitive_new():
+async def competitive_new(authorization: str = Header(None)):
+    _require_auth(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT title, source, asking_price, category_normalized,
@@ -78,7 +95,8 @@ async def competitive_new():
 # ---------------------------------------------------------------------------
 
 @router.get("/competitive/stale")
-async def competitive_stale():
+async def competitive_stale(authorization: str = Header(None)):
+    _require_auth(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             """SELECT title, source, asking_price, category_normalized,

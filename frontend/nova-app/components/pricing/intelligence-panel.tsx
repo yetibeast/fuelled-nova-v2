@@ -28,15 +28,17 @@ export function IntelligencePanel({
 
   const s = lastResponse.structured as Record<string, unknown>;
   const valuation = s.valuation as
-    | { fmv_low: number; fmv_high: number; confidence: string; rcn?: number; factors?: { label: string; value: number | string }[] }
+    | { fmv_low: number; fmv_high: number; confidence: string; currency?: string; rcn?: number; factors?: { label: string; value: number | string }[] }
     | undefined;
   const comparables = (s.comparables || []) as {
     title?: string;
     year?: string | number;
     location?: string;
     price?: number;
+    currency?: string;
     url?: string;
   }[];
+  const valuationCurrency = valuation?.currency;
   const risks = (s.risks || []) as string[];
   const methodology = (s.methodology || lastResponse.response || "") as string;
 
@@ -54,7 +56,7 @@ export function IntelligencePanel({
       )}
 
       {comparables.length > 0 && (
-        <ComparablesTable comparables={comparables} />
+        <ComparablesTable comparables={comparables} currency={valuationCurrency} />
       )}
 
       {risks.length > 0 && <RiskCard risks={risks} />}

@@ -14,12 +14,12 @@ IMPORTANT:
 - Always flag assumptions (condition assumed, hours unknown, year estimated)
 - Asking prices are 80-90% of actual transaction values — note this when citing comps
 - When users ask for links, the search_comparables tool returns listing URLs from the database. Always include them when available.
-- Currency is CAD unless stated otherwise
+- Currency: Detect from context. If equipment is in Canada or no location given, use CAD. If equipment is in the US (US state, USD mentioned, American sources), use USD. If ambiguous, ask the user. Always state which currency you're using. FX rates: 1 USD ≈ 1.44 CAD (approximate). Convert when comparing cross-border comps.
 - Legal name is "Fuelled Energy Marketing Inc."
 - Today's date is {today}. Always use this date for valuations and reports. Never make up or assume a different date.
 - When a user asks you to generate a report or export a report, tell them to click the Export Report button in the bottom bar. Do NOT write out the full report as text in the chat. Say something like: "Click the Export Report button below to download the formal Word document. It will include all the valuation data, comparables, and methodology in the client-ready format."
 - When you provide a valuation, ALSO include a JSON block in ```json fences with this structure:
-{"valuation":{"type":"...","title":"...","fmv_low":0,"fmv_mid":0,"fmv_high":0,"rcn":0,"confidence":"HIGH|MEDIUM|LOW","list_price":0,"walkaway":0,"factors":[{"label":"...","value":0}]},"comparables":[{"title":"...","price":0,"currency":"CAD","year":"...","location":"...","source":"..."}],"risks":["..."]}
+{"valuation":{"type":"...","title":"...","currency":"CAD or USD","fmv_low":0,"fmv_mid":0,"fmv_high":0,"rcn":0,"confidence":"HIGH|MEDIUM|LOW","list_price":0,"walkaway":0,"factors":[{"label":"...","value":0}]},"comparables":[{"title":"...","price":0,"currency":"CAD or USD","year":"...","location":"...","source":"..."}],"risks":["..."]}
 Then continue with narrative explanation after the JSON block."""
 
 _SECTIONS = [
@@ -51,7 +51,7 @@ Don't limit yourself to the tools. The tools give you market data and math. YOUR
 - Market context (why are prices where they are right now?)
 - Package breakdown (where is the value concentrated?)
 - Target buyer profile (who buys this and what do they care about?)
-- Cross-border implications (if US equipment, what does a Canadian buyer face?)
+- Cross-border implications (transport, re-certification, FX conversion — applies whether buyer is CA or US)
 - What missing information would change the number significantly?
 
 Some valuations need deep comparable analysis. Some don't need comps at all — the RCN methodology and your domain knowledge are sufficient. Use judgment about what tools to call and what to reason through on your own.
@@ -96,11 +96,12 @@ This method is MORE reliable than guessing a lump sum, because each component ca
 
 After calculating RCN for any compressor package, validate against these $/HP benchmarks:
 
-Gas engine compressor packages (2026 CAD):
-- 2-stage gas engine package: $1,000 - $1,200/HP
-- 3-stage gas engine package: $1,200 - $1,600/HP
-- 4-stage gas engine package: $1,000 - $1,400/HP
+Gas engine compressor packages (2026 CAD — divide by 1.44 for approximate USD):
+- 2-stage gas engine package: $1,000 - $1,200/HP CAD (~$694 - $833/HP USD)
+- 3-stage gas engine package: $1,200 - $1,600/HP CAD (~$833 - $1,111/HP USD)
+- 4-stage gas engine package: $1,000 - $1,400/HP CAD (~$694 - $972/HP USD)
 - Electric drive packages run 30-40% lower than gas engine equivalents
+Use the appropriate currency benchmarks based on the valuation currency.
 
 To validate: divide your RCN by the rated HP. If the result falls outside the expected range for that configuration, your RCN is likely wrong. Recheck your source data.
 
@@ -116,7 +117,7 @@ This is the fastest way to catch RCN errors. If the $/HP doesn't make sense, the
 
 def build_system_prompt() -> str:
     global _cached_prompt
-    if _cached_prompt is None:
+    if _cached_prompt is None:  # cleared on restart; edit references/ files + restart to refresh
         parts = [_HEADER]
         for label, filename in _SECTIONS:
             path = os.path.join(_REFS_DIR, filename)

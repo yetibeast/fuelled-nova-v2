@@ -13,31 +13,32 @@ interface SourceRow {
   last_updated: string | null;
 }
 
-const OVERLAP_PLACEHOLDERS: Record<string, string> = {
-  bidspotter: "12%",
-  reflowx: "8%",
-  kijiji: "22%",
-  equipmenttrader: "15%",
-  ironplanet: "11%",
-  ironhub: "6%",
-  govplanet: "4%",
-  surplusrecord: "3%",
-  machinio: "9%",
-  boomandbucket: "7%",
-};
-
 export function CompetitiveSourceCoverage() {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [totalListings, setTotalListings] = useState(0);
+  const [fuelledCount, setFuelledCount] = useState(0);
 
   useEffect(() => {
     fetchMarketSources()
       .then((data: SourceRow[]) => {
         setSources(data);
         setTotalListings(data.reduce((sum: number, s: SourceRow) => sum + (s.total || 0), 0));
+        const fuelled = data.find((s) => (s.source || "").toLowerCase() === "fuelled");
+        setFuelledCount(fuelled?.total || 0);
       })
       .catch(() => {});
   }, []);
+
+  // Compute overlap as: percentage of source's listings relative to Fuelled's count
+  // This is an approximation — true overlap requires DB-level comparison
+  function overlapPct(source: SourceRow): string {
+    if (!fuelledCount || (source.source || "").toLowerCase() === "fuelled") return "—";
+    // Estimate: smaller of the two divided by larger, scaled by price coverage
+    const priceCoverage = source.with_price / Math.max(source.total, 1);
+    const sizeRatio = Math.min(source.total, fuelledCount) / Math.max(source.total, fuelledCount);
+    const estimate = Math.round(sizeRatio * priceCoverage * 100);
+    return `~${Math.min(estimate, 95)}%`;
+  }
 
   return (
     <DataTable
@@ -59,7 +60,7 @@ export function CompetitiveSourceCoverage() {
           <td className="px-6 py-3 text-on-surface/50">{s.last_updated ? timeAgo(s.last_updated) : "---"}</td>
           <td className="px-6 py-3"><StatusDot date={s.last_updated} /></td>
           <td className="px-6 py-3 text-right text-secondary">
-            {OVERLAP_PLACEHOLDERS[(s.source || "").toLowerCase()] || "5%"}
+            {overlapPct(s)}
           </td>
         </tr>
       ))}

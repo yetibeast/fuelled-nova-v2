@@ -48,7 +48,8 @@ def _read_pricing_log() -> list[dict]:
 
 
 @router.get("/ai/prompt")
-async def ai_prompt():
+async def ai_prompt(authorization: str = Header(None)):
+    _require_admin(authorization)
     from app.pricing_v2.prompts import build_system_prompt
 
     prompt = build_system_prompt()
@@ -69,7 +70,8 @@ async def ai_prompt():
 
 
 @router.get("/ai/usage")
-async def ai_usage():
+async def ai_usage(authorization: str = Header(None)):
+    _require_admin(authorization)
     entries = _read_pricing_log()
     now = datetime.now(timezone.utc)
     today_str = now.strftime("%Y-%m-%d")
@@ -112,7 +114,8 @@ async def ai_usage():
 
 
 @router.get("/ai/tools")
-async def ai_tools():
+async def ai_tools(authorization: str = Header(None)):
+    _require_admin(authorization)
     entries = _read_pricing_log()
     tool_counts: Counter = Counter()
 
@@ -133,7 +136,8 @@ async def ai_tools():
 
 
 @router.get("/ai/daily-usage")
-async def ai_daily_usage():
+async def ai_daily_usage(authorization: str = Header(None)):
+    _require_admin(authorization)
     entries = _read_pricing_log()
     now = datetime.now(timezone.utc)
     days: dict[str, int] = {}
@@ -148,7 +152,8 @@ async def ai_daily_usage():
 
 
 @router.get("/ai/recent")
-async def ai_recent():
+async def ai_recent(authorization: str = Header(None)):
+    _require_admin(authorization)
     entries = _read_pricing_log()
     recent = entries[-3:] if len(entries) >= 3 else entries
     recent.reverse()

@@ -7,14 +7,16 @@ interface Comparable {
   year?: string | number;
   location?: string;
   price?: number;
+  currency?: string;
   url?: string;
 }
 
 interface ComparablesTableProps {
   comparables: Comparable[];
+  currency?: string;
 }
 
-export function ComparablesTable({ comparables }: ComparablesTableProps) {
+export function ComparablesTable({ comparables, currency }: ComparablesTableProps) {
   if (!comparables.length) return null;
 
   return (
@@ -35,7 +37,7 @@ export function ComparablesTable({ comparables }: ComparablesTableProps) {
               <th className="px-6 py-3 font-medium">YEAR</th>
               <th className="px-6 py-3 font-medium">REGION</th>
               <th className="px-6 py-3 font-medium text-right">
-                LIST PRICE (CAD)
+                LIST PRICE
               </th>
             </tr>
           </thead>
@@ -60,7 +62,8 @@ export function ComparablesTable({ comparables }: ComparablesTableProps) {
                   {c.location || "-"}
                 </td>
                 <td className="px-6 py-4 text-right text-secondary font-bold">
-                  {formatPrice(c.price ?? 0)}
+                  {formatPrice(c.price ?? 0)}{" "}
+                  <span className="text-on-surface/40 font-normal">{c.currency || currency || "CAD"}</span>
                 </td>
               </tr>
             ))}

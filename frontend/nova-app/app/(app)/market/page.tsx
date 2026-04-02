@@ -6,15 +6,33 @@ import { CategoriesTable } from "@/components/market/categories-table";
 import { DataHealth } from "@/components/market/data-health";
 import { CoverageGaps } from "@/components/market/coverage-gaps";
 import { MarketSourcesTable } from "@/components/market/sources-table";
-import { fetchHealth } from "@/lib/api";
+import { fetchHealth, fetchMarketSources } from "@/lib/api";
+import { timeAgo } from "@/lib/utils";
 
 export default function MarketPage() {
   const [listingCount, setListingCount] = useState("--");
+  const [sourceCount, setSourceCount] = useState("--");
+  const [lastRefresh, setLastRefresh] = useState("--");
 
   useEffect(() => {
     fetchHealth()
       .then((data: { listings_count?: number }) => {
         setListingCount((data.listings_count || 0).toLocaleString());
+      })
+      .catch(() => {});
+
+    fetchMarketSources()
+      .then((data: { source: string; last_updated: string | null }[]) => {
+        setSourceCount(String(data.length));
+        // Find most recent scrape across all sources
+        const dates = data
+          .map((s) => s.last_updated)
+          .filter(Boolean)
+          .sort()
+          .reverse();
+        if (dates.length > 0) {
+          setLastRefresh(timeAgo(dates[0]!));
+        }
       })
       .catch(() => {});
   }, []);
@@ -24,15 +42,15 @@ export default function MarketPage() {
       <div className="mb-6">
         <h1 className="font-headline font-bold text-xl tracking-tight">Market Intelligence</h1>
         <p className="text-on-surface/40 text-xs font-mono mt-1">
-          Live data from 16 sources across Western Canada and US
+          Live data from {sourceCount !== "--" ? sourceCount : ""} sources across Western Canada and US
         </p>
       </div>
 
       {/* Stats row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <MetricCard label="Active Listings" value={listingCount} />
-        <MetricCard label="Sources Connected" value="16" valueColor="text-secondary" />
-        <MetricCard label="Last Refresh" value="Today" />
+        <MetricCard label="Sources Connected" value={sourceCount} valueColor="text-secondary" />
+        <MetricCard label="Last Refresh" value={lastRefresh} />
         <MetricCard label="Coverage" value="Western CA + US" valueColor="text-white" />
       </div>
 

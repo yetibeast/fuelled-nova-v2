@@ -110,7 +110,7 @@ def _check_fallback(query: str) -> str | None:
     for key, d in _FALLBACK_RCN.items():
         if any(term in q for term in d["match_terms"]):
             return (f"Found 1 RCN match(es):\n\n  [fallback:{key}] (Fallback)\n"
-                    f"  RCN: ${d['rcn_low']:,} — ${d['rcn_mid']:,} — ${d['rcn_high']:,} CAD\n"
+                    f"  RCN: ${d['rcn_low']:,} — ${d['rcn_mid']:,} — ${d['rcn_high']:,} (stored as CAD — convert if valuing in USD)\n"
                     f"  Notes: {d['note']} (fallback dictionary)\n"
                     f"\nApply depreciation factors for age, condition, hours.")
     return None
@@ -208,7 +208,7 @@ async def lookup_rcn(equipment_type: str, manufacturer: str | None = None, model
             hp_str = f"  HP: {r.horsepower:,.0f}" if r.horsepower else ""
             notes = r.notes or ""
             lines.append(f"\n  [{r.canonical_manufacturer} {r.canonical_model}] ({r.equipment_class} — {status})")
-            lines.append(f"  RCN: ${rcn_low:,} — ${rcn_mid_r:,} — ${rcn_high:,} CAD (already escalated to current year)")
+            lines.append(f"  RCN: ${rcn_low:,} — ${rcn_mid_r:,} — ${rcn_high:,} (escalated to current year, stored as CAD — convert if valuing in USD)")
             if r.stage_config:
                 lines.append(f"  Config: {r.stage_config}")
             if r.drive_type:

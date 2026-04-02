@@ -6,13 +6,29 @@ from datetime import datetime
 from typing import Optional
 
 import bcrypt
-from fastapi import APIRouter, HTTPException, Query
+import jwt
+from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 
+from app.config import JWT_SECRET
 from app.db.session import get_session
 
 router = APIRouter(prefix="/admin")
+
+
+def _require_admin(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return payload["sub"]
 
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
@@ -33,7 +49,8 @@ class UpdateUserRequest(BaseModel):
 
 
 @router.get("/users")
-async def list_users():
+async def list_users(authorization: str = Header(None)):
+    _require_admin(authorization)
     async with get_session() as session:
         result = await session.execute(text(
             "SELECT id, name, email, role, status, last_login_at, created_at "
@@ -56,7 +73,8 @@ async def list_users():
 
 
 @router.post("/users")
-async def create_user(body: CreateUserRequest):
+async def create_user(body: CreateUserRequest, authorization: str = Header(None)):
+    _require_admin(authorization)
     hashed = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
     async with get_session() as session:
         result = await session.execute(
@@ -78,7 +96,8 @@ async def create_user(body: CreateUserRequest):
 
 
 @router.put("/users/{user_id}")
-async def update_user(user_id: str, body: UpdateUserRequest):
+async def update_user(user_id: str, body: UpdateUserRequest, authorization: str = Header(None)):
+    _require_admin(authorization)
     updates, params = [], {"id": user_id}
     if body.role is not None:
         updates.append("role = :role")
@@ -108,7 +127,8 @@ async def update_user(user_id: str, body: UpdateUserRequest):
 
 
 @router.get("/valuations")
-async def admin_valuations():
+async def admin_valuations(authorization: str = Header(None)):
+    _require_admin(authorization)
     path = os.path.join(_LOG_DIR, "pricing_log.jsonl")
     if not os.path.exists(path):
         return []
@@ -138,7 +158,8 @@ async def admin_valuations():
 
 
 @router.get("/feedback")
-async def admin_feedback(negative_only: bool = Query(default=False)):
+async def admin_feedback(negative_only: bool = Query(default=False), authorization: str = Header(None)):
+    _require_admin(authorization)
     path = os.path.join(_LOG_DIR, "feedback_log.jsonl")
     if not os.path.exists(path):
         return []
