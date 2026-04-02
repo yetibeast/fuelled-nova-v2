@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { ValuationCard } from "@/components/pricing/valuation-card";
 import { ComparablesTable } from "@/components/pricing/comparables-table";
@@ -7,13 +8,30 @@ import { RiskCard } from "@/components/pricing/risk-card";
 import { MethodologyCollapse } from "@/components/pricing/methodology-collapse";
 import { FeedbackButtons } from "@/components/pricing/feedback-buttons";
 import { ExportButton } from "@/components/pricing/export-button";
+import { ResultsTable } from "@/components/pricing/results-table";
 import type { ResponseData } from "@/components/pricing/conversation-sidebar";
+
+interface BatchResult {
+  title: string;
+  structured: {
+    valuation?: { fmv_low?: number; fmv_high?: number; confidence?: string; currency?: string; rcn?: number; factors?: { label: string; value: number | string }[] };
+    comparables?: Array<{ title?: string; year?: string | number; location?: string; price?: number; currency?: string; url?: string }>;
+    risks?: string[];
+    methodology?: string;
+    response?: string;
+  };
+  confidence?: string;
+}
 
 interface IntelligencePanelProps {
   lastResponse: ResponseData | null;
   conversationId: string;
   messageIndex: number;
   userMessage: string;
+  batchResults?: BatchResult[];
+  batchSummary?: { total_fmv_low?: number; total_fmv_high?: number };
+  batchLoading?: boolean;
+  batchProgress?: { completed: number; total: number; current_item?: string };
 }
 
 export function IntelligencePanel({
@@ -21,7 +39,69 @@ export function IntelligencePanel({
   conversationId,
   messageIndex,
   userMessage,
+  batchResults,
+  batchSummary,
+  batchLoading,
+  batchProgress,
 }: IntelligencePanelProps) {
+  const [selectedItem, setSelectedItem] = useState<number | null>(null);
+
+  // Batch mode: show results table or drill-down
+  if (batchResults && batchResults.length > 0) {
+    // Drill-down into a specific item
+    if (selectedItem !== null) {
+      const item = batchResults[selectedItem];
+      if (!item) {
+        setSelectedItem(null);
+        return null;
+      }
+
+      const val = item.structured?.valuation as
+        | { fmv_low: number; fmv_high: number; confidence: string; currency?: string; rcn?: number; factors?: { label: string; value: number | string }[] }
+        | undefined;
+      const comps = (item.structured?.comparables || []) as {
+        title?: string; year?: string | number; location?: string; price?: number; currency?: string; url?: string;
+      }[];
+      const risks = (item.structured?.risks || []) as string[];
+      const methodology = (item.structured?.methodology || item.structured?.response || "") as string;
+
+      return (
+        <div className="h-full overflow-y-auto p-6 space-y-6">
+          <button
+            onClick={() => setSelectedItem(null)}
+            className="flex items-center gap-1.5 text-xs text-secondary hover:text-primary transition-colors font-mono"
+          >
+            <MaterialIcon icon="arrow_back" className="text-sm" />
+            Back to results
+          </button>
+
+          <div className="text-on-surface/60 text-xs font-mono uppercase tracking-widest">
+            Item {selectedItem + 1} of {batchResults.length}
+          </div>
+
+          {val && val.fmv_low != null && <ValuationCard data={val} />}
+          {comps.length > 0 && <ComparablesTable comparables={comps} currency={val?.currency} />}
+          {risks.length > 0 && <RiskCard risks={risks} />}
+          {methodology && <MethodologyCollapse text={methodology} />}
+        </div>
+      );
+    }
+
+    // Results table overview
+    return (
+      <div className="h-full overflow-y-auto p-6 space-y-6">
+        <ResultsTable
+          results={batchResults}
+          summary={batchSummary}
+          isLoading={batchLoading}
+          progress={batchProgress}
+          onSelectItem={setSelectedItem}
+        />
+      </div>
+    );
+  }
+
+  // Single-item mode (unchanged)
   if (!lastResponse || !lastResponse.structured) {
     return <EmptyState />;
   }
