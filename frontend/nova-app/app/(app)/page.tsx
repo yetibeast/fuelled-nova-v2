@@ -3,8 +3,6 @@
 import { Suspense } from "react";
 import { MetricCards } from "@/components/dashboard/metric-cards";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { MarketBars } from "@/components/dashboard/market-bars";
-import { SourceCoverage } from "@/components/dashboard/source-coverage";
 import { Opportunities } from "@/components/dashboard/opportunities";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 
@@ -48,15 +46,7 @@ export default function DashboardPage() {
         <RecentActivity />
       </div>
 
-      {/* Market Overview */}
-      <MarketBars />
-
-      {/* Market Data Coverage */}
-      <div className="mb-6">
-        <SourceCoverage />
-      </div>
-
-      {/* Market Opportunities (lazy) */}
+      {/* Market Opportunities */}
       <Opportunities />
 
       {/* Quick Actions */}
