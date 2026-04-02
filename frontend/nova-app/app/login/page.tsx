@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState, FormEvent } from "react";
-import { login, getStoredUser, fetchHealth } from "@/lib/api";
+import { login, getStoredUser } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,13 +11,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const [listingCount, setListingCount] = useState<number | null>(null);
-
   useEffect(() => {
     if (typeof window !== "undefined" && getStoredUser()) {
       router.replace("/");
     }
-    fetchHealth().then((d) => setListingCount(d.listings_count)).catch(() => {});
   }, [router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -65,7 +62,7 @@ export default function LoginPage() {
         <section
           className="relative flex flex-col justify-end p-9 overflow-hidden min-h-[260px] md:min-h-0"
           style={{
-            backgroundImage: "linear-gradient(180deg, rgba(8,12,24,0) 0%, rgba(8,12,24,0.15) 35%, rgba(8,12,24,0.65) 65%, rgba(8,12,24,0.92) 100%), radial-gradient(ellipse at 30% 20%, rgba(249,115,22,0.15) 0%, transparent 50%), radial-gradient(ellipse at 70% 60%, rgba(0,180,216,0.1) 0%, transparent 50%), linear-gradient(135deg, #0a1628 0%, #0e1d2f 50%, #081420 100%)",
+            backgroundImage: "linear-gradient(180deg, rgba(8,12,24,0) 0%, rgba(8,12,24,0.15) 35%, rgba(8,12,24,0.65) 65%, rgba(8,12,24,0.92) 100%), url('/login-hero.png')",
             backgroundSize: "cover",
             backgroundPosition: "center 20%",
           }}
@@ -110,20 +107,6 @@ export default function LoginPage() {
               market intelligence, and predictive valuations.
             </p>
 
-            <div className="flex gap-7 mt-5 pt-4 border-t border-white/[0.07]">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-base font-bold text-[#f97316]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>{listingCount != null ? listingCount.toLocaleString() : "---"}</span>
-                <span className="text-[#556178] text-[0.67rem] uppercase tracking-wider">Listings tracked</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-base font-bold text-[#00b4d8]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>22</span>
-                <span className="text-[#556178] text-[0.67rem] uppercase tracking-wider">Categories</span>
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="font-mono text-base font-bold text-[#f97316]" style={{ textShadow: "0 1px 6px rgba(0,0,0,0.3)" }}>16</span>
-                <span className="text-[#556178] text-[0.67rem] uppercase tracking-wider">Sources</span>
-              </div>
-            </div>
           </div>
         </section>
 

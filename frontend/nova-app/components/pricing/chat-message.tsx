@@ -12,7 +12,7 @@ function escapeHtml(text: string) {
 }
 
 function bold(html: string) {
-  return html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-white">$1</strong>');
+  return html.replace(/\*\*(.+?)\*\*/g, '<strong class="text-secondary font-semibold">$1</strong>');
 }
 
 function renderMarkdown(text: string) {
@@ -31,11 +31,11 @@ function renderMarkdown(text: string) {
         return lines
           .map(
             (l) =>
-              `<div class="flex gap-2 text-sm"><span class="text-secondary shrink-0">&bull;</span><span class="text-[#F2E9E1]/80">${bold(escapeHtml(l.replace(/^\s*[-*\d.]+[\s)]+/, "")))}</span></div>`,
+              `<div class="flex gap-2 text-sm"><span class="text-primary shrink-0">&bull;</span><span class="text-on-surface/90">${bold(escapeHtml(l.replace(/^\s*[-*\d.]+[\s)]+/, "")))}</span></div>`,
           )
           .join("");
       }
-      return `<p class="text-[#F2E9E1] leading-relaxed">${bold(escapeHtml(block)).replace(/\n/g, "<br>")}</p>`;
+      return `<p class="text-on-surface/90 leading-relaxed">${bold(escapeHtml(block)).replace(/\n/g, "<br>")}</p>`;
     })
     .join("");
 }
