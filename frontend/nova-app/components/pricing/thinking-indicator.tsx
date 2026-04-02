@@ -1,26 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 
-const MESSAGES = [
-  "Searching 31,000 listings...",
-  "Analyzing market comparables...",
-  "Calculating fair market value...",
-  "Checking risk factors...",
-  "Building valuation summary...",
-];
-
 export function ThinkingIndicator() {
-  const [msgIndex, setMsgIndex] = useState(0);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setMsgIndex((i) => (i + 1) % MESSAGES.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   return (
     <div className="flex justify-start">
       <div className="glass-card p-6 rounded-xl max-w-[85%]">
@@ -31,9 +13,11 @@ export function ThinkingIndicator() {
           <span className="font-headline font-bold text-sm tracking-tight">
             Nova Intelligence
           </span>
-          <span className="text-secondary animate-pulse font-mono text-xs">
-            {MESSAGES[msgIndex]}
-          </span>
+          <div className="flex items-center gap-1 ml-1">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-[bounce_1.4s_ease-in-out_infinite]" />
+            <span className="w-2 h-2 rounded-full bg-secondary animate-[bounce_1.4s_ease-in-out_0.2s_infinite]" />
+            <span className="w-2 h-2 rounded-full bg-secondary animate-[bounce_1.4s_ease-in-out_0.4s_infinite]" />
+          </div>
         </div>
       </div>
     </div>
