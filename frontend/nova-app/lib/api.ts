@@ -279,6 +279,40 @@ export async function exportBatchReport(results: unknown[], summary?: Record<str
   return res.blob();
 }
 
+/* ---------- Batch Polling ---------- */
+
+export async function startBatchJob(file: File): Promise<{ job_id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/price/batch/start", {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) throw new Error("Failed to start batch job");
+  return res.json();
+}
+
+export async function pollBatchStatus(jobId: string) {
+  const res = await fetch(`/api/price/batch/${jobId}/status`, {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to poll batch status");
+  return res.json();
+}
+
+/* ---------- Tiered Reports ---------- */
+
+export async function generateTieredReport(tier: number, type: string, data: Record<string, unknown>): Promise<Blob> {
+  const res = await fetch("/api/reports/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tier, type, data }),
+  });
+  if (!res.ok) throw new Error("Failed to generate report");
+  return res.blob();
+}
+
 /* ---------- AI Daily Usage & Cost ---------- */
 
 export function fetchDailyUsage() { return adminGet("/api/admin/ai/daily-usage"); }
