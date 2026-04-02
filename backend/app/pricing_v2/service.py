@@ -9,6 +9,7 @@ from app.config import ANTHROPIC_API_KEY
 from app.pricing_v2.prompts import build_system_prompt
 from app.pricing_v2.schemas import TOOLS
 from app.pricing_v2 import tools as tool_fns
+from app.pricing_v2.normalize import normalize_structured
 
 _client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
@@ -119,6 +120,8 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
 
     # Parse structured JSON if present
     structured = _extract_json(full_text)
+    if structured:
+        structured = normalize_structured(structured)
     clean_text = _strip_json_block(full_text) if structured else full_text
 
     # Determine confidence
