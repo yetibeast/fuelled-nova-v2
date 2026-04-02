@@ -40,9 +40,12 @@ app.include_router(reports.router, prefix="/api")
 
 @app.get("/api/health")
 async def health():
-    async with get_session() as session:
-        result = await session.execute(text("SELECT COUNT(*) FROM listings"))
-        count = result.scalar()
+    try:
+        async with get_session() as session:
+            result = await session.execute(text("SELECT COUNT(*) FROM listings"))
+            count = result.scalar()
+    except Exception:
+        count = 0
     return {"status": "ok", "listings_count": count}
 
 

@@ -90,6 +90,18 @@ async def _price_batch(items: list[BatchItem]) -> dict:
 
 # ── In-memory async job store ────────────────────────────────
 _batch_jobs: dict[str, dict] = {}
+_JOB_TTL_SECONDS = 3600  # 1 hour
+
+
+def _cleanup_old_jobs():
+    """Evict batch jobs older than 1 hour to prevent unbounded memory growth."""
+    now = datetime.datetime.utcnow()
+    expired = [
+        jid for jid, job in _batch_jobs.items()
+        if (now - job.get("created_at", now)).total_seconds() > _JOB_TTL_SECONDS
+    ]
+    for jid in expired:
+        del _batch_jobs[jid]
 
 
 async def _price_batch_async(job_id: str, items: list[BatchItem]):
@@ -172,8 +184,12 @@ def _parse_file_to_items(data: bytes, filename: str) -> list[BatchItem]:
 @router.post("/batch/start")
 async def batch_start(file: UploadFile = File(...), authorization: str = Header(None)):
     _require_auth(authorization)
-    data = await file.read()
+    data = await file.read(10_485_761)
+    if len(data) > 10_485_760:
+        raise HTTPException(status_code=413, detail="File too large (10MB max)")
     items = _parse_file_to_items(data, file.filename or "")
+
+    _cleanup_old_jobs()
 
     job_id = str(uuid.uuid4())
     _batch_jobs[job_id] = {
@@ -185,6 +201,7 @@ async def batch_start(file: UploadFile = File(...), authorization: str = Header(
         "results": [],
         "errors": [],
         "summary": None,
+        "created_at": datetime.datetime.utcnow(),
     }
     asyncio.create_task(_price_batch_async(job_id, items))
     return {"job_id": job_id}
@@ -252,7 +269,9 @@ def _rows_to_items(rows: list[list[str]], col_map: dict[str, int]) -> list[Batch
 @router.post("/batch/upload")
 async def batch_upload(file: UploadFile = File(...), authorization: str = Header(None)):
     _require_auth(authorization)
-    data = await file.read()
+    data = await file.read(10_485_761)
+    if len(data) > 10_485_760:
+        raise HTTPException(status_code=413, detail="File too large (10MB max)")
     items = _parse_file_to_items(data, file.filename or "")
     return await _price_batch(items)
 

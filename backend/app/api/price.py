@@ -2,10 +2,11 @@ from __future__ import annotations
 import base64
 import json
 import logging
-from fastapi import APIRouter, Form, File, Header, UploadFile
+from fastapi import APIRouter, Form, File, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from app.pricing_v2.service import run_pricing
 from app.pricing_v2.report import generate_report
+from app.api.admin import _require_auth
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -25,9 +26,13 @@ async def post_price(
     history: str = Form(default=""),
     authorization: str = Header(default=""),
 ):
+    _require_auth(authorization)
     attachments = []
     for f in files:
-        data = base64.b64encode(await f.read()).decode()
+        content = await f.read(10_485_761)
+        if len(content) > 10_485_760:
+            raise HTTPException(413, "File too large (10MB max)")
+        data = base64.b64encode(content).decode()
         media_type = f.content_type or "application/octet-stream"
         att_type = MEDIA_MAP.get(media_type, "document")
         attachments.append({"type": att_type, "media_type": media_type, "data": data})
@@ -68,8 +73,13 @@ async def post_report(
     structured_data: str = Form(...),
     response_text: str = Form(default=""),
     user_message: str = Form(default="Equipment Valuation"),
+    authorization: str = Header(default=""),
 ):
-    structured = json.loads(structured_data)
+    _require_auth(authorization)
+    try:
+        structured = json.loads(structured_data)
+    except json.JSONDecodeError:
+        raise HTTPException(400, "Invalid JSON in structured_data")
 
     docx_bytes = generate_report(
         structured=structured,

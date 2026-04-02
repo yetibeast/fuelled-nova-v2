@@ -11,8 +11,32 @@ from app.pricing_v2.equipment.aliases import normalize_manufacturer, normalize_m
 log = logging.getLogger(__name__)
 
 
+def _is_safe_url(url: str) -> bool:
+    """Block private/internal IPs and non-HTTP schemes to prevent SSRF."""
+    from urllib.parse import urlparse
+    import ipaddress
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    hostname = parsed.hostname or ""
+    # Block metadata endpoints
+    if hostname in ("metadata.google.internal", "169.254.169.254"):
+        return False
+    try:
+        ip = ipaddress.ip_address(hostname)
+        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            return False
+    except ValueError:
+        # Not an IP literal — check for localhost
+        if hostname in ("localhost",):
+            return False
+    return True
+
+
 async def fetch_listing(url: str) -> str:
     """Fetch equipment details from a Fuelled or competitor listing URL."""
+    if not _is_safe_url(url):
+        return "Blocked: URL points to a private/internal address or uses a disallowed scheme."
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(url, timeout=aiohttp.ClientTimeout(total=15)) as resp:

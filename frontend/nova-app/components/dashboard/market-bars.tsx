@@ -9,27 +9,51 @@ interface CategoryRow {
   total: number;
 }
 
+/* Categories relevant to Fuelled's oilfield equipment business */
+const CORE_CATEGORIES = new Set([
+  "compressor_package",
+  "compressor",
+  "pump_jack",
+  "pumpjack",
+  "tank",
+  "separator",
+  "treater",
+  "pump",
+  "generator",
+  "flare_knockout",
+  "flare_ko",
+  "amine",
+  "dehydrator",
+  "vessel",
+  "meter",
+  "vru",
+]);
+
 export function MarketBars() {
   const [cats, setCats] = useState<CategoryRow[]>([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchMarketCategories()
       .then((data: CategoryRow[]) => {
-        const filtered = data.filter((c) => c.category != null);
-        setCats(filtered.slice(0, 8));
+        const relevant = data.filter(
+          (c) => c.category != null && CORE_CATEGORIES.has(c.category.toLowerCase())
+        );
+        setCats(relevant.length > 0 ? relevant.slice(0, 8) : data.filter((c) => c.category != null).slice(0, 8));
       })
-      .catch(() => {
-        setCats([
-          { category: "Compressor Package", total: 2141 },
-          { category: "Separator", total: 1800 },
-          { category: "Pump", total: 1500 },
-          { category: "Tank", total: 2300 },
-          { category: "Generator", total: 800 },
-        ]);
-      });
+      .catch(() => setError(true));
   }, []);
 
   const max = Math.max(...cats.map((c) => c.total), 1);
+
+  if (error) {
+    return (
+      <div className="glass-card rounded-xl p-6 mb-6">
+        <h3 className="font-headline font-bold text-sm tracking-tight mb-4">Market Overview</h3>
+        <p className="text-on-surface/30 text-xs font-mono">Unable to load market data</p>
+      </div>
+    );
+  }
 
   return (
     <div className="glass-card rounded-xl p-6 mb-6">

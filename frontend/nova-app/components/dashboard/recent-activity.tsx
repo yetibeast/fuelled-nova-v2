@@ -16,18 +16,21 @@ interface Valuation {
 
 export function RecentActivity() {
   const [rows, setRows] = useState<Valuation[]>([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchRecentValuations()
       .then((data: Valuation[]) => setRows(data.slice(0, 5)))
-      .catch(() => {
-        setRows([
-          { timestamp: new Date(Date.now() - 7200000).toISOString(), user_message: "Ariel JGK/4 3-Stage 1400HP", fmv_low: 673000, fmv_high: 910000, confidence: "HIGH" },
-          { timestamp: new Date(Date.now() - 18000000).toISOString(), user_message: "VaporTech Ro-Flo VRU 40HP", fmv_low: 38000, fmv_high: 52000, confidence: "MEDIUM" },
-          { timestamp: new Date(Date.now() - 86400000).toISOString(), user_message: "400 BBL Production Tank", fmv_low: 25000, fmv_high: 45000, confidence: "HIGH" },
-        ]);
-      });
+      .catch(() => setError(true));
   }, []);
+
+  if (error) {
+    return (
+      <DataTable title="Recent Valuations" badge="LAST 5" headers={["TIME", "EQUIPMENT", "FMV RANGE", "CONFIDENCE"]} headerAligns={["left", "left", "right", "left"]}>
+        <tr><td colSpan={4} className="px-6 py-6 text-center text-on-surface/30 text-xs font-mono">Unable to load recent valuations</td></tr>
+      </DataTable>
+    );
+  }
 
   return (
     <DataTable

@@ -11,6 +11,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<NovaUser | null>(null);
   const [ready, setReady] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      setSidebarCollapsed(true);
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -28,9 +35,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Sidebar onSettingsClick={() => setSettingsOpen(true)} userRole={user?.role} />
+      <Sidebar onSettingsClick={() => setSettingsOpen(true)} userRole={user?.role} collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <SettingsDrawer open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <main className="ml-[220px] min-h-screen p-7 max-md:ml-12 max-md:p-4 transition-[margin] duration-200">
+      <main className={`${sidebarCollapsed ? "ml-[48px]" : "ml-[220px]"} min-h-screen p-7 max-md:ml-12 max-md:p-4 transition-[margin] duration-200`}>
         {children}
       </main>
     </>

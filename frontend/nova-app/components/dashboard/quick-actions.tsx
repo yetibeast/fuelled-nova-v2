@@ -23,7 +23,7 @@ export function QuickActions() {
         <div className="text-[10px] font-mono text-on-surface/30 mt-1">Competitive analysis</div>
       </Link>
       <Link
-        href="/market-data"
+        href="/market"
         className="glass-card rounded-xl p-5 text-left hover:bg-white/[0.06] transition-colors group"
       >
         <MaterialIcon icon="database" className="text-tertiary mb-2" />

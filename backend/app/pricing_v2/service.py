@@ -11,7 +11,7 @@ from app.pricing_v2.schemas import TOOLS
 from app.pricing_v2 import tools as tool_fns
 from app.pricing_v2.normalize import normalize_structured
 
-_client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
 TOOL_MAP = {
     "fetch_listing": tool_fns.fetch_listing,
@@ -75,7 +75,7 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
     tools_used = []
 
     # Initial API call
-    response = _client.messages.create(
+    response = await _client.messages.create(
         model="claude-sonnet-4-20250514",
         system=system_prompt,
         tools=TOOLS,
@@ -107,7 +107,7 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
         messages.append({"role": "user", "content": tool_results})
 
         # Call Claude again
-        response = _client.messages.create(
+        response = await _client.messages.create(
             model="claude-sonnet-4-20250514",
             system=system_prompt,
             tools=TOOLS,
@@ -140,7 +140,7 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
         "confidence": confidence,
     }
 
-    # Append log entry
+    # Append log entry (non-blocking)
     log_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
     os.makedirs(log_dir, exist_ok=True)
     entry = {
@@ -151,8 +151,12 @@ async def run_pricing(user_message: str, attachments: list[dict] | None = None,
         "structured": structured or {},
         "response_length": len(clean_text),
     }
-    with open(os.path.join(log_dir, "pricing_log.jsonl"), "a") as f:
-        f.write(json.dumps(entry) + "\n")
+
+    def _write_log():
+        with open(os.path.join(log_dir, "pricing_log.jsonl"), "a") as f:
+            f.write(json.dumps(entry) + "\n")
+
+    await asyncio.to_thread(_write_log)
 
     return result
 

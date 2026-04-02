@@ -16,6 +16,7 @@ interface SourceRow {
 export function SourceCoverage() {
   const [sources, setSources] = useState<SourceRow[]>([]);
   const [totalListings, setTotalListings] = useState(0);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     fetchMarketSources()
@@ -23,17 +24,16 @@ export function SourceCoverage() {
         setSources(data);
         setTotalListings(data.reduce((sum: number, s: SourceRow) => sum + (s.total || 0), 0));
       })
-      .catch(() => {
-        const fallback: SourceRow[] = [
-          { source: "Fuelled", total: 12000, with_price: 8500, last_updated: new Date().toISOString() },
-          { source: "Kijiji", total: 5200, with_price: 3100, last_updated: new Date().toISOString() },
-          { source: "IronHub", total: 3800, with_price: 2200, last_updated: new Date().toISOString() },
-          { source: "EquipmentTrader", total: 2400, with_price: 1800, last_updated: new Date().toISOString() },
-        ];
-        setSources(fallback);
-        setTotalListings(31425);
-      });
+      .catch(() => setError(true));
   }, []);
+
+  if (error) {
+    return (
+      <DataTable title="Market Data Coverage" headers={["SOURCE", "LISTINGS", "WITH PRICE", "LAST UPDATED", "STATUS"]} headerAligns={["left", "right", "right", "left", "left"]}>
+        <tr><td colSpan={5} className="px-6 py-6 text-center text-on-surface/30 text-xs font-mono">Unable to load source data</td></tr>
+      </DataTable>
+    );
+  }
 
   return (
     <DataTable

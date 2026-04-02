@@ -167,7 +167,7 @@ function EmptyState() {
       <div className="text-center space-y-4 max-w-[280px]">
         <div className="w-16 h-16 rounded-2xl bg-white/[0.04] border border-white/[0.08] flex items-center justify-center mx-auto">
           <MaterialIcon
-            icon="precision_manufacturing"
+            icon="insights"
             className="text-3xl text-on-surface/20"
           />
         </div>

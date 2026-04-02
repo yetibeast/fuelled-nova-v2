@@ -155,6 +155,7 @@ async def market_sources(authorization: str = Header(None)):
 
 @router.post("/feedback")
 async def post_feedback(body: dict, authorization: str = Header(default="")):
+    _require_auth(authorization)
     os.makedirs(_LOG_DIR, exist_ok=True)
     path = os.path.join(_LOG_DIR, "feedback_log.jsonl")
 

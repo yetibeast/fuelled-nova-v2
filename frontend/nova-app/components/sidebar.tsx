@@ -26,6 +26,8 @@ const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: strin
 interface SidebarProps {
   onSettingsClick: () => void;
   userRole?: string;
+  collapsed: boolean;
+  setCollapsed: (collapsed: boolean) => void;
 }
 
 interface RecentItem {
@@ -34,18 +36,11 @@ interface RecentItem {
   timestamp: string;
 }
 
-export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
+export function Sidebar({ onSettingsClick, userRole, collapsed, setCollapsed }: SidebarProps) {
   const isAdmin = userRole === "admin";
   const pathname = usePathname();
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
   const [activity, setActivity] = useState<RecentItem[]>([]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined" && window.innerWidth < 768) {
-      setCollapsed(true);
-    }
-  }, []);
 
   useEffect(() => {
     fetchRecentPricing().then(setActivity).catch(() => {});
@@ -85,7 +80,7 @@ export function Sidebar({ onSettingsClick, userRole }: SidebarProps) {
           </button>
           {!collapsed && (
             <div className="overflow-hidden">
-              <div className="font-headline font-bold text-sm text-on-surface tracking-tight">Fuelled Nova</div>
+              <div className="font-headline font-bold text-sm text-on-surface tracking-tight">Fuelled<span className="text-primary">Nova</span></div>
               <div className="text-[9px] font-mono text-secondary tracking-widest">PRICING ENGINE</div>
             </div>
           )}
