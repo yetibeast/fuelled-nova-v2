@@ -8,6 +8,7 @@ from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
+from app.pricing_v2.report_common import price_fmt
 
 # ── Colour palette (locked — clients like the current format) ───
 NAVY = RGBColor(0x1A, 0x1A, 0x2E)
@@ -27,10 +28,9 @@ def _today():
     return datetime.date.today().strftime("%B %d, %Y")
 
 
-def _price(n):
-    if n is None:
-        return "[N/A]"
-    return f"${n:,.0f} CAD"
+def _price(n, currency="CAD"):
+    """Format price using shared helper, with currency from structured data."""
+    return price_fmt(n, currency)
 
 
 # ── Low-level helpers ───────────────────────────────────────────
@@ -195,6 +195,11 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     factors = v.get("factors", [])
     fmv_low, fmv_high, rcn = v.get("fmv_low"), v.get("fmv_high"), v.get("rcn")
     confidence = v.get("confidence", "MEDIUM")
+    currency = v.get("currency", "CAD")
+
+    # Closure over currency so all _price calls use the right unit
+    def _p(n):
+        return _price(n, currency)
     equip_title = (
         v.get("title")
         or v.get("type")
@@ -247,9 +252,9 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
         (str(f["value"]) for f in factors if "cond" in f.get("label", "").lower()),
         "B (Good) \u2014 Assumed")
     _table(doc, ["Valuation Summary", ""], [
-        ("Replacement Cost New (RCN)", _price(rcn)),
+        ("Replacement Cost New (RCN)", _p(rcn)),
         ("Fair Market Value Range",
-         f"{_price(fmv_low)} \u2014 {_price(fmv_high)}" if fmv_low else "[Not provided]"),
+         f"{_p(fmv_low)} \u2014 {_p(fmv_high)}" if fmv_low else "[Not provided]"),
         ("Valuation Basis", "Cost Approach (RCN \u00d7 Depreciation) + Market Comparables"),
         ("Condition Assessment", cond_display),
         ("Effective Date", today),
@@ -263,7 +268,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
         summary_parts.append(
             f"Based on RCN methodology with market validation against {len(comps)} comparable "
             f"listing{'s' if len(comps) != 1 else ''}, the estimated FMV range "
-            f"is {_price(fmv_low)} \u2014 {_price(fmv_high)} with {confidence} confidence."
+            f"is {_p(fmv_low)} \u2014 {_p(fmv_high)} with {confidence} confidence."
         )
     elif comps:
         summary_parts.append(
@@ -279,9 +284,9 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     _subheading(doc, "Technical Specifications")
     specs = [("Equipment", equip_title)]
     if rcn:
-        specs.append(("Replacement Cost New", _price(rcn)))
+        specs.append(("Replacement Cost New", _p(rcn)))
     if fmv_low:
-        specs.append(("Estimated FMV Range", f"{_price(fmv_low)} \u2014 {_price(fmv_high)}"))
+        specs.append(("Estimated FMV Range", f"{_p(fmv_low)} \u2014 {_p(fmv_high)}"))
     for f in factors:
         specs.append((f.get("label", "Factor"), _factor_display(f)))
     specs.append(("Confidence Level", confidence))
@@ -296,7 +301,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     # RCN Approach
     _subheading(doc, "Cost Approach (RCN)")
     if rcn:
-        _para(doc, f"The Replacement Cost New (RCN) of {_price(rcn)} represents the estimated "
+        _para(doc, f"The Replacement Cost New (RCN) of {_p(rcn)} represents the estimated "
               "cost to replace this equipment with a functionally equivalent new unit at current "
               "market prices in Canadian dollars.")
     else:
@@ -316,7 +321,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
         mid = (fmv_low + fmv_high) / 2
         p = doc.add_paragraph()
         _font(p.add_run(
-            f"FMV = RCN ({_price(rcn)}) \u00d7 Combined Factor ({mid / rcn:.4f}) = {_price(mid)}"),
+            f"FMV = RCN ({_p(rcn)}) \u00d7 Combined Factor ({mid / rcn:.4f}) = {_p(mid)}"),
             size=10, bold=True, color=BLUE)
 
     # Market Comp Approach (side by side comparison)
@@ -330,8 +335,8 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
             _table(doc, ["Metric", "Cost Approach (RCN)", "Market Comp Approach"], [
                 ("Basis", "RCN × Depreciation", f"{len(comps)} comparable listings"),
                 ("Value Range",
-                 f"{_price(fmv_low)} — {_price(fmv_high)}" if fmv_low else "[N/A]",
-                 f"{_price(adj_low)} — {_price(adj_high)}"),
+                 f"{_p(fmv_low)} — {_p(fmv_high)}" if fmv_low else "[N/A]",
+                 f"{_p(adj_low)} — {_p(adj_high)}"),
                 ("Adjustments", "Age, condition, hours, service", "10-20% asking price discount"),
                 ("Data Source", "Fuelled RCN tables", "Fuelled marketplace (36,000+ listings)"),
             ])
@@ -347,7 +352,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     _heading(doc, "MARKET COMPARABLES")
     if comps:
         _table(doc, ["Description", "Price", "Year", "Location", "Source", "URL"],
-               [(_strip_markdown(c.get("title", "?")), _price(c.get("price")),
+               [(_strip_markdown(c.get("title", "?")), _p(c.get("price")),
                  str(c.get("year", "-")), c.get("location", "-"),
                  c.get("source", "Fuelled"), c.get("url", "-")) for c in comps])
         doc.add_paragraph()
@@ -383,46 +388,77 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     if fmv_low and fmv_high:
         mid = (fmv_low + fmv_high) / 2
         _table(doc, ["Scenario", "FMV Low", "FMV High", "Confidence"],
-               [("Primary Scenario", _price(fmv_low), _price(fmv_high), confidence)])
+               [("Primary Scenario", _p(fmv_low), _p(fmv_high), confidence)])
         doc.add_paragraph()
         _subheading(doc, "Recommended List Pricing")
         list_p, walkaway = mid * 1.12, fmv_low * 0.92
         _table(doc, ["Metric", "Value"], [
-            ("FMV Midpoint", _price(mid)),
-            ("List Premium (12%)", _price(list_p)),
-            ("Recommended List Price", _price(list_p)),
-            ("Walk-Away Floor", _price(walkaway)),
+            ("FMV Midpoint", _p(mid)),
+            ("List Premium (12%)", _p(list_p)),
+            ("Recommended List Price", _p(list_p)),
+            ("Walk-Away Floor", _p(walkaway)),
         ])
     else:
         _para(doc, "Fair market value could not be determined from available data.")
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
-    # 7. KEY ASSUMPTIONS AND LIMITING CONDITIONS
+    # 7. OPTIONAL ANALYSIS SECTIONS (only if data present)
+    # ═══════════════════════════════════════════════════
+    _optional_sections = [
+        ("MARKET CONTEXT", structured.get("market_context")),
+        ("EQUIPMENT CONTEXT", structured.get("equipment_context")),
+        ("CONDITION ASSESSMENT", structured.get("condition_assessment")),
+        ("COST CONSIDERATIONS", structured.get("cost_considerations")),
+        ("SCENARIO ANALYSIS", structured.get("scenario_analysis")),
+        ("MARKETING GUIDANCE", structured.get("marketing_guidance")),
+        ("MISSING DATA IMPACT", structured.get("missing_data_impact")),
+    ]
+    for title, content in _optional_sections:
+        if content:
+            _heading(doc, title)
+            _para(doc, _strip_markdown(content))
+            _divider(doc)
+
+    # Sources (bulleted list)
+    sources = structured.get("sources", [])
+    if sources:
+        _heading(doc, "SOURCES")
+        for s in sources:
+            _para(doc, f"\u2022 {s}", size=9)
+        _divider(doc)
+
+    # ═══════════════════════════════════════════════════
+    # 8. KEY ASSUMPTIONS AND LIMITING CONDITIONS
     # ═══════════════════════════════════════════════════
     _heading(doc, "KEY ASSUMPTIONS AND LIMITING CONDITIONS")
-    for i, a in enumerate([
-        "This valuation is based on information provided and has not been independently "
-        "verified through physical inspection.",
-        "Equipment condition has been assumed based on reported age, hours, and service "
-        "type unless otherwise stated.",
-        "All values are expressed in Canadian Dollars (CAD) unless otherwise noted.",
-        "Market comparables are based on listed asking prices, which typically exceed "
-        "actual transaction values by 10\u201320%.",
-        "RCN values are derived from Fuelled\u2019s proprietary reference tables and "
-        "industry benchmarks.",
-        "Depreciation factors follow Fuelled\u2019s standardized curves based on equipment "
-        "class, age, condition, hours, and service type.",
-        "This valuation does not account for transportation, installation, commissioning, "
-        "or decommissioning costs.",
-        "Values assume the equipment is free and clear of liens, encumbrances, or "
-        "environmental liabilities.",
-    ], 1):
+    custom_assumptions = structured.get("assumptions", [])
+    if custom_assumptions:
+        assumptions_list = custom_assumptions
+    else:
+        assumptions_list = [
+            "This valuation is based on information provided and has not been independently "
+            "verified through physical inspection.",
+            "Equipment condition has been assumed based on reported age, hours, and service "
+            "type unless otherwise stated.",
+            f"All values are expressed in {currency} unless otherwise noted.",
+            "Market comparables are based on listed asking prices, which typically exceed "
+            "actual transaction values by 10\u201320%.",
+            "RCN values are derived from Fuelled\u2019s proprietary reference tables and "
+            "industry benchmarks.",
+            "Depreciation factors follow Fuelled\u2019s standardized curves based on equipment "
+            "class, age, condition, hours, and service type.",
+            "This valuation does not account for transportation, installation, commissioning, "
+            "or decommissioning costs.",
+            "Values assume the equipment is free and clear of liens, encumbrances, or "
+            "environmental liabilities.",
+        ]
+    for i, a in enumerate(assumptions_list, 1):
         _para(doc, f"{i}. {a}")
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
-    # 8. DISCLAIMER
+    # 9. DISCLAIMER
     # ═══════════════════════════════════════════════════
     _heading(doc, "DISCLAIMER")
     _para(doc,
