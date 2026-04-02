@@ -209,7 +209,7 @@ def generate_portfolio_report(results: list[dict], batch_summary: dict) -> bytes
           "This is not a certified appraisal.", size=9, italic=True, color=MUTED)
     doc.add_paragraph()
     _para(doc, "Prepared by:", bold=True)
-    for line in ["Fuelled Energy Marketing Inc.", "harsh.kansara@fuelled.com | mark.ledain@fuelled.com"]:
+    for line in ["Fuelled Energy Marketing Inc.", "valuations@fuelled.com"]:
         _para(doc, line)
 
     buf = BytesIO()

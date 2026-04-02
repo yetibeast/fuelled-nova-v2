@@ -100,8 +100,8 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
               {[
                 ["PRICING_V2_ENABLED", <span key="a" className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">Active</span>],
                 ["Database", <span key="b" className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 text-[10px] font-bold">Connected</span>],
-                ["Model", <span key="c" className="text-on-surface/80">claude-sonnet-4-20250514</span>],
-                ["Reference Data", <span key="d" className="text-secondary">222 RCN anchors loaded</span>],
+                ["Model", <span key="c" className="text-on-surface/80">Claude Sonnet (latest)</span>],
+                ["Reference Data", <span key="d" className="text-secondary">RCN anchors loaded</span>],
               ].map(([label, val], i) => (
                 <div key={i} className="flex justify-between items-center py-2 border-b border-white/[0.04] last:border-0">
                   <span className="text-on-surface/60">{label}</span>

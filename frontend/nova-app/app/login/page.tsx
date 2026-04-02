@@ -133,7 +133,7 @@ export default function LoginPage() {
             <h1 className="text-[#edf1f5] text-2xl font-semibold mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>Welcome back</h1>
             <p className="text-[#8892a8] text-sm">
               Don&apos;t have an account?{" "}
-              <button type="button" className="text-[#00b4d8] font-medium bg-transparent border-none p-0 text-sm">
+              <button type="button" className="text-[#00b4d8] font-medium bg-transparent border-none p-0 text-sm" onClick={() => alert("Contact your administrator to request access.")}>
                 Request access
               </button>
             </p>
@@ -143,9 +143,6 @@ export default function LoginPage() {
           <div className="flex mb-6 p-1 rounded-[10px]" style={{ background: "#151d30", border: "1px solid #253050" }}>
             <button className="flex-1 py-2 px-4 rounded-[7px] text-sm font-medium text-[#edf1f5]" style={{ background: "#1a2340", boxShadow: "0 1px 4px rgba(0,0,0,0.25)" }}>
               Sign in
-            </button>
-            <button className="flex-1 py-2 px-4 rounded-[7px] text-sm font-medium text-[#556178] opacity-65 cursor-not-allowed" disabled>
-              Create account
             </button>
           </div>
 
@@ -209,7 +206,7 @@ export default function LoginPage() {
                 <input type="checkbox" defaultChecked className="w-4 h-4 rounded accent-[#f97316]" />
                 <span>Remember me</span>
               </label>
-              <button type="button" className="text-[#00b4d8] text-xs font-medium bg-transparent border-none p-0">
+              <button type="button" className="text-[#00b4d8] text-xs font-medium bg-transparent border-none p-0" onClick={() => alert("Contact your administrator to reset your password.")}>
                 Forgot password?
               </button>
             </div>
@@ -285,10 +282,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <div className="mt-5 text-center text-[#556178] text-[0.7rem] leading-relaxed">
-            By signing in you agree to our{" "}
-            <button type="button" className="text-[#8892a8] bg-transparent border-none p-0 text-[0.7rem]">Terms of Service</button>
-            {" "}and{" "}
-            <button type="button" className="text-[#8892a8] bg-transparent border-none p-0 text-[0.7rem]">Privacy Policy</button>
+            Fuelled Energy Marketing Inc.
           </div>
         </section>
       </div>

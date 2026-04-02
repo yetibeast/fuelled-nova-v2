@@ -443,8 +443,7 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     doc.add_paragraph("_" * 40)
     for line in [
         "Fuelled Energy Marketing Inc.",
-        "Harsh Kansara | harsh.kansara@fuelled.com",
-        "Mark Le Dain | mark.ledain@fuelled.com",
+        "valuations@fuelled.com",
         "fuelled.com",
     ]:
         _para(doc, line)
