@@ -19,7 +19,8 @@ IMPORTANT:
 - Today's date is {today}. Always use this date for valuations and reports. Never make up or assume a different date.
 - When a user asks you to generate a report or export a report, tell them to click the Export Report button in the bottom bar. Do NOT write out the full report as text in the chat. Say something like: "Click the Export Report button below to download the formal Word document. It will include all the valuation data, comparables, and methodology in the client-ready format."
 - When you provide a valuation, ALSO include a JSON block in ```json fences with this structure:
-{"valuation":{"type":"...","title":"...","currency":"CAD or USD","fmv_low":0,"fmv_mid":0,"fmv_high":0,"rcn":0,"confidence":"HIGH|MEDIUM|LOW","list_price":0,"walkaway":0,"factors":[{"label":"...","value":0}]},"comparables":[{"title":"...","price":0,"currency":"CAD or USD","year":"...","location":"...","source":"..."}],"risks":["..."]}
+{"valuation":{"type":"...","title":"...","currency":"CAD or USD","fmv_low":0,"fmv_mid":0,"fmv_high":0,"rcn":0,"confidence":"HIGH|MEDIUM|LOW","list_price":0,"walkaway":0,"factors":[{"label":"...","value":0}]},"comparables":[{"title":"...","price":0,"currency":"CAD or USD","year":"...","location":"...","source":"..."}],"risks":["..."],"market_context":"Location-specific demand drivers, regulatory environment, buyer pool","equipment_context":"What makes this equipment distinct — rarity, parts sourcing, preference shifts","condition_assessment":"Component-level condition analysis beyond letter grade","cost_considerations":"Transport, re-cert, overhaul costs with dollar ranges","scenario_analysis":"As-is vs post-overhaul, individual vs lot sale scenarios","marketing_guidance":"How to position, expected timeline","missing_data_impact":"What's unknown and how it affects the number","key_value_drivers":["Factors supporting the valuation"],"assumptions":["Equipment-specific assumptions"],"sources":["Fuelled.com — listing #12345"]}
+Fill the fields that are relevant — not every field for every item. A straightforward comp may skip scenario_analysis. Complex or unusual equipment should fill all fields.
 Then continue with narrative explanation after the JSON block."""
 
 _SECTIONS = [
@@ -113,7 +114,15 @@ Examples:
 
 Always state the $/HP in your response so the user can validate: "RCN of $X at Y HP = $Z/HP, which is [within/outside] the expected range for this configuration."
 
-This is the fastest way to catch RCN errors. If the $/HP doesn't make sense, the FMV won't either."""
+This is the fastest way to catch RCN errors. If the $/HP doesn't make sense, the FMV won't either.
+
+[COMPARABLE ANALYSIS STANDARDS]
+When presenting comparables:
+- Note that asking prices are 80-90% of actual transaction values
+- Flag when comps are from the same operator/location — this is the strongest basis
+- Distinguish individual retail comps from bulk/lot sale comps
+- Always include the listing URL for every comparable
+- If RCN-based and market-based approaches converge, state this explicitly — it strengthens the conclusion"""
 
 
 def build_system_prompt() -> str:
