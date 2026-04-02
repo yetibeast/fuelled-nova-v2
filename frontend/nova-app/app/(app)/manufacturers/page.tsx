@@ -41,9 +41,9 @@ export default function ManufacturersPage() {
           OEM outreach based on historical demand, and track manufacturer relationships.
         </p>
 
-        <button className="bg-primary text-on-primary px-6 py-2.5 rounded-lg font-medium text-sm hover:brightness-110 transition-all">
-          Notify me when ready
-        </button>
+        <span className="inline-block px-4 py-2 rounded-lg bg-white/[0.06] text-on-surface/40 text-xs font-mono">
+          In development
+        </span>
 
         {/* Feature pills */}
         <div className="flex flex-wrap justify-center gap-2 mt-6">

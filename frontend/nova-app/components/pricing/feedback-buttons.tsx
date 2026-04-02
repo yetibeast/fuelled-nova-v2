@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { submitFeedback } from "@/lib/api";
+import { submitFeedback, getStoredUser } from "@/lib/api";
 
 interface FeedbackButtonsProps {
   conversationId: string;
@@ -23,6 +23,7 @@ export function FeedbackButtons({
   const commentRef = useRef<HTMLInputElement>(null);
 
   function sendFeedback(rating: "up" | "down", comment?: string) {
+    const user = getStoredUser();
     submitFeedback({
       rating,
       comment,
@@ -30,7 +31,9 @@ export function FeedbackButtons({
       message_index: messageIndex,
       user_message: userMessage,
       structured_data: structuredData,
-      response_text: responseText.slice(0, 200),
+      response_text: responseText,
+      user_email: user?.email,
+      user_name: user?.name,
     });
   }
 

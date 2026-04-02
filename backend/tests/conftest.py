@@ -40,18 +40,28 @@ class _InMemoryDB:
         self.conversations: dict[str, dict] = {}
         self.messages: dict[str, dict] = {}
         self.evidence: dict[str, dict] = {}
+        self.scrape_targets: dict[str, dict] = {}
+        self.scrape_runs: dict[str, dict] = {}
+        self.listings: list[dict] = []
 
 
 _db = _InMemoryDB()
 
 
 class MockRow:
-    """A row object whose attributes are accessible by name."""
+    """A row object whose attributes are accessible by name or by index."""
 
     def __init__(self, data: dict):
         self._data = data
+        self._values = list(data.values())
         for k, v in data.items():
-            setattr(self, k, v)
+            if isinstance(k, str):
+                setattr(self, k, v)
+
+    def __getitem__(self, idx):
+        if isinstance(idx, int):
+            return self._values[idx]
+        return self._data[idx]
 
 
 class MockResult:
@@ -66,6 +76,16 @@ class MockResult:
 
     def fetchone(self):
         return self._rows[0] if self._rows else None
+
+    def scalar(self):
+        row = self.fetchone()
+        if row is None:
+            return None
+        # Return first attribute value
+        data = row._data
+        if data:
+            return next(iter(data.values()))
+        return None
 
 
 class MockSession:
@@ -234,6 +254,198 @@ class MockSession:
             rows.sort(key=lambda r: r["created_at"], reverse=True)
             return MockResult(rows[:50])
 
+        # ── Scraper Targets ─────────────────────────────────────
+
+        # SELECT COUNT(*) FROM scrape_targets (seed check)
+        if "SELECT COUNT(*) FROM scrape_targets" in sql:
+            return MockResult([{"count": len(self._db.scrape_targets)}])
+
+        # INSERT INTO scrape_targets ... VALUES ... (seed — bulk)
+        if "INSERT INTO scrape_targets" in sql and "ON CONFLICT" in sql:
+            # Seed data — parse is complex, just skip for mock (tables start empty)
+            return MockResult()
+
+        # INSERT INTO scrape_targets (single create via RETURNING)
+        if "INSERT INTO scrape_targets" in sql and "RETURNING" in sql:
+            tid = str(uuid.uuid4())
+            now = datetime.now(timezone.utc)
+            row = {
+                "id": tid,
+                "name": params.get("name", ""),
+                "url": params.get("url"),
+                "scraper_type": params.get("type", "scrapekit"),
+                "schedule_cron": params.get("cron"),
+                "status": "active",
+                "last_run_at": None,
+                "next_run_at": None,
+                "run_requested_at": None,
+                "health_pct": 100,
+                "total_items": 0,
+                "items_with_price": 0,
+                "created_at": now,
+            }
+            self._db.scrape_targets[tid] = row
+            return MockResult([{
+                0: tid, 1: row["name"], 2: row["url"],
+                3: row["scraper_type"], 4: row["schedule_cron"],
+                5: row["status"], 6: now,
+            }])
+
+        # SELECT ... FROM scrape_targets ORDER BY name (list all)
+        if "FROM scrape_targets" in sql and "ORDER BY name" in sql:
+            rows = []
+            for t in sorted(self._db.scrape_targets.values(), key=lambda x: x["name"]):
+                rows.append({
+                    0: t["id"], 1: t["name"], 2: t["url"], 3: t["status"],
+                    4: t["scraper_type"], 5: t["schedule_cron"], 6: t["last_run_at"],
+                    7: t["next_run_at"], 8: t["run_requested_at"], 9: t["health_pct"],
+                    10: t["total_items"], 11: t["items_with_price"], 12: t["created_at"],
+                })
+            return MockResult(rows)
+
+        # UPDATE scrape_targets SET run_requested_at ... WHERE name = 'sold_price_harvester'
+        if "UPDATE scrape_targets SET run_requested_at" in sql and "sold_price_harvester" in sql:
+            for t in self._db.scrape_targets.values():
+                if t["name"] == "sold_price_harvester":
+                    t["run_requested_at"] = datetime.now(timezone.utc)
+                    return MockResult([{0: t["id"]}], rowcount=1)
+            return MockResult()
+
+        # UPDATE scrape_targets SET run_requested_at = NOW() WHERE id = :tid (trigger run)
+        if "UPDATE scrape_targets SET run_requested_at" in sql and "RETURNING name" in sql:
+            tid = params.get("tid", "")
+            t = self._db.scrape_targets.get(tid)
+            if t:
+                t["run_requested_at"] = datetime.now(timezone.utc)
+                return MockResult([{0: t["name"]}], rowcount=1)
+            return MockResult()
+
+        # UPDATE scrape_targets SET status = 'paused'
+        if "UPDATE scrape_targets SET status = 'paused'" in sql:
+            tid = params.get("tid", "")
+            t = self._db.scrape_targets.get(tid)
+            if t:
+                t["status"] = "paused"
+                return MockResult(rowcount=1)
+            return MockResult()
+
+        # UPDATE scrape_targets SET status = 'active'
+        if "UPDATE scrape_targets SET status = 'active'" in sql:
+            tid = params.get("tid", "")
+            t = self._db.scrape_targets.get(tid)
+            if t:
+                t["status"] = "active"
+                return MockResult(rowcount=1)
+            return MockResult()
+
+        # UPDATE scrape_targets SET ... WHERE id = :tid (generic update)
+        if "UPDATE scrape_targets SET" in sql and "id = :tid" in sql:
+            tid = params.get("tid", "")
+            t = self._db.scrape_targets.get(tid)
+            if t:
+                for k in ("name", "url", "scraper_type", "schedule_cron", "status"):
+                    if k in params:
+                        t[k] = params[k]
+                return MockResult(rowcount=1)
+            return MockResult()
+
+        # DELETE FROM scrape_runs WHERE target_id
+        if "DELETE FROM scrape_runs WHERE target_id" in sql:
+            tid = params.get("tid", "")
+            to_del = [k for k, v in self._db.scrape_runs.items() if v["target_id"] == tid]
+            for k in to_del:
+                del self._db.scrape_runs[k]
+            return MockResult(rowcount=len(to_del))
+
+        # DELETE FROM scrape_targets WHERE id
+        if "DELETE FROM scrape_targets WHERE id" in sql:
+            tid = params.get("tid", "")
+            if tid in self._db.scrape_targets:
+                del self._db.scrape_targets[tid]
+                return MockResult(rowcount=1)
+            return MockResult()
+
+        # SELECT ... FROM scrape_runs ... ORDER BY ... target_id (DISTINCT ON)
+        if "DISTINCT ON (target_id)" in sql:
+            # Latest run per target
+            latest: dict[str, dict] = {}
+            for r in self._db.scrape_runs.values():
+                tid = r["target_id"]
+                if tid not in latest or r["started_at"] > latest[tid]["started_at"]:
+                    latest[tid] = r
+            rows = []
+            for r in latest.values():
+                rows.append({
+                    0: r["target_id"], 1: r["status"], 2: r["started_at"],
+                    3: r.get("completed_at"), 4: r["items_found"],
+                    5: r["items_new"], 6: r.get("items_updated", 0),
+                    7: r.get("error_message"), 8: r.get("duration_ms"),
+                })
+            return MockResult(rows)
+
+        # SELECT ... FROM scrape_runs WHERE target_id = :tid ORDER BY started_at DESC LIMIT 20
+        if "FROM scrape_runs" in sql and "target_id = :tid" in sql:
+            tid = params.get("tid", "")
+            rows = [r for r in self._db.scrape_runs.values() if r["target_id"] == tid]
+            rows.sort(key=lambda x: x["started_at"], reverse=True)
+            result_rows = []
+            for r in rows[:20]:
+                result_rows.append({
+                    0: r["id"], 1: r["target_id"], 2: r["site_name"],
+                    3: r["started_at"], 4: r.get("completed_at"),
+                    5: r["status"], 6: r["items_found"], 7: r["items_new"],
+                    8: r.get("items_updated", 0), 9: r.get("final_prices_harvested", 0),
+                    10: r.get("error_message"), 11: r.get("duration_ms"),
+                })
+            return MockResult(result_rows)
+
+        # SELECT ... FROM scrape_runs sr ORDER BY sr.started_at DESC LIMIT 20 (recent all)
+        if "FROM scrape_runs" in sql and "ORDER BY" in sql and "LIMIT 20" in sql:
+            rows = list(self._db.scrape_runs.values())
+            rows.sort(key=lambda x: x["started_at"], reverse=True)
+            result_rows = []
+            for r in rows[:20]:
+                result_rows.append({
+                    0: r["id"], 1: r["target_id"], 2: r["site_name"],
+                    3: r["started_at"], 4: r.get("completed_at"),
+                    5: r["status"], 6: r["items_found"], 7: r["items_new"],
+                    8: r.get("items_updated", 0), 9: r.get("final_prices_harvested", 0),
+                    10: r.get("error_message"), 11: r.get("duration_ms"),
+                })
+            return MockResult(result_rows)
+
+        # SELECT source, COUNT(*) ... FROM listings GROUP BY source (listing counts)
+        if "FROM listings" in sql and "GROUP BY source" in sql and "asking_price" in sql:
+            counts: dict[str, dict] = {}
+            for l in self._db.listings:
+                src = l.get("source", "")
+                if src not in counts:
+                    counts[src] = {"total": 0, "with_price": 0}
+                counts[src]["total"] += 1
+                if l.get("asking_price", 0) > 0:
+                    counts[src]["with_price"] += 1
+            rows = [{0: k, 1: v["total"], 2: v["with_price"]} for k, v in counts.items()]
+            return MockResult(rows)
+
+        # Harvest stats: FILTER (WHERE auction_end ...)
+        if "FILTER" in sql and "auction_end" in sql:
+            now = datetime.now(timezone.utc)
+            total_closed = sum(1 for l in self._db.listings if l.get("auction_end") and l["auction_end"] < now)
+            harvested = sum(1 for l in self._db.listings if l.get("auction_end") and l["auction_end"] < now and l.get("final_price") is not None)
+            remaining = total_closed - harvested
+            return MockResult([{0: total_closed, 1: harvested, 2: remaining}])
+
+        # Harvest breakdown by source
+        if "FROM listings" in sql and "auction_end" in sql and "final_price IS NULL" in sql and "GROUP BY source" in sql:
+            now = datetime.now(timezone.utc)
+            counts_by_src: dict[str, int] = {}
+            for l in self._db.listings:
+                if l.get("auction_end") and l["auction_end"] < now and l.get("final_price") is None:
+                    src = l.get("source", "")
+                    counts_by_src[src] = counts_by_src.get(src, 0) + 1
+            rows = [{0: k, 1: v} for k, v in sorted(counts_by_src.items(), key=lambda x: -x[1])]
+            return MockResult(rows)
+
         return MockResult()
 
     async def commit(self):
@@ -252,13 +464,15 @@ def _patch_db():
     _db = _InMemoryDB()
 
     # Reset table-creation flags
-    from app.api import conversations, evidence
+    from app.api import conversations, evidence, admin_scrapers
     conversations._tables_ready = False
     evidence._tables_ready = False
+    admin_scrapers._tables_ready = False
 
     with patch("app.db.session.get_session", _mock_get_session), \
          patch("app.api.conversations.get_session", _mock_get_session), \
-         patch("app.api.evidence.get_session", _mock_get_session):
+         patch("app.api.evidence.get_session", _mock_get_session), \
+         patch("app.api.admin_scrapers.get_session", _mock_get_session):
         yield
 
 

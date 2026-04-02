@@ -123,6 +123,8 @@ export async function submitFeedback(data: {
   user_message: string;
   structured_data: Record<string, unknown>;
   response_text: string;
+  user_email?: string;
+  user_name?: string;
 }) {
   return fetch("/api/feedback", {
     method: "POST",
@@ -167,6 +169,37 @@ async function adminGet(path: string) {
 }
 
 export function fetchScrapers() { return adminGet("/api/admin/scrapers"); }
+
+export function createScraper(data: { name: string; url: string; scraper_type: string; schedule_cron?: string }) {
+  return fetch("/api/admin/scrapers", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(data) }).then(r => r.json());
+}
+export function updateScraper(id: string, data: Record<string, unknown>) {
+  return fetch(`/api/admin/scrapers/${id}`, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(data) }).then(r => r.json());
+}
+export function deleteScraper(id: string) {
+  return fetch(`/api/admin/scrapers/${id}`, { method: "DELETE", headers: authHeaders() });
+}
+export function triggerScraperRun(id: string) {
+  return fetch(`/api/admin/scrapers/${id}/run`, { method: "POST", headers: authHeaders() });
+}
+export function pauseScraper(id: string) {
+  return fetch(`/api/admin/scrapers/${id}/pause`, { method: "POST", headers: authHeaders() });
+}
+export function resumeScraper(id: string) {
+  return fetch(`/api/admin/scrapers/${id}/resume`, { method: "POST", headers: authHeaders() });
+}
+export function fetchScraperRuns(id: string) {
+  return adminGet(`/api/admin/scrapers/${id}/runs`);
+}
+export function fetchRecentRuns() {
+  return adminGet("/api/admin/scrapers/runs/recent");
+}
+export function triggerHarvest() {
+  return fetch("/api/admin/scrapers/harvest", { method: "POST", headers: authHeaders() });
+}
+export function fetchHarvestStats() {
+  return adminGet("/api/admin/scrapers/harvest/stats");
+}
 
 /* ---------- Admin: AI ---------- */
 

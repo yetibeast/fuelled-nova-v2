@@ -54,7 +54,7 @@ export default function ReportsPage() {
     try {
       const blob = await generateReportFromData({
         type: report.type,
-        data: {},
+        data: { title: report.title, items: report.items, fmv_range: report.fmv_range },
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -110,6 +110,11 @@ export default function ReportsPage() {
             );
           })}
         </div>
+        <p className="text-on-surface/30 text-xs font-mono mt-4">
+          To generate a report, run a valuation in the{" "}
+          <a href="/pricing" className="text-primary hover:text-primary/80 transition-colors">Pricing Agent</a>{" "}
+          and use the export button on any result.
+        </p>
       </div>
 
       {/* Section 2: Recent Reports */}

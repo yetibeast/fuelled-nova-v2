@@ -169,6 +169,8 @@ async def post_feedback(body: dict, authorization: str = Header(default="")):
         "user_message": body.get("user_message"),
         "response_text": body.get("response_text"),
         "evidence_id": body.get("evidence_id"),
+        "user_email": body.get("user_email"),
+        "user_name": body.get("user_name"),
     }
 
     with open(path, "a") as f:

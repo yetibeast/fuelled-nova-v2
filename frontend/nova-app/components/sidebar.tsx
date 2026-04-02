@@ -12,7 +12,6 @@ const NAV_ITEMS: { section?: string; label?: string; icon?: string; href?: strin
   { label: "Reports", icon: "description", href: "/reports" },
   { label: "Competitive", icon: "monitoring", href: "/competitive" },
   { label: "Methodology", icon: "science", href: "/methodology" },
-  { label: "Manufacturers", icon: "factory", href: "/manufacturers" },
   { section: "DATA" },
   { label: "Market Data", icon: "database", href: "/market" },
   { section: "OPERATIONS", adminOnly: true },

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
-import { fetchRecentValuations, fetchFeedback } from "@/lib/api";
+import { fetchRecentValuations, fetchFeedback, getStoredUser } from "@/lib/api";
 import { timeAgo, formatPrice } from "@/lib/utils";
 
 interface SettingsDrawerProps {
@@ -36,7 +36,9 @@ export function SettingsDrawer({ open, onClose }: SettingsDrawerProps) {
 
   function handleClearHistory() {
     if (confirm("Clear all conversation history from localStorage?")) {
-      localStorage.removeItem("nova_conversations");
+      const user = getStoredUser();
+      const key = user?.id ? `nova_conversations_${user.id}` : "nova_conversations";
+      localStorage.removeItem(key);
       alert("Conversation history cleared.");
     }
   }

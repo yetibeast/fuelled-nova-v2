@@ -48,6 +48,7 @@ export function RcnTab() {
   }
 
   async function handleDelete(id: string) {
+    if (!confirm("Delete this RCN reference? This cannot be undone.")) return;
     try {
       await deleteGoldRcn(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
