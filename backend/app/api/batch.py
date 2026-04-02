@@ -5,6 +5,7 @@ import csv
 import datetime
 import json
 import os
+import uuid
 from io import BytesIO, StringIO
 
 import jwt
@@ -87,6 +88,117 @@ async def _price_batch(items: list[BatchItem]) -> dict:
     return {"results": results, "errors": errors, "summary": summary}
 
 
+# ── In-memory async job store ────────────────────────────────
+_batch_jobs: dict[str, dict] = {}
+
+
+async def _price_batch_async(job_id: str, items: list[BatchItem]):
+    """Price items one by one, updating _batch_jobs[job_id] after each."""
+    job = _batch_jobs[job_id]
+    total_fmv_low, total_fmv_high = 0, 0
+    for i, item in enumerate(items):
+        job["current_item"] = item.title
+        specs_text = ", ".join(f"{k}: {v}" for k, v in item.specs.items()) if item.specs else ""
+        user_msg = f"{item.title}. Category: {item.category}. {specs_text}".strip()
+        try:
+            out = await asyncio.wait_for(run_pricing(user_msg), timeout=60)
+            v = out.get("structured", {}).get("valuation", {})
+            fmv_lo = v.get("fmv_low", 0) or 0
+            fmv_hi = v.get("fmv_high", 0) or 0
+            total_fmv_low += fmv_lo
+            total_fmv_high += fmv_hi
+            job["results"].append({
+                "title": item.title,
+                "structured": out.get("structured", {}),
+                "response": out.get("response", ""),
+                "confidence": out.get("confidence", "LOW"),
+                "tools_used": out.get("tools_used", []),
+            })
+        except asyncio.TimeoutError:
+            job["errors"].append({"title": item.title, "error": "Timed out after 60s"})
+        except Exception as e:
+            job["errors"].append({"title": item.title, "error": str(e)})
+        job["completed"] = i + 1
+
+    job["status"] = "completed"
+    job["current_item"] = None
+    job["summary"] = {
+        "total": len(items),
+        "completed": len(job["results"]),
+        "failed": len(job["errors"]),
+        "total_fmv_low": total_fmv_low,
+        "total_fmv_high": total_fmv_high,
+    }
+
+    # Log batch job
+    os.makedirs(LOG_DIR, exist_ok=True)
+    entry = {"timestamp": datetime.datetime.utcnow().isoformat() + "Z", "summary": job["summary"]}
+    with open(os.path.join(LOG_DIR, "batch_log.jsonl"), "a") as f:
+        f.write(json.dumps(entry) + "\n")
+
+
+def _parse_file_to_items(data: bytes, filename: str) -> list[BatchItem]:
+    """Parse uploaded file bytes into BatchItem list. Raises HTTPException on error."""
+    ext = (filename or "").rsplit(".", 1)[-1].lower()
+
+    if ext == "csv":
+        text = data.decode("utf-8-sig")
+        reader = csv.reader(StringIO(text))
+        all_rows = list(reader)
+    elif ext in ("xlsx", "xls"):
+        import openpyxl
+        wb = openpyxl.load_workbook(BytesIO(data), read_only=True, data_only=True)
+        ws = wb.active
+        all_rows = [[str(c.value or "") for c in row] for row in ws.iter_rows()]
+        wb.close()
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported file type. Use .xlsx or .csv")
+
+    if len(all_rows) < 2:
+        raise HTTPException(status_code=400, detail="Spreadsheet has no data rows")
+
+    col_map = _detect_columns(all_rows[0])
+    if "title" not in col_map:
+        raise HTTPException(status_code=400, detail="Could not detect a title/equipment column")
+
+    items = _rows_to_items(all_rows[1:], col_map)
+    if not items:
+        raise HTTPException(status_code=400, detail="No valid items found in spreadsheet")
+
+    return items
+
+
+# ── POST /api/price/batch/start  (async with polling) ───────
+@router.post("/batch/start")
+async def batch_start(file: UploadFile = File(...), authorization: str = Header(None)):
+    _require_auth(authorization)
+    data = await file.read()
+    items = _parse_file_to_items(data, file.filename or "")
+
+    job_id = str(uuid.uuid4())
+    _batch_jobs[job_id] = {
+        "job_id": job_id,
+        "status": "running",
+        "total": len(items),
+        "completed": 0,
+        "current_item": None,
+        "results": [],
+        "errors": [],
+        "summary": None,
+    }
+    asyncio.create_task(_price_batch_async(job_id, items))
+    return {"job_id": job_id}
+
+
+# ── GET /api/price/batch/{job_id}/status ─────────────────────
+@router.get("/batch/{job_id}/status")
+async def batch_status(job_id: str, authorization: str = Header(None)):
+    _require_auth(authorization)
+    if job_id not in _batch_jobs:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return _batch_jobs[job_id]
+
+
 # ── POST /api/price/batch ─────────────────────────────────────
 @router.post("/batch")
 async def batch_price(body: BatchRequest, authorization: str = Header(None)):
@@ -141,32 +253,7 @@ def _rows_to_items(rows: list[list[str]], col_map: dict[str, int]) -> list[Batch
 async def batch_upload(file: UploadFile = File(...), authorization: str = Header(None)):
     _require_auth(authorization)
     data = await file.read()
-    ext = (file.filename or "").rsplit(".", 1)[-1].lower()
-
-    if ext == "csv":
-        text = data.decode("utf-8-sig")
-        reader = csv.reader(StringIO(text))
-        all_rows = list(reader)
-    elif ext in ("xlsx", "xls"):
-        import openpyxl
-        wb = openpyxl.load_workbook(BytesIO(data), read_only=True, data_only=True)
-        ws = wb.active
-        all_rows = [[str(c.value or "") for c in row] for row in ws.iter_rows()]
-        wb.close()
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Use .xlsx or .csv")
-
-    if len(all_rows) < 2:
-        raise HTTPException(status_code=400, detail="Spreadsheet has no data rows")
-
-    col_map = _detect_columns(all_rows[0])
-    if "title" not in col_map:
-        raise HTTPException(status_code=400, detail="Could not detect a title/equipment column")
-
-    items = _rows_to_items(all_rows[1:], col_map)
-    if not items:
-        raise HTTPException(status_code=400, detail="No valid items found in spreadsheet")
-
+    items = _parse_file_to_items(data, file.filename or "")
     return await _price_batch(items)
 
 
