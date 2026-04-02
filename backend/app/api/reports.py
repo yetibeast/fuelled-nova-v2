@@ -11,6 +11,8 @@ from fastapi.responses import Response
 
 from app.config import JWT_SECRET
 from app.pricing_v2.report import generate_report
+from app.pricing_v2.report_onepager import generate_onepager
+from app.pricing_v2.report_support import generate_support_report
 from app.pricing_v2.portfolio_report import generate_portfolio_report
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -61,9 +63,61 @@ async def generate(body: dict, authorization: str = Header(None)):
     _require_auth(authorization)
 
     report_type = body.get("type", "single")
+    tier = body.get("tier")
     data = body.get("data", {})
+    client = body.get("client", "")
 
-    if report_type == "portfolio":
+    # ── Tier-based routing (takes priority) ──────────────────
+    if tier == 1:
+        structured = data.get("structured", data)
+        user_message = data.get("user_message", "Equipment Valuation")
+        docx_bytes = generate_onepager(structured, user_message, client)
+        filename = "Fuelled_OnePager.docx"
+        v = structured.get("valuation", {})
+        title = user_message[:60]
+        items = 1
+        lo = v.get("fmv_low", 0) or 0
+        hi = v.get("fmv_high", 0) or 0
+        fmv_range = f"${lo:,.0f} – ${hi:,.0f}" if lo else "---"
+    elif tier == 2:
+        results = data if isinstance(data, list) else data.get("results", [])
+        summary = body.get("summary") or {
+            "total": len(results),
+            "completed": len(results),
+            "failed": 0,
+            "total_fmv_low": sum(
+                (r.get("structured", {}).get("valuation", {}).get("fmv_low", 0) or 0)
+                for r in results
+            ),
+            "total_fmv_high": sum(
+                (r.get("structured", {}).get("valuation", {}).get("fmv_high", 0) or 0)
+                for r in results
+            ),
+        }
+        docx_bytes = generate_support_report(results, summary, client)
+        filename = "Fuelled_Support_Report.docx"
+        items = len(results)
+        title = f"Support Report — {items} items"
+        fmv_range = f"${summary['total_fmv_low']:,.0f} – ${summary['total_fmv_high']:,.0f}"
+    elif tier == 3:
+        structured = data.get("structured", data)
+        response_text = data.get("response_text", data.get("response", ""))
+        user_message = data.get("user_message", "Equipment Valuation")
+        docx_bytes = generate_report(
+            structured=structured,
+            response_text=response_text,
+            user_message=user_message,
+        )
+        filename = "Fuelled_Valuation_Report.docx"
+        v = structured.get("valuation", {})
+        title = user_message[:60]
+        items = 1
+        lo = v.get("fmv_low", 0) or 0
+        hi = v.get("fmv_high", 0) or 0
+        fmv_range = f"${lo:,.0f} – ${hi:,.0f}" if lo else "---"
+
+    # ── Legacy type-based routing (backward compat) ──────────
+    elif report_type == "portfolio":
         results = data if isinstance(data, list) else data.get("results", [])
         summary = {
             "total": len(results),
