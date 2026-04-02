@@ -211,6 +211,45 @@ All of Tier 2, plus:
 
 ---
 
+## Technical Details (from spec review)
+
+### Portfolio Synthesis Token Strategy
+Phase 3 sends results to Claude for portfolio synthesis. For large jobs (143+ items), the full response text would exceed token limits. Strategy:
+- Pass only the structured JSON per item (not full response text) to the synthesis call
+- Group by category — synthesis sees category-level aggregates + per-item structured data
+- Cap at ~50K tokens of input; if portfolio exceeds this, summarize per-category first, then synthesize
+- Estimated: 143 items × ~300 tokens of structured JSON = ~43K tokens — fits in one call
+
+### Batch Progress Polling
+Current `_price_batch` is synchronous — returns only when done. For progress:
+- Add `POST /api/price/batch/start` — returns a `job_id`, kicks off background task
+- Add `GET /api/price/batch/{job_id}/status` — returns `{completed, total, current_item, results_so_far}`
+- In-memory dict for job state (acceptable — jobs are ephemeral, server restart = restart job)
+- Frontend polls every 2 seconds during batch processing
+
+### Report Generator File Structure
+- `report_common.py` — Shared helpers: `_price(n, currency)`, `_shade()`, `_font()`, cover builder, disclaimer, header/footer
+- `report_onepager.py` — Tier 1 (new, ~80 lines)
+- `report_support.py` — Tier 2 (new, ~200 lines) — Harsh's PwC format
+- `report.py` — Tier 3 (upgrade existing, ~350 lines)
+- `portfolio_report.py` — Kept for backward compat, delegates to `report_support.py`
+- Endpoint mapping: `POST /api/reports/generate` accepts `{tier: 1|2|3, ...}`
+
+### Structured Output Schema: Required vs Optional Fields
+**Always required** (every valuation): `valuation.fmv_low`, `fmv_high`, `confidence`, `currency`, `comparables`, `assumptions`
+**Required for Tier 2+**: `key_value_drivers`, `sources`, `condition_assessment`
+**Optional** (agent fills when relevant): `market_context`, `equipment_context`, `cost_considerations`, `scenario_analysis`, `marketing_guidance`, `missing_data_impact`
+**Normalization**: A `normalize_structured()` function ensures missing optional fields default to `None`, not absent keys. All generators and frontend components check for `None` before rendering.
+
+### Quality Reference Loading
+Example reports are NOT loaded as raw .docx/.pdf into the prompt. Instead:
+- Pre-extract key sections as markdown files in `pricing_v2/references/report_quality_guide.md`
+- Include 2-3 excerpted examples showing "what good looks like" for each section type
+- Estimated ~2K tokens — comparable to existing risk_rules.md reference
+- Loaded via the same `_SECTIONS` mechanism in `prompts.py`
+
+---
+
 ## What We're NOT Building
 
 - No new pages. Everything happens in the existing Pricing Agent page.
@@ -218,6 +257,74 @@ All of Tier 2, plus:
 - No streaming/SSE. Synchronous REST with progress polling for batch jobs.
 - No email intake automation. User uploads manually (email intake is a future feature).
 - No Alembic migrations. No schema changes needed.
+
+---
+
+## Test Plan
+
+### Unit Tests (Backend)
+
+| # | Test | Expected |
+|---|------|----------|
+| 1 | `report_common._price(150000, "CAD")` | `"$150,000 CAD"` |
+| 2 | `report_common._price(150000, "USD")` | `"$150,000 USD"` |
+| 3 | `report_common._price(None, "CAD")` | `"[N/A]"` |
+| 4 | `normalize_structured({})` — empty input | Returns dict with all fields, optional = None |
+| 5 | `normalize_structured(full_data)` — complete input | Returns data unchanged |
+| 6 | Tier 1 report generator — minimal data | Produces valid .docx, 1 page |
+| 7 | Tier 2 report generator — PwC format data | Produces valid .docx with all 9 sections |
+| 8 | Tier 3 report generator — full data | Produces valid .docx with all sections including market context |
+| 9 | Tier 2 report with USD currency | All dollar amounts show "USD" not "CAD" |
+| 10 | Portfolio synthesis input truncation | 200-item result set compressed to < 50K tokens |
+
+### API Tests
+
+| # | Test | Endpoint | Expected |
+|---|------|----------|----------|
+| 1 | Start batch job | `POST /api/price/batch/start` | Returns `{job_id}` |
+| 2 | Poll batch status | `GET /api/price/batch/{id}/status` | Returns progress `{completed, total, current_item}` |
+| 3 | Generate Tier 1 report | `POST /api/reports/generate {tier: 1}` | Returns .docx |
+| 4 | Generate Tier 2 report | `POST /api/reports/generate {tier: 2}` | Returns .docx |
+| 5 | Generate Tier 3 report | `POST /api/reports/generate {tier: 3}` | Returns .docx |
+| 6 | Report without auth | `POST /api/reports/generate` (no token) | 401 |
+| 7 | Portfolio synthesis flag | `POST /api/price/batch {portfolio_synthesis: true}` | Response includes `synthesis` object |
+
+### Frontend Tests (Manual)
+
+| # | Test | Steps | Expected |
+|---|------|-------|----------|
+| 1 | Single item pricing | Price one compressor | Valuation card shows, report dropdown available |
+| 2 | Report tier selection | Click export → dropdown | Three options: One-Pager, Valuation Support, Full Assessment |
+| 3 | Tier 1 export | Select One-Pager, download | 1-page .docx with summary table |
+| 4 | Tier 2 export | Select Valuation Support, download | 5-6 page .docx matching PwC format |
+| 5 | Batch upload | Upload 10-item spreadsheet | Results table appears in intelligence panel |
+| 6 | Results table drill-down | Click "View" on row 3 | Panel shows item 3's valuation card + comps |
+| 7 | Results table back | Click back from item detail | Returns to results table |
+| 8 | Batch progress | Upload 20-item spreadsheet | "Pricing item X of 20..." updates live |
+| 9 | Portfolio report | After batch, export Tier 2 | .docx has executive summary, category breakdown, all items |
+| 10 | Links in comps | Check comparables in panel | Every comp row has clickable link |
+
+### Quality Validation Tests (Manual — Against Example Reports)
+
+| # | Test | Reference | Criteria |
+|---|------|-----------|----------|
+| 1 | Tier 2 report matches PwC format | `FMV_Valuation Report_PwC_Longrun.pdf` | Same section structure, same table formats, comparable depth |
+| 2 | Tier 3 report matches detailed format | `SCR_Ariel_JGP_Valuation.docx` | Has market context, overhaul economics, buyer profiles |
+| 3 | US equipment — no WCSB | Price US-located compressor | Report discusses Permian/US market, not Montney/WCSB |
+| 4 | US equipment — USD currency | Price US-located equipment | All values in USD, comps show original currency |
+| 5 | Canadian equipment — CAD + WCSB | Price AB-located compressor | CAD values, WCSB market context appropriate |
+| 6 | Missing data handling | Price item with no year/condition | Report notes assumptions, missing data impact section populated |
+| 7 | Comparable quality | Check comps in any report | Every comp has source, listing ID, location, price, notes |
+
+### End-to-End Smoke Tests
+
+| # | Flow | Steps |
+|---|------|-------|
+| 1 | **Single detailed assessment** | Login → Price "2019 Ariel JGK/4 800HP condition B, Edson AB" → Review intelligence panel → Export Tier 3 → Verify .docx has market context, risk, comps, methodology |
+| 2 | **Quick FMV** | Login → Price same item → Export Tier 1 → Verify 1-page .docx with summary table |
+| 3 | **10-item portfolio** | Login → Upload 10-item CSV → Watch progress → Review results table → Drill into 2 items → Export Tier 2 → Verify PwC-format report with all items |
+| 4 | **US equipment** | Login → Price "2020 Ariel JGJ/2, 400HP, Midland TX" → Verify USD currency, US market context, no WCSB references |
+| 5 | **Large batch** | Login → Upload 50-item spreadsheet → Verify progress polling works → Export Tier 2 → Verify portfolio synthesis in executive summary |
 
 ---
 
