@@ -28,6 +28,7 @@ _SECTIONS = [
     ("DEPRECIATION CURVES", "depreciation_curves.md"),
     ("RISK RULES", "risk_rules.md"),
     ("ESCALATION FACTORS", "escalation_factors.md"),
+    ("REPORT QUALITY GUIDE", "report_quality_guide.md"),
 ]
 
 
