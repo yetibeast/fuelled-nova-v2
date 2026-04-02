@@ -42,6 +42,7 @@ export function DepreciationTable() {
           </tbody>
         </table>
       </div>
+      <p className="text-[10px] font-mono text-on-surface/20 mt-2">Reference values — updated when gold tables change</p>
     </div>
   );
 }

@@ -15,6 +15,9 @@ interface FeedbackEntry {
   fmv_mid: number | null;
   fmv_high: number | null;
   evidence_id?: string;
+  user_email?: string;
+  user_name?: string;
+  trace_id?: string;
 }
 
 interface ReviewItem {
@@ -28,6 +31,8 @@ interface ReviewItem {
   comment: string;
   user_corrected_fmv: number | null;
   created_at: string;
+  user_email?: string;
+  user_name?: string;
 }
 
 export function FeedbackTab() {
@@ -62,6 +67,12 @@ export function FeedbackTab() {
     }
   }
 
+  function displayUser(name?: string, email?: string): string {
+    if (name) return name;
+    if (email) return email;
+    return "Anonymous";
+  }
+
   if (error) return <div className="text-red-400 font-mono text-xs">Error: {error}</div>;
 
   const fmvRange = (e: FeedbackEntry) => formatFmvRange(e.fmv_low, e.fmv_high);
@@ -74,12 +85,13 @@ export function FeedbackTab() {
           <DataTable
             title="Review Queue"
             badge={`${reviewQueue.length} NEEDS REVIEW`}
-            headers={["TIME", "EQUIPMENT", "ORIGINAL FMV", "USER CORRECTION", "COMMENT", ""]}
-            headerAligns={["left", "left", "right", "right", "left", "left"]}
+            headers={["TIME", "USER", "EQUIPMENT", "ORIGINAL FMV", "USER CORRECTION", "COMMENT", ""]}
+            headerAligns={["left", "left", "left", "right", "right", "left", "left"]}
           >
             {reviewQueue.map((r) => (
               <tr key={r.id} className="hover:bg-white/[0.04] transition-colors border-l-2 border-l-primary">
                 <td className="px-6 py-3 text-on-surface/50">{r.created_at ? timeAgo(r.created_at) : "---"}</td>
+                <td className="px-6 py-3 text-on-surface/60 text-xs">{displayUser(r.user_name, r.user_email)}</td>
                 <td className="px-6 py-3 text-on-surface font-medium">
                   {r.manufacturer} {r.model}
                   <div className="text-[10px] text-on-surface/40">{r.category}</div>
@@ -132,7 +144,7 @@ export function FeedbackTab() {
       <DataTable
         title="Feedback Log"
         badge={`${entries.length} ENTRIES`}
-        headers={["TIME", "EQUIPMENT", "FMV GIVEN", "RATING", "COMMENT"]}
+        headers={["TIME", "USER", "EQUIPMENT", "FMV GIVEN", "RATING", "COMMENT", ""]}
       >
         {entries.map((e, i) => {
           const isDown = e.rating === "down";
@@ -143,6 +155,7 @@ export function FeedbackTab() {
               className={`cursor-pointer hover:bg-white/[0.04] transition-colors ${isDown ? "border-l-2 border-l-primary" : ""}`}
             >
               <td className="px-6 py-3 text-on-surface/50">{e.timestamp ? timeAgo(e.timestamp) : "---"}</td>
+              <td className="px-6 py-3 text-on-surface/60 text-xs">{displayUser(e.user_name, e.user_email)}</td>
               <td className="px-6 py-3 text-on-surface font-medium">
                 {(e.user_message || "").slice(0, 50)}
                 {e.user_message && e.user_message.length > 50 ? "..." : ""}
@@ -150,6 +163,19 @@ export function FeedbackTab() {
               <td className="px-6 py-3 text-on-surface/70">{fmvRange(e)}</td>
               <td className="px-6 py-3">{isDown ? "\uD83D\uDC4E" : "\uD83D\uDC4D"}</td>
               <td className="px-6 py-3 text-on-surface/40 italic">{e.comment || "---"}</td>
+              <td className="px-6 py-3">
+                {e.trace_id && (
+                  <a
+                    href={`https://cloud.langfuse.com/trace/${e.trace_id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(ev) => ev.stopPropagation()}
+                    className="text-[10px] font-mono text-primary/60 hover:text-primary transition-colors underline underline-offset-2"
+                  >
+                    View trace
+                  </a>
+                )}
+              </td>
             </tr>
           );
         })}

@@ -2,7 +2,8 @@ from __future__ import annotations
 import json
 import logging
 import os
-from datetime import datetime, timezone
+from collections import Counter
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
@@ -41,6 +42,20 @@ def _require_auth(authorization: str | None) -> str:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+    return payload["sub"]
+
+
+def _require_admin(authorization: str | None) -> str:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing token")
+    try:
+        payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    if payload.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
     return payload["sub"]
 
 
@@ -407,3 +422,76 @@ async def methodology_risk_rules():
         categories.append(current_category)
 
     return categories
+
+
+# ---------------------------------------------------------------------------
+# 9. GET /admin/feedback/analysis
+# ---------------------------------------------------------------------------
+
+def _extract_bigrams(text: str) -> list[str]:
+    """Extract 2-word phrases from a string, lowercased."""
+    words = [w.strip(".,!?;:\"'()") for w in text.lower().split()]
+    words = [w for w in words if len(w) > 2]
+    return [f"{words[i]} {words[i+1]}" for i in range(len(words) - 1)]
+
+
+@router.get("/admin/feedback/analysis")
+async def feedback_analysis(authorization: str = Header(None)):
+    _require_admin(authorization)
+    path = os.path.join(_LOG_DIR, "feedback_log.jsonl")
+    if not os.path.exists(path):
+        return {"total_down": 0, "total_up": 0, "down_rate": 0.0,
+                "recent_down": [], "common_issues": []}
+
+    with open(path, "r") as f:
+        lines = f.readlines()
+
+    entries = []
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            entries.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+
+    total_up = sum(1 for e in entries if e.get("rating") == "up")
+    total_down = sum(1 for e in entries if e.get("rating") == "down")
+    total = total_up + total_down
+    down_rate = round(total_down / total, 2) if total > 0 else 0.0
+
+    down_entries = [e for e in entries if e.get("rating") == "down"]
+
+    # Recent thumbs-down (last 20)
+    recent_down = [
+        {
+            "user_message": (e.get("user_message") or "")[:120],
+            "comment": e.get("comment") or "",
+            "timestamp": e.get("timestamp"),
+            "user_email": e.get("user_email"),
+            "trace_id": e.get("trace_id"),
+        }
+        for e in down_entries[-20:]
+    ]
+
+    # Extract common 2-word phrases from comments
+    bigram_counter: Counter = Counter()
+    for e in down_entries:
+        comment = e.get("comment") or ""
+        if comment:
+            bigram_counter.update(_extract_bigrams(comment))
+
+    common_issues = [
+        {"keyword": phrase, "count": count}
+        for phrase, count in bigram_counter.most_common(10)
+        if count >= 2
+    ]
+
+    return {
+        "total_down": total_down,
+        "total_up": total_up,
+        "down_rate": down_rate,
+        "recent_down": recent_down,
+        "common_issues": common_issues,
+    }

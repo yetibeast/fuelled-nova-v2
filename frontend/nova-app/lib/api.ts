@@ -248,6 +248,7 @@ export function fetchAdminFeedback(negativeOnly = false) {
 
 /* ---------- Gold Tables ---------- */
 
+export function fetchGoldHealth() { return adminGet("/api/admin/gold/health"); }
 export function fetchGoldRcn() { return adminGet("/api/admin/gold/rcn"); }
 export function fetchGoldMarket() { return adminGet("/api/admin/gold/market"); }
 export function fetchGoldDepreciation() { return adminGet("/api/admin/gold/depreciation"); }

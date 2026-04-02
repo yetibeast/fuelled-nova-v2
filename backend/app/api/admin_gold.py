@@ -155,6 +155,28 @@ async def list_depreciation(authorization: str = Header(None)):
         for r in rows
     ]
 
+@router.get("/admin/gold/health")
+async def gold_health(authorization: str = Header(None)):
+    _require_admin(authorization)
+    async with get_session() as session:
+        tables = [
+            ("RCN Price References", "rcn_price_references"),
+            ("Market Value References", "market_value_references"),
+            ("Depreciation Observations", "depreciation_observations"),
+            ("Equipment Identities", "equipment_identities"),
+            ("Evidence Intake", "evidence"),
+        ]
+        results = []
+        for label, table_name in tables:
+            try:
+                r = await session.execute(text(f"SELECT COUNT(*) FROM {table_name}"))
+                count = r.scalar() or 0
+            except Exception:
+                count = 0
+            results.append({"name": label, "table": table_name, "rows": count})
+    return results
+
+
 @router.get("/admin/gold/gaps")
 async def coverage_gaps(authorization: str = Header(None)):
     _require_admin(authorization)
