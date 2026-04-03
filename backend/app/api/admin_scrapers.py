@@ -81,15 +81,18 @@ async def _ensure_tables():
     global _tables_ready
     if _tables_ready:
         return
-    async with get_session() as session:
-        await session.execute(text(_INIT_SQL))
-        await session.commit()
-        # Seed if empty
-        result = await session.execute(text("SELECT COUNT(*) FROM scrape_targets"))
-        count = result.scalar()
-        if count == 0:
-            await session.execute(text(_SEED_SQL))
+    try:
+        async with get_session() as session:
+            await session.execute(text(_INIT_SQL))
             await session.commit()
+            # Seed if empty
+            result = await session.execute(text("SELECT COUNT(*) FROM scrape_targets"))
+            count = result.scalar()
+            if count == 0:
+                await session.execute(text(_SEED_SQL))
+                await session.commit()
+    except Exception as exc:
+        _log.warning("_ensure_tables skipped (tables likely exist): %s", exc)
     _tables_ready = True
 
 
@@ -156,18 +159,18 @@ async def list_scrapers(authorization: str = Header(None)):
             await session.rollback()
             count_map = {}
 
-        # Latest run per target
+        # Latest run per target (join by site_name since target_id may be NULL)
         try:
             runs = await session.execute(text("""
-                SELECT DISTINCT ON (target_id)
-                       target_id, status, started_at, completed_at,
+                SELECT DISTINCT ON (site_name)
+                       site_name, status, started_at, completed_at,
                        listings_found, listings_new, listings_updated, error_message, duration_ms
                 FROM scrape_runs
-                ORDER BY target_id, started_at DESC
+                ORDER BY site_name, started_at DESC
             """))
             run_map = {}
             for r in runs.fetchall():
-                run_map[str(r[0])] = {
+                run_map[r[0]] = {
                     "last_run_status": r[1],
                     "last_run_at": r[2].isoformat() if r[2] else None,
                     "last_run_completed": r[3].isoformat() if r[3] else None,
@@ -186,7 +189,7 @@ async def list_scrapers(authorization: str = Header(None)):
         tid = str(t[0])
         name = t[1]
         listing_info = count_map.get(name, {"total_listings": 0, "with_price": 0})
-        run_info = run_map.get(tid, {})
+        run_info = run_map.get(name, {})
         result.append({
             "id": tid,
             "name": name,
