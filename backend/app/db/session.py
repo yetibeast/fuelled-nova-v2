@@ -10,4 +10,8 @@ _session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=Fa
 @asynccontextmanager
 async def get_session():
     async with _session_factory() as session:
-        yield session
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise

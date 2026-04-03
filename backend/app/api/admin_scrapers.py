@@ -8,8 +8,6 @@ import httpx
 import jwt
 from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
-from sqlalchemy.exc import ProgrammingError
-
 from app.config import JWT_SECRET
 from app.db.session import get_session
 
@@ -154,7 +152,8 @@ async def list_scrapers(authorization: str = Header(None)):
                 GROUP BY source
             """))
             count_map = {r[0]: {"total_listings": r[1], "with_price": r[2]} for r in counts.fetchall()}
-        except ProgrammingError:
+        except Exception:
+            await session.rollback()
             count_map = {}
 
         # Latest run per target
@@ -178,7 +177,8 @@ async def list_scrapers(authorization: str = Header(None)):
                     "last_error": r[7],
                     "duration_ms": r[8],
                 }
-        except ProgrammingError:
+        except Exception:
+            await session.rollback()
             run_map = {}
 
     result = []
@@ -480,7 +480,8 @@ async def harvest_stats(authorization: str = Header(None)):
                 ORDER BY cnt DESC
             """))
             sources = {r[0]: r[1] for r in breakdown.fetchall()}
-        except ProgrammingError:
+        except Exception:
+            await session.rollback()
             total_closed = 0
             harvested = 0
             remaining = 0
