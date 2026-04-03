@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     completed_at            TIMESTAMPTZ,
     status                  TEXT NOT NULL DEFAULT 'running',
-    items_found             INTEGER DEFAULT 0,
-    items_new               INTEGER DEFAULT 0,
-    items_updated           INTEGER DEFAULT 0,
+    listings_found          INTEGER DEFAULT 0,
+    listings_new            INTEGER DEFAULT 0,
+    listings_updated        INTEGER DEFAULT 0,
     final_prices_harvested  INTEGER DEFAULT 0,
     error_message           TEXT,
     duration_ms             INTEGER,
@@ -161,7 +161,7 @@ async def list_scrapers(authorization: str = Header(None)):
             runs = await session.execute(text("""
                 SELECT DISTINCT ON (target_id)
                        target_id, status, started_at, completed_at,
-                       items_found, items_new, items_updated, error_message, duration_ms
+                       listings_found, listings_new, listings_updated, error_message, duration_ms
                 FROM scrape_runs
                 ORDER BY target_id, started_at DESC
             """))
@@ -362,7 +362,7 @@ async def recent_runs(authorization: str = Header(None)):
     async with get_session() as session:
         result = await session.execute(text("""
             SELECT sr.id, sr.target_id, sr.site_name, sr.started_at, sr.completed_at,
-                   sr.status, sr.items_found, sr.items_new, sr.items_updated,
+                   sr.status, sr.listings_found, sr.listings_new, sr.listings_updated,
                    sr.final_prices_harvested, sr.error_message, sr.duration_ms
             FROM scrape_runs sr
             ORDER BY sr.started_at DESC
@@ -398,7 +398,7 @@ async def target_runs(target_id: str, authorization: str = Header(None)):
     async with get_session() as session:
         result = await session.execute(text("""
             SELECT id, target_id, site_name, started_at, completed_at,
-                   status, items_found, items_new, items_updated,
+                   status, listings_found, listings_new, listings_updated,
                    final_prices_harvested, error_message, duration_ms
             FROM scrape_runs
             WHERE target_id = :tid::uuid
