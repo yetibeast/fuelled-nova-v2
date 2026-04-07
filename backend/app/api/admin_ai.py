@@ -29,6 +29,20 @@ def _require_admin(authorization: str | None) -> str:
 _LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 _REFS_DIR = os.path.join(os.path.dirname(__file__), "..", "pricing_v2", "references")
 
+# Sonnet pricing: $3/M input, $15/M output
+_FALLBACK_COST = 0.05  # conservative fallback for entries without token data
+
+
+def _entry_cost(entry: dict) -> float:
+    """Return actual cost_usd if logged, else compute from tokens, else fallback."""
+    if entry.get("cost_usd"):
+        return float(entry["cost_usd"])
+    inp = entry.get("input_tokens")
+    out = entry.get("output_tokens")
+    if inp is not None and out is not None:
+        return (inp * 3 + out * 15) / 1_000_000
+    return _FALLBACK_COST
+
 
 def _read_pricing_log() -> list[dict]:
     path = os.path.join(_LOG_DIR, "pricing_log.jsonl")
@@ -101,6 +115,7 @@ async def ai_usage(authorization: str = Header(None)):
             pass
 
     avg_tools = round(total_tools / len(entries), 1) if entries else 0
+    total_cost = sum(_entry_cost(e) for e in entries)
 
     return {
         "total_queries": len(entries),
@@ -109,7 +124,7 @@ async def ai_usage(authorization: str = Header(None)):
         "queries_this_month": month_count,
         "avg_tools_per_query": avg_tools,
         "confidence_distribution": dict(confidence_dist),
-        "estimated_cost": round(len(entries) * 1.50, 2),
+        "estimated_cost": round(total_cost, 2),
     }
 
 
@@ -169,57 +184,62 @@ async def ai_recent(authorization: str = Header(None)):
 
 @router.get("/ai/cost-history")
 async def ai_cost_history(authorization: str = Header(None)):
-    """30-day daily cost breakdown: queries + estimated cost per day."""
+    """30-day daily cost breakdown using real token costs from log."""
     _require_admin(authorization)
     entries = _read_pricing_log()
     now = datetime.now(timezone.utc)
-    cost_per_query = 1.50
 
-    days: dict[str, int] = {}
+    days: dict[str, dict] = {}
     for i in range(30):
         d = (now - timedelta(days=i)).strftime("%Y-%m-%d")
-        days[d] = 0
+        days[d] = {"queries": 0, "cost": 0.0}
 
     for e in entries:
         ts = e.get("timestamp", "")[:10]
         if ts in days:
-            days[ts] += 1
+            days[ts]["queries"] += 1
+            days[ts]["cost"] += _entry_cost(e)
 
     daily = [
-        {"date": d, "queries": c, "cost": round(c * cost_per_query, 2)}
-        for d, c in sorted(days.items())
+        {"date": d, "queries": v["queries"], "cost": round(v["cost"], 4)}
+        for d, v in sorted(days.items())
     ]
 
-    total_month = sum(d["queries"] for d in daily)
-    avg_daily = round(total_month / 30, 1) if total_month else 0
-    projected = round(avg_daily * 30 * cost_per_query, 2)
+    total_cost = sum(d["cost"] for d in daily)
+    total_queries = sum(d["queries"] for d in daily)
+    avg_daily_queries = round(total_queries / 30, 1) if total_queries else 0
+    avg_cost_per_query = total_cost / total_queries if total_queries else 0
+    projected = round(avg_daily_queries * 30 * avg_cost_per_query, 2)
 
     return {
         "daily": daily,
-        "monthly_total": round(total_month * cost_per_query, 2),
-        "avg_daily": avg_daily,
+        "monthly_total": round(total_cost, 2),
+        "avg_daily": avg_daily_queries,
         "projected_monthly": projected,
     }
 
 
 @router.get("/ai/model-breakdown")
 async def ai_model_breakdown(authorization: str = Header(None)):
-    """Queries and cost grouped by model."""
+    """Queries and cost grouped by model, using real token costs."""
     _require_admin(authorization)
     entries = _read_pricing_log()
-    cost_per_query = 1.50
-    model_counts: Counter = Counter()
+    model_data: dict[str, dict] = {}
 
     for e in entries:
         model = e.get("model", "claude-sonnet-4-20250514")
-        model_counts[model] += 1
+        if model not in model_data:
+            model_data[model] = {"queries": 0, "cost": 0.0}
+        model_data[model]["queries"] += 1
+        model_data[model]["cost"] += _entry_cost(e)
 
+    total = len(entries) or 1
     return [
         {
             "model": model,
-            "queries": count,
-            "cost": round(count * cost_per_query, 2),
-            "pct": round(count / len(entries) * 100, 1) if entries else 0,
+            "queries": d["queries"],
+            "cost": round(d["cost"], 2),
+            "pct": round(d["queries"] / total * 100, 1),
         }
-        for model, count in model_counts.most_common()
+        for model, d in sorted(model_data.items(), key=lambda x: -x[1]["queries"])
     ]

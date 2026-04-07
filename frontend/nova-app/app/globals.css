@@ -63,11 +63,11 @@
   --color-inverse-on-surface: #0a2540;
   --color-inverse-primary: #8f4d00;
 
-  /* Fonts */
-  --font-headline: "Space Grotesk", system-ui, sans-serif;
-  --font-body: "Inter", system-ui, sans-serif;
-  --font-label: "Inter", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* Fonts — aligned to V1 system fonts */
+  --font-headline: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-body: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-label: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", "Menlo", "Consolas", ui-monospace, monospace;
 
   /* Border radius */
   --radius: 0.125rem;
@@ -79,7 +79,7 @@
 /* ── Base Styles ── */
 @layer base {
   body {
-    background: radial-gradient(circle at center, #001628 0%, #000d1a 100%);
+    background: radial-gradient(circle at 50% 0%, #001628 0%, #000F1C 100%);
     min-height: 100vh;
     margin: 0;
   }
