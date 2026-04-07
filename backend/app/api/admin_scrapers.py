@@ -18,42 +18,40 @@ SCRAPER_RUNNER_URL = os.environ.get("SCRAPER_RUNNER_URL", "")
 
 # ── Table creation ────────────────────────────────────────────────────────
 
-_INIT_SQL = """
-CREATE TABLE IF NOT EXISTS scrape_targets (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name              TEXT UNIQUE NOT NULL,
-    url               TEXT,
-    status            TEXT NOT NULL DEFAULT 'active',
-    scraper_type      TEXT NOT NULL DEFAULT 'scrapekit',
-    schedule_cron     TEXT,
-    last_run_at       TIMESTAMPTZ,
-    next_run_at       TIMESTAMPTZ,
-    run_requested_at  TIMESTAMPTZ,
-    health_pct        INTEGER DEFAULT 100,
-    total_items       INTEGER DEFAULT 0,
-    items_with_price  INTEGER DEFAULT 0,
-    created_at        TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS scrape_runs (
-    id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    target_id               UUID REFERENCES scrape_targets(id),
-    site_name               TEXT NOT NULL,
-    started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    completed_at            TIMESTAMPTZ,
-    status                  TEXT NOT NULL DEFAULT 'running',
-    listings_found          INTEGER DEFAULT 0,
-    listings_new            INTEGER DEFAULT 0,
-    listings_updated        INTEGER DEFAULT 0,
-    final_prices_harvested  INTEGER DEFAULT 0,
-    error_message           TEXT,
-    duration_ms             INTEGER,
-    created_at              TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX IF NOT EXISTS idx_scrape_runs_target ON scrape_runs(target_id);
-CREATE INDEX IF NOT EXISTS idx_scrape_runs_site ON scrape_runs(site_name);
-"""
+_INIT_SQLS = [
+    """CREATE TABLE IF NOT EXISTS scrape_targets (
+        id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name              TEXT UNIQUE NOT NULL,
+        url               TEXT,
+        status            TEXT NOT NULL DEFAULT 'active',
+        scraper_type      TEXT NOT NULL DEFAULT 'scrapekit',
+        schedule_cron     TEXT,
+        last_run_at       TIMESTAMPTZ,
+        next_run_at       TIMESTAMPTZ,
+        run_requested_at  TIMESTAMPTZ,
+        health_pct        INTEGER DEFAULT 100,
+        total_items       INTEGER DEFAULT 0,
+        items_with_price  INTEGER DEFAULT 0,
+        created_at        TIMESTAMPTZ DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS scrape_runs (
+        id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        target_id               UUID REFERENCES scrape_targets(id),
+        site_name               TEXT NOT NULL,
+        started_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        completed_at            TIMESTAMPTZ,
+        status                  TEXT NOT NULL DEFAULT 'running',
+        listings_found          INTEGER DEFAULT 0,
+        listings_new            INTEGER DEFAULT 0,
+        listings_updated        INTEGER DEFAULT 0,
+        final_prices_harvested  INTEGER DEFAULT 0,
+        error_message           TEXT,
+        duration_ms             INTEGER,
+        created_at              TIMESTAMPTZ DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_scrape_runs_target ON scrape_runs(target_id)",
+    "CREATE INDEX IF NOT EXISTS idx_scrape_runs_site ON scrape_runs(site_name)",
+]
 
 _SEED_SQL = """
 INSERT INTO scrape_targets (name, url, scraper_type, schedule_cron) VALUES
@@ -83,7 +81,8 @@ async def _ensure_tables():
         return
     try:
         async with get_session() as session:
-            await session.execute(text(_INIT_SQL))
+            for stmt in _INIT_SQLS:
+                await session.execute(text(stmt))
             await session.commit()
             # Seed if empty
             result = await session.execute(text("SELECT COUNT(*) FROM scrape_targets"))
