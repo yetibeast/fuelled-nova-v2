@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { relativeTime } from "@/lib/utils";
-import { getStoredUser, fetchConversations } from "@/lib/api";
+import { getStoredUser, fetchConversations, deleteConversation as apiDeleteConversation } from "@/lib/api";
 
 function getStorageKey(): string {
   const user = getStoredUser();
@@ -70,12 +70,14 @@ interface ConversationSidebarProps {
   currentId: string | null;
   onSelect: (id: string) => void;
   onNewChat: () => void;
+  onDelete?: (id: string) => void;
 }
 
 export function ConversationSidebar({
   currentId,
   onSelect,
   onNewChat,
+  onDelete,
 }: ConversationSidebarProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [convos, setConvos] = useState<Conversation[]>([]);
@@ -83,6 +85,18 @@ export function ConversationSidebar({
   useEffect(() => {
     loadConversationsFromAPI().then(setConvos);
   }, [currentId]);
+
+  async function handleDelete(e: React.MouseEvent, id: string) {
+    e.stopPropagation();
+    if (!confirm("Delete this conversation?")) return;
+    // Remove from API
+    apiDeleteConversation(id).catch(() => {});
+    // Remove from localStorage
+    const updated = loadConversations().filter((c) => c.id !== id);
+    saveConversations(updated);
+    setConvos((prev) => prev.filter((c) => c.id !== id));
+    if (onDelete) onDelete(id);
+  }
 
   return (
     <div
@@ -119,18 +133,27 @@ export function ConversationSidebar({
               <div
                 key={c.id}
                 onClick={() => onSelect(c.id)}
-                className={`py-[10px] px-4 cursor-pointer border-l-4 transition-colors ${
+                className={`group py-[10px] px-4 cursor-pointer border-l-4 transition-colors flex items-start justify-between gap-1 ${
                   active
                     ? "border-l-secondary bg-white/5"
                     : "border-l-transparent hover:bg-white/5"
                 }`}
               >
-                <div className="truncate text-sm text-on-surface/90">
-                  {c.title || "New conversation"}
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm text-on-surface/90">
+                    {c.title || "New conversation"}
+                  </div>
+                  <div className="font-mono text-[10px] text-on-surface/40 mt-0.5">
+                    {relativeTime(c.created)}
+                  </div>
                 </div>
-                <div className="font-mono text-[10px] text-on-surface/40 mt-0.5">
-                  {relativeTime(c.created)}
-                </div>
+                <button
+                  onClick={(e) => handleDelete(e, c.id)}
+                  className="opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 text-on-surface/20 hover:text-red-400 transition-all"
+                  title="Delete conversation"
+                >
+                  <MaterialIcon icon="close" className="text-[14px]" />
+                </button>
               </div>
             );
           })}

@@ -301,12 +301,15 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
           if (currentConvoId) saveCurrentState(currentConvoId, entries, lastResponse);
           createNewConversation();
         }}
+        onDelete={(id) => {
+          if (id === currentConvoId) createNewConversation();
+        }}
       />
 
       {/* Chat area */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
           {/* Welcome */}
           <div className="flex justify-start">
             <div className="glass-card p-6 rounded-xl max-w-[85%]">
@@ -350,7 +353,7 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
         </div>
 
         {/* Input bar */}
-        <div className="px-6 pb-6 pt-2 shrink-0">
+        <div className="px-3 sm:px-6 pb-4 sm:pb-6 pt-2 shrink-0">
           <ChatInput
             value={inputValue}
             onChange={setInputValue}

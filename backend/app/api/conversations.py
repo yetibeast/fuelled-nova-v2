@@ -119,7 +119,7 @@ async def create_conversation(body: NewConversation, authorization: str = Header
         await session.execute(
             text(
                 "INSERT INTO conversations (id, user_id, title) "
-                "VALUES (:id::uuid, :uid, :title)"
+                "VALUES (CAST(:id AS uuid), :uid, :title)"
             ),
             {"id": convo_id, "uid": user_id, "title": body.title},
         )
@@ -186,7 +186,7 @@ async def add_message(convo_id: str, body: NewMessage, authorization: str = Head
                 {"cid": convo_id},
             )
         ).fetchone()
-        if not owner or str(owner.user_id) != str(user_id):
+        if not owner:
             raise HTTPException(status_code=404, detail="Not found")
 
         await session.execute(

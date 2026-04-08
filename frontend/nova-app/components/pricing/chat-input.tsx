@@ -51,10 +51,10 @@ export function ChatInput({
   return (
     <div className="bg-white/10 backdrop-blur-2xl rounded-2xl p-2.5 border border-white/20 shadow-[0_20px_50px_rgba(0,0,0,0.5)] transition-all">
       <FilePills files={files} onRemove={onRemoveFile} />
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 sm:gap-3">
         <button
           onClick={() => fileRef.current?.click()}
-          className="w-12 h-12 flex items-center justify-center text-secondary border border-secondary/30 hover:bg-secondary/10 rounded-xl transition-colors shrink-0"
+          className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-secondary border border-secondary/30 hover:bg-secondary/10 rounded-xl transition-colors shrink-0"
         >
           <MaterialIcon icon="attach_file" />
         </button>
@@ -73,20 +73,20 @@ export function ChatInput({
           onKeyDown={handleKeyDown}
           placeholder={placeholder}
           disabled={disabled}
-          className="recessed-input border border-white/5 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 rounded-xl text-base flex-1 py-3 px-4 text-on-surface placeholder:text-on-surface/30 transition-all font-body outline-none"
+          className="recessed-input border border-white/5 focus:border-primary/50 focus:ring-4 focus:ring-primary/10 rounded-xl text-sm sm:text-base flex-1 min-w-0 py-3 px-3 sm:px-4 text-on-surface placeholder:text-on-surface/30 transition-all font-body outline-none"
         />
         <button
           onClick={onSend}
           disabled={disabled}
-          className="bg-primary text-white h-12 px-6 flex items-center justify-center rounded-xl shadow-[0_8px_20px_rgba(239,93,40,0.3)] hover:brightness-110 hover:translate-y-[-1px] active:translate-y-[1px] transition-all gap-2 group shrink-0"
+          className="bg-primary text-white h-10 sm:h-12 px-3 sm:px-6 flex items-center justify-center rounded-xl shadow-[0_8px_20px_rgba(239,93,40,0.3)] hover:brightness-110 hover:translate-y-[-1px] active:translate-y-[1px] transition-all gap-2 group shrink-0"
         >
-          <span className="font-headline font-bold text-sm tracking-wide">
+          <span className="font-headline font-bold text-xs sm:text-sm tracking-wide hidden sm:inline">
             SEND
           </span>
           <MaterialIcon
             icon="send"
             filled
-            className="text-xl transition-transform group-hover:translate-x-1"
+            className="text-lg sm:text-xl transition-transform group-hover:translate-x-1"
           />
         </button>
       </div>
