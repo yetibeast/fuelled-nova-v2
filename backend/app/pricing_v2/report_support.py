@@ -77,6 +77,7 @@ def generate_support_report(
     summary: dict,
     client: str = "",
     synthesis: dict | None = None,
+    sections: dict | None = None,
 ) -> bytes:
     """Generate a PwC-style Valuation Support Document (.docx bytes)."""
     doc = Document()
@@ -166,50 +167,156 @@ def generate_support_report(
     _table(doc, ["Parameter", "Details"], id_rows)
     doc.add_paragraph()
 
-    # ── Section 2: Equipment Categories & Condition Detail ──
-    _heading(doc, "Section 2: Equipment Categories & Condition Detail")
-    for r in results:
-        v = r.get("structured", {})
-        title = r.get("title", "Equipment")
-        cond = v.get("condition_assessment", "")
-        p = doc.add_paragraph()
-        font(p.add_run(title), size=11, bold=True, color=BLUE)
-        if cond:
-            _para(doc, cond, size=9)
-        val = v.get("valuation", {})
-        _para(doc, f"FMV Range: {pfmt(val.get('fmv_low'))} \u2014 {pfmt(val.get('fmv_high'))} | "
-              f"Mid: {pfmt(_fmv_mid(val))} | Confidence: {val.get('confidence', r.get('confidence', 'N/A'))}",
-              size=9, color=MUTED)
+    # ── Executive Summary (Claude-enriched) ──
+    if sections and sections.get("executive_summary"):
+        _heading(doc, "Executive Summary")
+        for para_text in sections["executive_summary"].split("\n\n"):
+            para_text = para_text.strip()
+            if para_text:
+                _para(doc, para_text, size=10)
+        doc.add_paragraph()
+
+    # ── Section 2: Equipment Description ──
+    _heading(doc, "Section 2: Equipment Description")
+    if sections and sections.get("equipment_description"):
+        ed = sections["equipment_description"]
+        # Overview paragraph
+        if ed.get("overview"):
+            _para(doc, ed["overview"], size=10)
+        # Specs table
+        specs = ed.get("specs_table") or []
+        if specs:
+            doc.add_paragraph()
+            spec_rows = [(s.get("component", ""), s.get("specification", "")) for s in specs]
+            _table(doc, ["Component", "Specification"], spec_rows)
+        # Notes
+        if ed.get("notes"):
+            doc.add_paragraph()
+            _para(doc, ed["notes"], size=9, italic=True, color=MUTED)
+    else:
+        # Fallback: existing sparse condition text
+        for r in results:
+            v = r.get("structured", {})
+            title = r.get("title", "Equipment")
+            cond = v.get("condition_assessment", "")
+            p = doc.add_paragraph()
+            font(p.add_run(title), size=11, bold=True, color=BLUE)
+            if cond:
+                _para(doc, cond, size=9)
+            val = v.get("valuation", {})
+            _para(doc, f"FMV Range: {pfmt(val.get('fmv_low'))} \u2014 {pfmt(val.get('fmv_high'))} | "
+                  f"Mid: {pfmt(_fmv_mid(val))} | Confidence: {val.get('confidence', r.get('confidence', 'N/A'))}",
+                  size=9, color=MUTED)
+
+    # ── Valuation Methodology (Claude-enriched) ──
+    if sections and sections.get("valuation_methodology"):
+        doc.add_paragraph()
+        vm = sections["valuation_methodology"]
+        _heading(doc, "Valuation Methodology")
+        # Approach paragraph
+        if vm.get("approach"):
+            _para(doc, vm["approach"], size=10)
+
+        # RCN Derivation
+        rcn_d = vm.get("rcn_derivation") or {}
+        if rcn_d.get("narrative"):
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            font(p.add_run("RCN Derivation"), size=11, bold=True, color=NAVY)
+            _para(doc, rcn_d["narrative"], size=10)
+        if rcn_d.get("components"):
+            doc.add_paragraph()
+            comp_rows = [(c.get("component", ""), c.get("cost_range", "")) for c in rcn_d["components"]]
+            if rcn_d.get("total_rcn"):
+                comp_rows.append(("TOTAL RCN (Estimated)", rcn_d["total_rcn"]))
+            _table(doc, ["Component", "Cost Range"], comp_rows)
+        if rcn_d.get("notes"):
+            _para(doc, rcn_d["notes"], size=9, italic=True, color=MUTED)
+
+        # Depreciation
+        dep = vm.get("depreciation") or {}
+        if dep.get("formula") or dep.get("factors"):
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            font(p.add_run("Depreciation Analysis"), size=11, bold=True, color=NAVY)
+        if dep.get("formula"):
+            _para(doc, dep["formula"], size=10, bold=True)
+        if dep.get("factors"):
+            dep_rows = [
+                (f.get("factor", ""),
+                 str(f.get("multiplier", "")),
+                 f.get("rationale", ""))
+                for f in dep["factors"]
+            ]
+            _table(doc, ["Factor", "Multiplier", "Rationale"], dep_rows)
+        if dep.get("notes"):
+            _para(doc, dep["notes"], size=9, italic=True, color=MUTED)
+
     doc.add_page_break()
 
     # ── Section 3: Comparable Sales Evidence ──
     _heading(doc, "Section 3: Comparable Sales Evidence")
-    comp_rows = []
-    for r in results:
-        for c in r.get("structured", {}).get("comparables", []):
-            comp_rows.append((
-                c.get("source", ""),
-                c.get("title", ""),
-                str(c.get("year", "")),
-                c.get("location", ""),
-                pfmt(c.get("price")),
-                c.get("notes", ""),
-            ))
-    if comp_rows:
-        _table(doc, ["Source", "Equipment", "Year", "Location", "Price", "Notes"], comp_rows)
-    else:
-        _para(doc, "No comparable sales data available.", size=9, italic=True, color=MUTED)
 
-    # Key Comparable Observations
-    all_drivers = []
-    for r in results:
-        all_drivers.extend(r.get("structured", {}).get("key_value_drivers", []))
-    if all_drivers:
-        doc.add_paragraph()
-        p = doc.add_paragraph()
-        font(p.add_run("Key Comparable Observations"), size=11, bold=True, color=NAVY)
-        for d in all_drivers:
-            _para(doc, f"\u2022 {d}", size=9)
+    if sections and sections.get("market_comparables"):
+        mc = sections["market_comparables"]
+        # Overview paragraph
+        if mc.get("overview"):
+            _para(doc, mc["overview"], size=10)
+            doc.add_paragraph()
+        # Use Claude's enriched listings for the table
+        listings = mc.get("listings") or []
+        if listings:
+            comp_rows = [
+                (
+                    lg.get("source", ""),
+                    lg.get("description", lg.get("title", "")),
+                    str(lg.get("year", "")),
+                    lg.get("location", ""),
+                    lg.get("price", "") if isinstance(lg.get("price"), str) else pfmt(lg.get("price")),
+                    lg.get("notes", ""),
+                )
+                for lg in listings
+            ]
+            _table(doc, ["Source", "Equipment", "Year", "Location", "Price", "Notes"], comp_rows)
+        else:
+            _para(doc, "No comparable sales data available.", size=9, italic=True, color=MUTED)
+        # Analysis paragraphs
+        if mc.get("analysis"):
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            font(p.add_run("Comparable Analysis"), size=11, bold=True, color=NAVY)
+            for para_text in mc["analysis"].split("\n\n"):
+                para_text = para_text.strip()
+                if para_text:
+                    _para(doc, para_text, size=9)
+    else:
+        # Fallback: pull from structured data
+        comp_rows = []
+        for r in results:
+            for c in r.get("structured", {}).get("comparables", []):
+                comp_rows.append((
+                    c.get("source", ""),
+                    c.get("title", ""),
+                    str(c.get("year", "")),
+                    c.get("location", ""),
+                    pfmt(c.get("price")),
+                    c.get("notes", ""),
+                ))
+        if comp_rows:
+            _table(doc, ["Source", "Equipment", "Year", "Location", "Price", "Notes"], comp_rows)
+        else:
+            _para(doc, "No comparable sales data available.", size=9, italic=True, color=MUTED)
+
+        # Key Comparable Observations (fallback)
+        all_drivers = []
+        for r in results:
+            all_drivers.extend(r.get("structured", {}).get("key_value_drivers", []))
+        if all_drivers:
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            font(p.add_run("Key Comparable Observations"), size=11, bold=True, color=NAVY)
+            for d in all_drivers:
+                _para(doc, f"\u2022 {d}", size=9)
     doc.add_page_break()
 
     # ── Section 4: Offer Analysis & Key Valuation Factors (conditional) ──
@@ -243,8 +350,51 @@ def generate_support_report(
     _table(doc, ["Metric", "Value"], recon_rows)
     doc.add_paragraph()
 
+    # Claude-enriched FMV details
+    if sections and sections.get("fair_market_value"):
+        fmv = sections["fair_market_value"]
+        # Scenarios table
+        if fmv.get("scenarios"):
+            p = doc.add_paragraph()
+            font(p.add_run("Valuation Scenarios"), size=11, bold=True, color=NAVY)
+            scen_rows = [
+                (
+                    s.get("scenario", ""),
+                    pfmt(s.get("fmv_low")),
+                    pfmt(s.get("fmv_high")),
+                    str(s.get("confidence", "")),
+                )
+                for s in fmv["scenarios"]
+            ]
+            _table(doc, ["Scenario", "FMV Low", "FMV High", "Confidence"], scen_rows)
+            doc.add_paragraph()
+        # List pricing table
+        if fmv.get("list_pricing"):
+            lp = fmv["list_pricing"]
+            p = doc.add_paragraph()
+            font(p.add_run("List Pricing Guidance"), size=11, bold=True, color=NAVY)
+            lp_rows = [
+                (
+                    pfmt(lp.get("fmv_midpoint")),
+                    str(lp.get("list_premium", "")),
+                    pfmt(lp.get("recommended_list")),
+                    pfmt(lp.get("walkaway_floor")),
+                ),
+            ]
+            _table(doc, ["FMV Midpoint", "List Premium", "Recommended List", "Walk-Away"], lp_rows)
+            doc.add_paragraph()
+        # Overhaul economics
+        if fmv.get("overhaul_economics"):
+            p = doc.add_paragraph()
+            font(p.add_run("Overhaul Economics"), size=11, bold=True, color=NAVY)
+            _para(doc, fmv["overhaul_economics"], size=10)
+
     # ── Section 6: Key Value Drivers ──
     _heading(doc, "Section 6: Key Value Drivers")
+    # Collect drivers from structured data (used both in fallback and enriched paths)
+    all_drivers: list[str] = []
+    for r in results:
+        all_drivers.extend(r.get("structured", {}).get("key_value_drivers", []))
     if all_drivers:
         for i, d in enumerate(all_drivers, 1):
             _para(doc, f"{i}. {d}", size=10)
@@ -252,18 +402,30 @@ def generate_support_report(
         _para(doc, "No key value drivers identified.", size=9, italic=True, color=MUTED)
     doc.add_paragraph()
 
-    # ── Section 7: Sources ──
-    _heading(doc, "Section 7: Sources")
-    all_sources: list[str] = []
-    for r in results:
-        for s in r.get("structured", {}).get("sources", []):
-            if s not in all_sources:
-                all_sources.append(s)
-    if all_sources:
-        for s in all_sources:
+    # ── Assumptions ──
+    if sections and sections.get("assumptions"):
+        _heading(doc, "Assumptions & Limiting Conditions")
+        assumptions = sections["assumptions"]
+        for i, a in enumerate(assumptions, 1):
+            _para(doc, f"{i}. {a}", size=9)
+        doc.add_paragraph()
+
+    # ── Sources ──
+    _heading(doc, "Sources")
+    if sections and sections.get("sources"):
+        for s in sections["sources"]:
             _para(doc, f"\u2022 {s}", size=9)
     else:
-        _para(doc, "No external sources cited.", size=9, italic=True, color=MUTED)
+        all_sources: list[str] = []
+        for r in results:
+            for s in r.get("structured", {}).get("sources", []):
+                if s not in all_sources:
+                    all_sources.append(s)
+        if all_sources:
+            for s in all_sources:
+                _para(doc, f"\u2022 {s}", size=9)
+        else:
+            _para(doc, "No external sources cited.", size=9, italic=True, color=MUTED)
     doc.add_paragraph()
 
     # ── Disclaimer ──

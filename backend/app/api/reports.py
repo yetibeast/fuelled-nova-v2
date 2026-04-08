@@ -94,7 +94,16 @@ async def generate(body: dict, authorization: str = Header(None)):
                 for r in results
             ),
         }
-        docx_bytes = generate_support_report(results, summary, client)
+        # For single-item reports, generate rich content via Claude report pass
+        sections = None
+        if len(results) == 1:
+            r = results[0]
+            structured = r.get("structured", {})
+            response_text = r.get("response", "")
+            user_msg = r.get("user_message", r.get("title", "Equipment"))
+            from app.pricing_v2.report_content import generate_report_content
+            sections = await generate_report_content(structured, response_text, user_msg, client, tier=2)
+        docx_bytes = generate_support_report(results, summary, client, sections=sections)
         filename = "Fuelled_Support_Report.docx"
         items = len(results)
         title = f"Support Report — {items} items"
