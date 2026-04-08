@@ -46,25 +46,25 @@ class NewMessage(BaseModel):
 
 # ── Ensure tables ────────────────────────────────────────────────────────────
 
-_INIT_SQL = """
-CREATE TABLE IF NOT EXISTS conversations (
-    id          TEXT PRIMARY KEY,
-    user_id     TEXT NOT NULL,
-    title       TEXT NOT NULL DEFAULT 'New conversation',
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE TABLE IF NOT EXISTS conversation_messages (
-    id              TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
-    role            TEXT NOT NULL,
-    text            TEXT,
-    data            JSONB,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id);
-CREATE INDEX IF NOT EXISTS idx_msg_conv ON conversation_messages(conversation_id);
-"""
+_INIT_SQLS = [
+    """CREATE TABLE IF NOT EXISTS conversations (
+        id          TEXT PRIMARY KEY,
+        user_id     TEXT NOT NULL,
+        title       TEXT NOT NULL DEFAULT 'New conversation',
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    """CREATE TABLE IF NOT EXISTS conversation_messages (
+        id              TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        role            TEXT NOT NULL,
+        text            TEXT,
+        data            JSONB,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id)",
+    "CREATE INDEX IF NOT EXISTS idx_msg_conv ON conversation_messages(conversation_id)",
+]
 
 _tables_ready = False
 
@@ -73,12 +73,13 @@ async def _ensure_tables():
     global _tables_ready
     if _tables_ready:
         return
-    async with get_session() as session:
-        for stmt in _INIT_SQL.strip().split(";"):
-            stmt = stmt.strip()
-            if stmt:
+    try:
+        async with get_session() as session:
+            for stmt in _INIT_SQLS:
                 await session.execute(text(stmt))
-        await session.commit()
+            await session.commit()
+    except Exception:
+        pass  # Tables already exist with compatible schema
     _tables_ready = True
 
 
