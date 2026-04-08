@@ -118,10 +118,16 @@ async def create_conversation(body: NewConversation, authorization: str = Header
     async with get_session() as session:
         await session.execute(
             text(
-                "INSERT INTO conversations (id, user_id, title) "
-                "VALUES (CAST(:id AS uuid), :uid, :title)"
+                "INSERT INTO conversations (id, query, agent_used, user_id, title) "
+                "VALUES (CAST(:id AS uuid), :query, :agent, :uid, :title)"
             ),
-            {"id": convo_id, "uid": user_id, "title": body.title},
+            {
+                "id": convo_id,
+                "query": body.title,
+                "agent": "pricing_v2",
+                "uid": user_id,
+                "title": body.title,
+            },
         )
         await session.commit()
     return {"id": convo_id, "title": body.title}
