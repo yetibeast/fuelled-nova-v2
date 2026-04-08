@@ -1,4 +1,16 @@
-// API fetch wrappers — all requests go through Next.js rewrite proxy to FastAPI :8100
+// API fetch wrappers
+// Most requests go through Next.js rewrite proxy. Long-running requests
+// (pricing) call the backend API directly to avoid proxy timeout.
+
+function getBackendUrl(): string {
+  if (typeof window === "undefined") return "";
+  // In production, use the API subdomain directly for long-running requests
+  const host = window.location.hostname;
+  if (host === "fuellednova.com") return "https://api.fuellednova.com";
+  if (host.includes("railway.app")) return "https://backend-production-6a3f7.up.railway.app";
+  // Local dev
+  return "http://localhost:8100";
+}
 
 /* ---------- Auth helpers ---------- */
 
@@ -135,7 +147,8 @@ export async function submitFeedback(data: {
 }
 
 export async function sendPriceQuery(formData: FormData) {
-  const res = await fetch("/api/price", {
+  // Call backend directly — pricing takes 30-60s which exceeds Next.js proxy timeout
+  const res = await fetch(`${getBackendUrl()}/api/price`, {
     method: "POST",
     body: formData,
     headers: authHeaders(),
