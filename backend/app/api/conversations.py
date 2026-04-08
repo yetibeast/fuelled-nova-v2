@@ -182,7 +182,7 @@ async def add_message(convo_id: str, body: NewMessage, authorization: str = Head
         # Verify ownership
         owner = (
             await session.execute(
-                text("SELECT user_id FROM conversations WHERE id = :cid"),
+                text("SELECT user_id FROM conversations WHERE id::text = :cid"),
                 {"cid": convo_id},
             )
         ).fetchone()
@@ -208,13 +208,13 @@ async def add_message(convo_id: str, body: NewMessage, authorization: str = Head
             await session.execute(
                 text(
                     "UPDATE conversations SET title = :title, updated_at = NOW() "
-                    "WHERE id = :cid AND title = 'New conversation'"
+                    "WHERE id::text = :cid AND title = 'New conversation'"
                 ),
                 {"title": (body.text or "")[:60], "cid": convo_id},
             )
         else:
             await session.execute(
-                text("UPDATE conversations SET updated_at = NOW() WHERE id = :cid"),
+                text("UPDATE conversations SET updated_at = NOW() WHERE id::text = :cid"),
                 {"cid": convo_id},
             )
 

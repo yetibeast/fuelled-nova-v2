@@ -83,25 +83,26 @@ async def capture_evidence(body: dict, authorization: str = Header(None)):
     valuation = structured.get("valuation", {})
 
     eid = "ev_" + uuid.uuid4().hex[:12]
-    async with get_session() as session:
-        await session.execute(text("""
-            INSERT INTO pricing_evidence_intake
-                (id, source_id, raw_manufacturer, raw_model, equipment_category,
-                 price_value, confidence, notes, price_type)
-            VALUES (:id, (SELECT id FROM sources WHERE name = 'nova_agent' LIMIT 1),
-                    :mfr, :model, :cat, :price, :conf, :notes, 'fmv')
-        """), {
-            "id": eid,
-            "mfr": valuation.get("manufacturer", ""),
-            "model": valuation.get("model", ""),
-            "cat": valuation.get("category", ""),
-            "price": valuation.get("fmv_mid") or valuation.get("fmv_low"),
-            "conf": body.get("confidence", "LOW"),
-            "tools": json.dumps(body.get("tools_used", [])),
-            "msg": body.get("user_message", ""),
-            "data": json.dumps(structured),
-        })
-        await session.commit()
+    try:
+        async with get_session() as session:
+            await session.execute(text("""
+                INSERT INTO pricing_evidence_intake
+                    (id, source_id, raw_manufacturer, raw_model, equipment_category,
+                     price_value, confidence, notes, price_type)
+                VALUES (:id::uuid, (SELECT id FROM sources LIMIT 1),
+                        :mfr, :model, :cat, :price, :conf, :notes, 'fmv')
+            """), {
+                "id": str(uuid.uuid4()),
+                "mfr": valuation.get("manufacturer", ""),
+                "model": valuation.get("model", ""),
+                "cat": valuation.get("category", ""),
+                "price": valuation.get("fmv_mid") or valuation.get("fmv_low"),
+                "conf": body.get("confidence", "LOW"),
+                "notes": body.get("user_message", ""),
+            })
+            await session.commit()
+    except Exception:
+        pass  # Non-critical — don't break pricing over evidence logging
 
     return {"evidence_id": eid}
 
