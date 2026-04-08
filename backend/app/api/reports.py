@@ -112,10 +112,17 @@ async def generate(body: dict, authorization: str = Header(None)):
         structured = data.get("structured", data)
         response_text = data.get("response_text", data.get("response", ""))
         user_message = data.get("user_message", "Equipment Valuation")
+        sections = None
+        try:
+            from app.pricing_v2.report_content import generate_report_content
+            sections = await generate_report_content(structured, response_text, user_message, client, tier=3)
+        except Exception:
+            pass
         docx_bytes = generate_report(
             structured=structured,
             response_text=response_text,
             user_message=user_message,
+            sections=sections,
         )
         filename = "Fuelled_Valuation_Report.docx"
         v = structured.get("valuation", {})

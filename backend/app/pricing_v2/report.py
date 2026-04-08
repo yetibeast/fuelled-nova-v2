@@ -163,7 +163,7 @@ def _strip_markdown(text: str) -> str:
 
 # ── Main entry point ───────────────────────────────────────────
 
-def generate_report(structured: dict, response_text: str, user_message: str) -> bytes:
+def generate_report(structured: dict, response_text: str, user_message: str, sections: dict | None = None) -> bytes:
     """Generate a professional .docx valuation report. Returns file bytes."""
     doc = Document()
     ref, today = _ref(), _today()
@@ -260,37 +260,63 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
         ("Effective Date", today),
     ])
     doc.add_paragraph()
-    # Build a clean executive summary from structured data
-    summary_parts = [
-        f"This report provides a fair market value assessment for {equip_title}."
-    ]
-    if fmv_low and fmv_high:
-        summary_parts.append(
-            f"Based on RCN methodology with market validation against {len(comps)} comparable "
-            f"listing{'s' if len(comps) != 1 else ''}, the estimated FMV range "
-            f"is {_p(fmv_low)} \u2014 {_p(fmv_high)} with {confidence} confidence."
-        )
-    elif comps:
-        summary_parts.append(
-            f"{len(comps)} market comparable(s) were identified to support the valuation."
-        )
-    _para(doc, " ".join(summary_parts))
+    if sections and sections.get("executive_summary"):
+        for para_text in sections["executive_summary"].split("\n\n"):
+            para_text = para_text.strip()
+            if para_text:
+                _para(doc, _strip_markdown(para_text))
+    else:
+        # Build a clean executive summary from structured data
+        summary_parts = [
+            f"This report provides a fair market value assessment for {equip_title}."
+        ]
+        if fmv_low and fmv_high:
+            summary_parts.append(
+                f"Based on RCN methodology with market validation against {len(comps)} comparable "
+                f"listing{'s' if len(comps) != 1 else ''}, the estimated FMV range "
+                f"is {_p(fmv_low)} \u2014 {_p(fmv_high)} with {confidence} confidence."
+            )
+        elif comps:
+            summary_parts.append(
+                f"{len(comps)} market comparable(s) were identified to support the valuation."
+            )
+        _para(doc, " ".join(summary_parts))
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
     # 3. EQUIPMENT DESCRIPTION
     # ═══════════════════════════════════════════════════
     _heading(doc, "EQUIPMENT DESCRIPTION")
-    _subheading(doc, "Technical Specifications")
-    specs = [("Equipment", equip_title)]
-    if rcn:
-        specs.append(("Replacement Cost New", _p(rcn)))
-    if fmv_low:
-        specs.append(("Estimated FMV Range", f"{_p(fmv_low)} \u2014 {_p(fmv_high)}"))
-    for f in factors:
-        specs.append((f.get("label", "Factor"), _factor_display(f)))
-    specs.append(("Confidence Level", confidence))
-    _table(doc, ["Specification", "Value"], specs)
+    if sections and sections.get("equipment_description"):
+        ed = sections["equipment_description"]
+        if ed.get("overview"):
+            _para(doc, _strip_markdown(ed["overview"]))
+        _subheading(doc, "Technical Specifications")
+        spec_items = ed.get("specs_table") or []
+        if spec_items:
+            spec_rows = [(s.get("component", ""), s.get("specification", "")) for s in spec_items]
+            _table(doc, ["Component", "Specification"], spec_rows)
+        else:
+            # Fallback specs table if Claude didn't provide specs_table
+            specs = [("Equipment", equip_title)]
+            if rcn:
+                specs.append(("Replacement Cost New", _p(rcn)))
+            specs.append(("Confidence Level", confidence))
+            _table(doc, ["Specification", "Value"], specs)
+        if ed.get("notes"):
+            doc.add_paragraph()
+            _para(doc, _strip_markdown(ed["notes"]), size=9, italic=True, color=MUTED)
+    else:
+        _subheading(doc, "Technical Specifications")
+        specs = [("Equipment", equip_title)]
+        if rcn:
+            specs.append(("Replacement Cost New", _p(rcn)))
+        if fmv_low:
+            specs.append(("Estimated FMV Range", f"{_p(fmv_low)} \u2014 {_p(fmv_high)}"))
+        for f in factors:
+            specs.append((f.get("label", "Factor"), _factor_display(f)))
+        specs.append(("Confidence Level", confidence))
+        _table(doc, ["Specification", "Value"], specs)
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
@@ -298,163 +324,296 @@ def generate_report(structured: dict, response_text: str, user_message: str) -> 
     # ═══════════════════════════════════════════════════
     _heading(doc, "VALUATION METHODOLOGY")
 
-    # RCN Approach
-    _subheading(doc, "Cost Approach (RCN)")
-    if rcn:
-        _para(doc, f"The Replacement Cost New (RCN) of {_p(rcn)} represents the estimated "
-              "cost to replace this equipment with a functionally equivalent new unit at current "
-              "market prices in Canadian dollars.")
+    if sections and sections.get("valuation_methodology"):
+        vm = sections["valuation_methodology"]
+        # Approach narrative
+        if vm.get("approach"):
+            _para(doc, _strip_markdown(vm["approach"]))
+
+        # RCN Derivation
+        rcn_d = vm.get("rcn_derivation") or {}
+        if rcn_d:
+            _subheading(doc, "RCN Derivation")
+            if rcn_d.get("narrative"):
+                _para(doc, _strip_markdown(rcn_d["narrative"]))
+            if rcn_d.get("components"):
+                doc.add_paragraph()
+                comp_rows = [(c.get("component", ""), c.get("cost_range", "")) for c in rcn_d["components"]]
+                if rcn_d.get("total_rcn"):
+                    comp_rows.append(("TOTAL RCN (Estimated)", rcn_d["total_rcn"]))
+                _table(doc, ["Component", "Cost Range"], comp_rows)
+            if rcn_d.get("notes"):
+                doc.add_paragraph()
+                _para(doc, _strip_markdown(rcn_d["notes"]), size=9, italic=True, color=MUTED)
+
+        # Depreciation
+        dep = vm.get("depreciation") or {}
+        if dep:
+            _subheading(doc, "Depreciation Analysis")
+            if dep.get("formula"):
+                p = doc.add_paragraph()
+                _font(p.add_run(dep["formula"]), size=10, bold=True, color=BLUE)
+            if dep.get("factors"):
+                doc.add_paragraph()
+                dep_rows = [
+                    (f.get("factor", ""),
+                     str(f.get("multiplier", "")),
+                     _strip_markdown(f.get("rationale", "")))
+                    for f in dep["factors"]
+                ]
+                _table(doc, ["Factor", "Multiplier", "Rationale"], dep_rows)
+            if dep.get("notes"):
+                _para(doc, _strip_markdown(dep["notes"]), size=9, italic=True, color=MUTED)
+
     else:
-        _para(doc, "RCN data not available for this equipment type.")
-
-    _subheading(doc, "Depreciation Adjustments")
-    if factors:
-        _table(doc, ["Factor", "Multiplier", "Rationale"],
-               [(f.get("label", ""), _factor_display(f),
-                 _strip_markdown(f.get("rationale", "Applied per Fuelled depreciation curves")))
-                for f in factors])
-    else:
-        _para(doc, "Depreciation factors not available for this valuation.")
-    doc.add_paragraph()
-
-    if fmv_low and rcn:
-        mid = (fmv_low + fmv_high) / 2
-        p = doc.add_paragraph()
-        _font(p.add_run(
-            f"FMV = RCN ({_p(rcn)}) \u00d7 Combined Factor ({mid / rcn:.4f}) = {_p(mid)}"),
-            size=10, bold=True, color=BLUE)
-
-    # Market Comp Approach (side by side comparison)
-    _subheading(doc, "Market Comparable Approach")
-    if comps:
-        asking_prices = [c.get("price", 0) for c in comps if c.get("price")]
-        if asking_prices:
-            avg_asking = sum(asking_prices) / len(asking_prices)
-            adj_low = avg_asking * 0.80
-            adj_high = avg_asking * 0.90
-            _table(doc, ["Metric", "Cost Approach (RCN)", "Market Comp Approach"], [
-                ("Basis", "RCN × Depreciation", f"{len(comps)} comparable listings"),
-                ("Value Range",
-                 f"{_p(fmv_low)} — {_p(fmv_high)}" if fmv_low else "[N/A]",
-                 f"{_p(adj_low)} — {_p(adj_high)}"),
-                ("Adjustments", "Age, condition, hours, service", "10-20% asking price discount"),
-                ("Data Source", "Fuelled RCN tables", "Fuelled marketplace (36,000+ listings)"),
-            ])
+        # Fallback: existing template content
+        # RCN Approach
+        _subheading(doc, "Cost Approach (RCN)")
+        if rcn:
+            _para(doc, f"The Replacement Cost New (RCN) of {_p(rcn)} represents the estimated "
+                  "cost to replace this equipment with a functionally equivalent new unit at current "
+                  "market prices in Canadian dollars.")
         else:
-            _para(doc, "Market comparables found but pricing data insufficient for approach comparison.")
-    else:
-        _para(doc, "No direct market comparables available for approach comparison.")
+            _para(doc, "RCN data not available for this equipment type.")
+
+        _subheading(doc, "Depreciation Adjustments")
+        if factors:
+            _table(doc, ["Factor", "Multiplier", "Rationale"],
+                   [(f.get("label", ""), _factor_display(f),
+                     _strip_markdown(f.get("rationale", "Applied per Fuelled depreciation curves")))
+                    for f in factors])
+        else:
+            _para(doc, "Depreciation factors not available for this valuation.")
+        doc.add_paragraph()
+
+        if fmv_low and rcn:
+            mid = (fmv_low + fmv_high) / 2
+            p = doc.add_paragraph()
+            _font(p.add_run(
+                f"FMV = RCN ({_p(rcn)}) \u00d7 Combined Factor ({mid / rcn:.4f}) = {_p(mid)}"),
+                size=10, bold=True, color=BLUE)
+
+        # Market Comp Approach (side by side comparison)
+        _subheading(doc, "Market Comparable Approach")
+        if comps:
+            asking_prices = [c.get("price", 0) for c in comps if c.get("price")]
+            if asking_prices:
+                avg_asking = sum(asking_prices) / len(asking_prices)
+                adj_low = avg_asking * 0.80
+                adj_high = avg_asking * 0.90
+                _table(doc, ["Metric", "Cost Approach (RCN)", "Market Comp Approach"], [
+                    ("Basis", "RCN \u00d7 Depreciation", f"{len(comps)} comparable listings"),
+                    ("Value Range",
+                     f"{_p(fmv_low)} \u2014 {_p(fmv_high)}" if fmv_low else "[N/A]",
+                     f"{_p(adj_low)} \u2014 {_p(adj_high)}"),
+                    ("Adjustments", "Age, condition, hours, service", "10-20% asking price discount"),
+                    ("Data Source", "Fuelled RCN tables", "Fuelled marketplace (36,000+ listings)"),
+                ])
+            else:
+                _para(doc, "Market comparables found but pricing data insufficient for approach comparison.")
+        else:
+            _para(doc, "No direct market comparables available for approach comparison.")
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
     # 5. MARKET COMPARABLES
     # ═══════════════════════════════════════════════════
     _heading(doc, "MARKET COMPARABLES")
-    if comps:
-        _table(doc, ["Description", "Price", "Year", "Location", "Source", "URL"],
-               [(_strip_markdown(c.get("title", "?")), _p(c.get("price")),
-                 str(c.get("year", "-")), c.get("location", "-"),
-                 c.get("source", "Fuelled"), c.get("url", "-")) for c in comps])
-        doc.add_paragraph()
-        _subheading(doc, "Comparables Analysis")
-        _para(doc, f"{len(comps)} comparable(s) identified from the Fuelled marketplace database "
-              "of 36,000+ listings. Note: listed asking prices typically reflect a 10\u201320% "
-              "premium over actual transaction values.")
+    if sections and sections.get("market_comparables"):
+        mc = sections["market_comparables"]
+        # Overview paragraph
+        if mc.get("overview"):
+            _para(doc, _strip_markdown(mc["overview"]))
+            doc.add_paragraph()
+        # Listings table
+        listings = mc.get("listings") or []
+        if listings:
+            comp_rows = [
+                (
+                    _strip_markdown(lg.get("description", lg.get("title", ""))),
+                    lg.get("price", "") if isinstance(lg.get("price"), str) else _p(lg.get("price")),
+                    str(lg.get("year", "-")),
+                    lg.get("location", "-"),
+                    lg.get("source", "Fuelled"),
+                    lg.get("notes", ""),
+                )
+                for lg in listings
+            ]
+            _table(doc, ["Description", "Price", "Year", "Location", "Source", "Notes"], comp_rows)
+        else:
+            _para(doc, "No comparable listings available.", size=9, italic=True, color=MUTED)
+        # Analysis paragraphs
+        if mc.get("analysis"):
+            doc.add_paragraph()
+            _subheading(doc, "Comparables Analysis")
+            for para_text in mc["analysis"].split("\n\n"):
+                para_text = para_text.strip()
+                if para_text:
+                    _para(doc, _strip_markdown(para_text))
     else:
-        _para(doc, "No direct market comparables identified. Common for high-specification or "
-              "custom-engineered packages that typically trade through direct negotiation.")
+        if comps:
+            _table(doc, ["Description", "Price", "Year", "Location", "Source", "URL"],
+                   [(_strip_markdown(c.get("title", "?")), _p(c.get("price")),
+                     str(c.get("year", "-")), c.get("location", "-"),
+                     c.get("source", "Fuelled"), c.get("url", "-")) for c in comps])
+            doc.add_paragraph()
+            _subheading(doc, "Comparables Analysis")
+            _para(doc, f"{len(comps)} comparable(s) identified from the Fuelled marketplace database "
+                  "of 36,000+ listings. Note: listed asking prices typically reflect a 10\u201320% "
+                  "premium over actual transaction values.")
+        else:
+            _para(doc, "No direct market comparables identified. Common for high-specification or "
+                  "custom-engineered packages that typically trade through direct negotiation.")
 
-    # Sources section
-    _subheading(doc, "Data Sources")
-    source_set = set()
-    for c in comps:
-        url = c.get("url", "")
-        src = c.get("source", "Fuelled")
-        if url:
-            source_set.add(f"{src}: {url}")
-        elif src:
-            source_set.add(src)
-    if source_set:
-        for s in source_set:
-            _para(doc, f"\u2022 {s}", size=9)
-    else:
-        _para(doc, "Sources: Fuelled marketplace database", size=9)
+        # Sources section (fallback only)
+        _subheading(doc, "Data Sources")
+        source_set = set()
+        for c in comps:
+            url = c.get("url", "")
+            src = c.get("source", "Fuelled")
+            if url:
+                source_set.add(f"{src}: {url}")
+            elif src:
+                source_set.add(src)
+        if source_set:
+            for s in source_set:
+                _para(doc, f"\u2022 {s}", size=9)
+        else:
+            _para(doc, "Sources: Fuelled marketplace database", size=9)
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
     # 6. FAIR MARKET VALUE
     # ═══════════════════════════════════════════════════
     _heading(doc, "FAIR MARKET VALUE")
-    if fmv_low and fmv_high:
-        mid = (fmv_low + fmv_high) / 2
-        _table(doc, ["Scenario", "FMV Low", "FMV High", "Confidence"],
-               [("Primary Scenario", _p(fmv_low), _p(fmv_high), confidence)])
-        doc.add_paragraph()
-        _subheading(doc, "Recommended List Pricing")
-        list_p, walkaway = mid * 1.12, fmv_low * 0.92
-        _table(doc, ["Metric", "Value"], [
-            ("FMV Midpoint", _p(mid)),
-            ("List Premium (12%)", _p(list_p)),
-            ("Recommended List Price", _p(list_p)),
-            ("Walk-Away Floor", _p(walkaway)),
-        ])
+    if sections and sections.get("fair_market_value"):
+        fmv_sec = sections["fair_market_value"]
+        # Summary paragraph
+        if fmv_sec.get("summary"):
+            _para(doc, _strip_markdown(fmv_sec["summary"]))
+            doc.add_paragraph()
+        # Scenarios table
+        if fmv_sec.get("scenarios"):
+            _subheading(doc, "Valuation Scenarios")
+            scen_rows = [
+                (
+                    s.get("scenario", ""),
+                    _p(s.get("fmv_low")),
+                    _p(s.get("fmv_high")),
+                    str(s.get("confidence", "")),
+                )
+                for s in fmv_sec["scenarios"]
+            ]
+            _table(doc, ["Scenario", "FMV Low", "FMV High", "Confidence"], scen_rows)
+            doc.add_paragraph()
+        # List pricing table
+        if fmv_sec.get("list_pricing"):
+            lp = fmv_sec["list_pricing"]
+            _subheading(doc, "Recommended List Pricing")
+            lp_rows = [
+                (
+                    _p(lp.get("fmv_midpoint")),
+                    str(lp.get("list_premium", "")),
+                    _p(lp.get("recommended_list")),
+                    _p(lp.get("walkaway_floor")),
+                ),
+            ]
+            _table(doc, ["FMV Midpoint", "List Premium", "Recommended List", "Walk-Away"], lp_rows)
+            doc.add_paragraph()
+        # Overhaul economics
+        if fmv_sec.get("overhaul_economics"):
+            _subheading(doc, "Overhaul Economics")
+            _para(doc, _strip_markdown(fmv_sec["overhaul_economics"]))
     else:
-        _para(doc, "Fair market value could not be determined from available data.")
+        if fmv_low and fmv_high:
+            mid = (fmv_low + fmv_high) / 2
+            _table(doc, ["Scenario", "FMV Low", "FMV High", "Confidence"],
+                   [("Primary Scenario", _p(fmv_low), _p(fmv_high), confidence)])
+            doc.add_paragraph()
+            _subheading(doc, "Recommended List Pricing")
+            list_p, walkaway = mid * 1.12, fmv_low * 0.92
+            _table(doc, ["Metric", "Value"], [
+                ("FMV Midpoint", _p(mid)),
+                ("List Premium (12%)", _p(list_p)),
+                ("Recommended List Price", _p(list_p)),
+                ("Walk-Away Floor", _p(walkaway)),
+            ])
+        else:
+            _para(doc, "Fair market value could not be determined from available data.")
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
     # 7. OPTIONAL ANALYSIS SECTIONS (only if data present)
     # ═══════════════════════════════════════════════════
-    _optional_sections = [
-        ("MARKET CONTEXT", structured.get("market_context")),
-        ("EQUIPMENT CONTEXT", structured.get("equipment_context")),
-        ("CONDITION ASSESSMENT", structured.get("condition_assessment")),
-        ("COST CONSIDERATIONS", structured.get("cost_considerations")),
-        ("SCENARIO ANALYSIS", structured.get("scenario_analysis")),
-        ("MARKETING GUIDANCE", structured.get("marketing_guidance")),
-        ("MISSING DATA IMPACT", structured.get("missing_data_impact")),
-    ]
-    for title, content in _optional_sections:
-        if content:
-            _heading(doc, title)
-            _para(doc, _strip_markdown(content))
-            _divider(doc)
+    if sections and sections.get("market_context"):
+        _heading(doc, "MARKET CONTEXT")
+        mc_items = sections["market_context"]
+        if isinstance(mc_items, list):
+            for item in mc_items:
+                _para(doc, f"\u2022 {_strip_markdown(item)}")
+        else:
+            _para(doc, _strip_markdown(str(mc_items)))
+        _divider(doc)
+    else:
+        _optional_sections = [
+            ("MARKET CONTEXT", structured.get("market_context")),
+            ("EQUIPMENT CONTEXT", structured.get("equipment_context")),
+            ("CONDITION ASSESSMENT", structured.get("condition_assessment")),
+            ("COST CONSIDERATIONS", structured.get("cost_considerations")),
+            ("SCENARIO ANALYSIS", structured.get("scenario_analysis")),
+            ("MARKETING GUIDANCE", structured.get("marketing_guidance")),
+            ("MISSING DATA IMPACT", structured.get("missing_data_impact")),
+        ]
+        for title, content in _optional_sections:
+            if content:
+                _heading(doc, title)
+                _para(doc, _strip_markdown(content))
+                _divider(doc)
 
     # Sources (bulleted list)
-    sources = structured.get("sources", [])
-    if sources:
+    if sections and sections.get("sources"):
         _heading(doc, "SOURCES")
-        for s in sources:
+        for s in sections["sources"]:
             _para(doc, f"\u2022 {s}", size=9)
         _divider(doc)
+    else:
+        sources = structured.get("sources", [])
+        if sources:
+            _heading(doc, "SOURCES")
+            for s in sources:
+                _para(doc, f"\u2022 {s}", size=9)
+            _divider(doc)
 
     # ═══════════════════════════════════════════════════
     # 8. KEY ASSUMPTIONS AND LIMITING CONDITIONS
     # ═══════════════════════════════════════════════════
     _heading(doc, "KEY ASSUMPTIONS AND LIMITING CONDITIONS")
-    custom_assumptions = structured.get("assumptions", [])
-    if custom_assumptions:
-        assumptions_list = custom_assumptions
+    if sections and sections.get("assumptions"):
+        assumptions_list = sections["assumptions"]
     else:
-        assumptions_list = [
-            "This valuation is based on information provided and has not been independently "
-            "verified through physical inspection.",
-            "Equipment condition has been assumed based on reported age, hours, and service "
-            "type unless otherwise stated.",
-            f"All values are expressed in {currency} unless otherwise noted.",
-            "Market comparables are based on listed asking prices, which typically exceed "
-            "actual transaction values by 10\u201320%.",
-            "RCN values are derived from Fuelled\u2019s proprietary reference tables and "
-            "industry benchmarks.",
-            "Depreciation factors follow Fuelled\u2019s standardized curves based on equipment "
-            "class, age, condition, hours, and service type.",
-            "This valuation does not account for transportation, installation, commissioning, "
-            "or decommissioning costs.",
-            "Values assume the equipment is free and clear of liens, encumbrances, or "
-            "environmental liabilities.",
-        ]
+        custom_assumptions = structured.get("assumptions", [])
+        if custom_assumptions:
+            assumptions_list = custom_assumptions
+        else:
+            assumptions_list = [
+                "This valuation is based on information provided and has not been independently "
+                "verified through physical inspection.",
+                "Equipment condition has been assumed based on reported age, hours, and service "
+                "type unless otherwise stated.",
+                f"All values are expressed in {currency} unless otherwise noted.",
+                "Market comparables are based on listed asking prices, which typically exceed "
+                "actual transaction values by 10\u201320%.",
+                "RCN values are derived from Fuelled\u2019s proprietary reference tables and "
+                "industry benchmarks.",
+                "Depreciation factors follow Fuelled\u2019s standardized curves based on equipment "
+                "class, age, condition, hours, and service type.",
+                "This valuation does not account for transportation, installation, commissioning, "
+                "or decommissioning costs.",
+                "Values assume the equipment is free and clear of liens, encumbrances, or "
+                "environmental liabilities.",
+            ]
     for i, a in enumerate(assumptions_list, 1):
-        _para(doc, f"{i}. {a}")
+        _para(doc, f"{i}. {_strip_markdown(a)}")
     _divider(doc)
 
     # ═══════════════════════════════════════════════════
