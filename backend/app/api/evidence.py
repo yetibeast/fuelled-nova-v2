@@ -86,9 +86,10 @@ async def capture_evidence(body: dict, authorization: str = Header(None)):
     async with get_session() as session:
         await session.execute(text("""
             INSERT INTO pricing_evidence_intake
-                (id, manufacturer, model, category, price_value, confidence,
-                 tools_used, user_message, structured_data)
-            VALUES (:id, :mfr, :model, :cat, :price, :conf, :tools, :msg, :data)
+                (id, source_id, raw_manufacturer, raw_model, equipment_category,
+                 price_value, confidence, notes, price_type)
+            VALUES (:id, (SELECT id FROM sources WHERE name = 'nova_agent' LIMIT 1),
+                    :mfr, :model, :cat, :price, :conf, :notes, 'fmv')
         """), {
             "id": eid,
             "mfr": valuation.get("manufacturer", ""),

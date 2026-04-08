@@ -47,13 +47,9 @@ class NewMessage(BaseModel):
 # ── Ensure tables ────────────────────────────────────────────────────────────
 
 _INIT_SQLS = [
-    """CREATE TABLE IF NOT EXISTS conversations (
-        id          TEXT PRIMARY KEY,
-        user_id     TEXT NOT NULL,
-        title       TEXT NOT NULL DEFAULT 'New conversation',
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-    )""",
+    # Add missing columns to existing conversations table (V1 has uuid id, query, agent_used)
+    "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS title TEXT DEFAULT 'New conversation'",
+    "ALTER TABLE conversations ADD COLUMN IF NOT EXISTS user_id VARCHAR(100)",
     """CREATE TABLE IF NOT EXISTS conversation_messages (
         id              TEXT PRIMARY KEY,
         conversation_id TEXT NOT NULL,
@@ -62,7 +58,6 @@ _INIT_SQLS = [
         data            JSONB,
         created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )""",
-    "CREATE INDEX IF NOT EXISTS idx_conv_user ON conversations(user_id)",
     "CREATE INDEX IF NOT EXISTS idx_msg_conv ON conversation_messages(conversation_id)",
 ]
 
@@ -76,10 +71,13 @@ async def _ensure_tables():
     try:
         async with get_session() as session:
             for stmt in _INIT_SQLS:
-                await session.execute(text(stmt))
+                try:
+                    await session.execute(text(stmt))
+                except Exception:
+                    pass  # Column/table already exists
             await session.commit()
     except Exception:
-        pass  # Tables already exist with compatible schema
+        pass
     _tables_ready = True
 
 
@@ -93,7 +91,8 @@ async def list_conversations(authorization: str = Header(None)):
         rows = (
             await session.execute(
                 text(
-                    "SELECT id, title, created_at, updated_at "
+                    "SELECT id::text, COALESCE(title, query, 'New conversation') AS title, "
+                    "created_at, updated_at "
                     "FROM conversations WHERE user_id = :uid "
                     "ORDER BY updated_at DESC LIMIT 50"
                 ),
@@ -102,10 +101,10 @@ async def list_conversations(authorization: str = Header(None)):
         ).fetchall()
     return [
         {
-            "id": r.id,
-            "title": r.title,
-            "created_at": r.created_at.isoformat() if r.created_at else None,
-            "updated_at": r.updated_at.isoformat() if r.updated_at else None,
+            "id": r[0],
+            "title": r[1],
+            "created_at": r[2].isoformat() if r[2] else None,
+            "updated_at": r[3].isoformat() if r[3] else None,
         }
         for r in rows
     ]
@@ -115,12 +114,12 @@ async def list_conversations(authorization: str = Header(None)):
 async def create_conversation(body: NewConversation, authorization: str = Header(None)):
     user_id = _get_user_id(authorization)
     await _ensure_tables()
-    convo_id = f"c_{uuid.uuid4().hex[:12]}"
+    convo_id = str(uuid.uuid4())
     async with get_session() as session:
         await session.execute(
             text(
                 "INSERT INTO conversations (id, user_id, title) "
-                "VALUES (:id, :uid, :title)"
+                "VALUES (:id::uuid, :uid, :title)"
             ),
             {"id": convo_id, "uid": user_id, "title": body.title},
         )
@@ -136,8 +135,9 @@ async def get_conversation(convo_id: str, authorization: str = Header(None)):
         row = (
             await session.execute(
                 text(
-                    "SELECT id, title, created_at FROM conversations "
-                    "WHERE id = :cid AND user_id = :uid"
+                    "SELECT id::text, COALESCE(title, query, 'New conversation') AS title, "
+                    "created_at FROM conversations "
+                    "WHERE id::text = :cid AND user_id = :uid"
                 ),
                 {"cid": convo_id, "uid": user_id},
             )
@@ -157,9 +157,9 @@ async def get_conversation(convo_id: str, authorization: str = Header(None)):
         ).fetchall()
 
     return {
-        "id": row.id,
-        "title": row.title,
-        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "id": row[0],
+        "title": row[1],
+        "created_at": row[2].isoformat() if row[2] else None,
         "messages": [
             {
                 "id": m.id,
@@ -228,7 +228,7 @@ async def delete_conversation(convo_id: str, authorization: str = Header(None)):
     await _ensure_tables()
     async with get_session() as session:
         result = await session.execute(
-            text("DELETE FROM conversations WHERE id = :cid AND user_id = :uid"),
+            text("DELETE FROM conversations WHERE id::text = :cid AND user_id = :uid"),
             {"cid": convo_id, "uid": user_id},
         )
         await session.commit()
