@@ -102,14 +102,73 @@ def generate_onepager(
 
     doc.add_paragraph()  # spacer
 
-    # 6 — Basis of Value
+    # 6 — Valuation Factors table (skip if empty)
+    factors = structured.get("valuation", {}).get("factors", [])
+    if factors:
+        p = doc.add_paragraph()
+        r = p.add_run("Valuation Factors")
+        font(r, size=11, bold=True, color=NAVY)
+
+        ftable = doc.add_table(rows=1 + len(factors), cols=3)
+        ftable.style = "Table Grid"
+        for i, hdr in enumerate(["Factor", "Multiplier", "Rationale"]):
+            ftable.rows[0].cells[i].text = hdr
+        navy_row(ftable, 0)
+
+        for ri, f in enumerate(factors, start=1):
+            ftable.rows[ri].cells[0].text = f.get("label", "")
+            raw_val = f.get("value")
+            if raw_val is not None:
+                ftable.rows[ri].cells[1].text = f"{raw_val:.2f}x" if raw_val <= 5 else str(raw_val)
+            ftable.rows[ri].cells[2].text = f.get("rationale", "")
+
+        alt_shade(ftable, start=1)
+        doc.add_paragraph()  # spacer
+
+    # 7 — Market Comparables table (skip if empty)
+    comps = structured.get("comparables", [])[:3]
+    if comps:
+        p = doc.add_paragraph()
+        r = p.add_run("Market Comparables")
+        font(r, size=11, bold=True, color=NAVY)
+
+        ctable = doc.add_table(rows=1 + len(comps), cols=4)
+        ctable.style = "Table Grid"
+        for i, hdr in enumerate(["Description", "Price", "Location", "Source"]):
+            ctable.rows[0].cells[i].text = hdr
+        navy_row(ctable, 0)
+
+        for ri, c in enumerate(comps, start=1):
+            ctable.rows[ri].cells[0].text = c.get("title", c.get("description", ""))
+            comp_price = c.get("price")
+            ctable.rows[ri].cells[1].text = price_fmt(comp_price, currency) if comp_price else ""
+            ctable.rows[ri].cells[2].text = c.get("location", "")
+            ctable.rows[ri].cells[3].text = c.get("source", "")
+
+        alt_shade(ctable, start=1)
+        doc.add_paragraph()  # spacer
+
+    # 8 — Methodology sentence (only if RCN available)
+    rcn = val.get("rcn")
+    if rcn:
+        n_factors = len(factors)
+        n_comps = len(structured.get("comparables", []))
+        p = doc.add_paragraph()
+        r = p.add_run(
+            f"Methodology: Replacement Cost New less Depreciation (RCN-D). "
+            f"RCN of {price_fmt(rcn, currency)} adjusted by {n_factors} factor(s). "
+            f"Validated against {n_comps} market comparable(s) from the Fuelled database of 36,000+ listings."
+        )
+        font(r, size=9, italic=True, color=MUTED)
+
+    # 9 — Basis of Value
     p = doc.add_paragraph()
     r = p.add_run("Basis of Value: Fair Market Value, As-Is/Where-Is, Orderly Liquidation (Bulk Sale).")
     font(r, size=9, italic=True, color=MUTED)
 
     divider(doc)
 
-    # 7 — Footer
+    # 10 — Footer
     p = doc.add_paragraph()
     r = p.add_run(f"Confidential | Fuelled Energy Marketing Inc. | Effective Date: {date}")
     font(r, size=8, color=MUTED)
