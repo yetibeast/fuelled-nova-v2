@@ -44,8 +44,11 @@ class CreateUserRequest(BaseModel):
 
 
 class UpdateUserRequest(BaseModel):
+    name: Optional[str] = None
+    email: Optional[str] = None
     role: Optional[str] = None
     status: Optional[str] = None
+    password: Optional[str] = None
 
 
 @router.get("/users")
@@ -99,12 +102,22 @@ async def create_user(body: CreateUserRequest, authorization: str = Header(None)
 async def update_user(user_id: str, body: UpdateUserRequest, authorization: str = Header(None)):
     _require_admin(authorization)
     updates, params = [], {"id": user_id}
+    if body.name is not None:
+        updates.append("name = :name")
+        params["name"] = body.name
+    if body.email is not None:
+        updates.append("email = :email")
+        params["email"] = body.email.strip().lower()
     if body.role is not None:
         updates.append("role = :role")
         params["role"] = body.role
     if body.status is not None:
         updates.append("status = :status")
         params["status"] = body.status
+    if body.password is not None:
+        hashed = bcrypt.hashpw(body.password.encode(), bcrypt.gensalt()).decode()
+        updates.append("password_hash = :hash")
+        params["hash"] = hashed
     if not updates:
         raise HTTPException(status_code=400, detail="No fields to update")
 
@@ -121,6 +134,24 @@ async def update_user(user_id: str, body: UpdateUserRequest, authorization: str 
         raise HTTPException(status_code=404, detail="User not found")
     return {"id": str(row[0]), "name": row[1], "email": row[2],
             "role": row[3], "status": row[4]}
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, authorization: str = Header(None)):
+    _require_admin(authorization)
+    admin_id = _require_admin(authorization)
+    if admin_id == user_id:
+        raise HTTPException(status_code=400, detail="Cannot delete yourself")
+    async with get_session() as session:
+        result = await session.execute(
+            text("DELETE FROM users WHERE id = :id RETURNING id"),
+            {"id": user_id},
+        )
+        row = result.fetchone()
+        await session.commit()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"deleted": True, "id": str(row[0])}
 
 
 # ── Admin logs ─────────────────────────────────────────────────────────────

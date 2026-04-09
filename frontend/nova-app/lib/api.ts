@@ -238,7 +238,7 @@ export async function createUser(data: { name: string; email: string; role: stri
   return res.json();
 }
 
-export async function updateUser(id: string, data: { role?: string; status?: string }) {
+export async function updateUser(id: string, data: { name?: string; email?: string; role?: string; status?: string; password?: string }) {
   const res = await fetch(`/api/admin/users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders() },
@@ -247,6 +247,18 @@ export async function updateUser(id: string, data: { role?: string; status?: str
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: "Failed to update user" }));
     throw new Error(body.detail || "Failed to update user");
+  }
+  return res.json();
+}
+
+export async function deleteUser(id: string) {
+  const res = await fetch(`/api/admin/users/${id}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to delete user" }));
+    throw new Error(body.detail || "Failed to delete user");
   }
   return res.json();
 }
