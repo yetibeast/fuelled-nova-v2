@@ -80,7 +80,15 @@ async def generate(body: dict, authorization: str = Header(None)):
         hi = v.get("fmv_high", 0) or 0
         fmv_range = f"${lo:,.0f} – ${hi:,.0f}" if lo else "---"
     elif tier == 2:
-        results = data if isinstance(data, list) else data.get("results", [])
+        if isinstance(data, list):
+            results = data
+        elif "results" in data:
+            results = data["results"]
+        elif "structured" in data:
+            # Single-item export from chat — wrap into results list
+            results = [data]
+        else:
+            results = []
         summary = body.get("summary") or {
             "total": len(results),
             "completed": len(results),
