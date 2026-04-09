@@ -352,7 +352,8 @@ export async function pollBatchStatus(jobId: string) {
 /* ---------- Tiered Reports ---------- */
 
 export async function generateTieredReport(tier: number, type: string, data: Record<string, unknown>): Promise<Blob> {
-  const res = await fetch("/api/reports/generate", {
+  // Call backend directly — report generation takes 30-60s for Claude pass, exceeds Next.js proxy timeout
+  const res = await fetch(`${getBackendUrl()}/api/reports/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({ tier, type, data }),
