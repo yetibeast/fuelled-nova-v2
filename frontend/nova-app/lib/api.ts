@@ -4,9 +4,9 @@
 
 function getBackendUrl(): string {
   if (typeof window === "undefined") return "";
-  // In production, use the API subdomain directly for long-running requests
   const host = window.location.hostname;
-  if (host === "fuellednova.com") return "https://api.fuellednova.com";
+  // Any production domain — fuellednova.com, www.fuellednova.com, etc.
+  if (host.includes("fuellednova.com")) return "https://api.fuellednova.com";
   if (host.includes("railway.app")) return "https://backend-production-6a3f7.up.railway.app";
   // Local dev
   return "http://localhost:8100";
