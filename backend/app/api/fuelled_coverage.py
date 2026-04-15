@@ -212,7 +212,7 @@ async def fuelled_generate_report(authorization: str = Header(None)):
             WHERE {_BASE} AND NOT {_HAS_VALUE}
             ORDER BY first_seen ASC
         """))
-        rows = result.fetchall()
+        rows = [r._mapping for r in result.fetchall()]
 
     now = datetime.now(timezone.utc)
     wb = Workbook()
@@ -418,7 +418,7 @@ async def fuelled_price_batch(
             ORDER BY ({_COMPLETENESS}) DESC
             LIMIT :lim
         """), {"lim": limit})
-        rows = result.fetchall()
+        rows = [r._mapping for r in result.fetchall()]
 
     if not rows:
         return {"job_id": None, "total": 0, "detail": "No unpriced items found"}
