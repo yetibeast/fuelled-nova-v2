@@ -28,9 +28,9 @@ _table_init = False
 # ── Canonical SQL fragments ───────────────────────────────────────────────
 
 _BASE = "source = 'fuelled' AND is_active = true"
-_HAS_ASKING = "asking_price > 0"
-_HAS_VALUE = "(asking_price > 0 OR fair_value > 0)"
-_AI_ONLY = "(fair_value > 0 AND NOT asking_price > 0)"
+_HAS_ASKING = "COALESCE(asking_price, 0) > 0"
+_HAS_VALUE = "(COALESCE(asking_price, 0) > 0 OR COALESCE(fair_value, 0) > 0)"
+_AI_ONLY = "(COALESCE(fair_value, 0) > 0 AND COALESCE(asking_price, 0) = 0)"
 _TIER = """CASE
     WHEN make IS NOT NULL AND model IS NOT NULL AND year IS NOT NULL THEN 1
     WHEN make IS NOT NULL AND year IS NOT NULL THEN 2
@@ -114,8 +114,8 @@ async def fuelled_coverage_stats(authorization: str = Header(None)):
             SELECT {_TIER} AS tier, COUNT(*) AS cnt
             FROM listings
             WHERE {_BASE} AND NOT {_HAS_VALUE}
-            GROUP BY tier
-            ORDER BY tier
+            GROUP BY 1
+            ORDER BY 1
         """))
         tier_rows = result.fetchall()
         by_tier = {f"tier_{r[0]}": r[1] for r in tier_rows} if tier_rows else {}
