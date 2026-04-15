@@ -34,11 +34,19 @@ interface BatchJob {
 }
 
 const TIER_CONFIG = [
-  { key: "tier_1", label: "High", tier: 1, color: "#10b981" },
-  { key: "tier_2", label: "Medium", tier: 2, color: "#f59e0b" },
-  { key: "tier_3", label: "Low", tier: 3, color: "#EF5D28" },
-  { key: "tier_4", label: "Very Low", tier: 4, color: "#ef4444" },
+  { key: "tier_1", label: "High", tier: 1, color: "#10b981", desc: "Make + Model + Year" },
+  { key: "tier_2", label: "Medium", tier: 2, color: "#f59e0b", desc: "Make + Year" },
+  { key: "tier_3", label: "Low", tier: 3, color: "#EF5D28", desc: "Make only" },
+  { key: "tier_4", label: "Very Low", tier: 4, color: "#ef4444", desc: "Category only" },
 ];
+
+/** Bar color based on coverage % — red/orange when low, amber mid, green when close to target. */
+function progressColor(pct: number): string {
+  if (pct >= 75) return "#10b981"; // emerald
+  if (pct >= 50) return "#f59e0b"; // amber
+  if (pct >= 30) return "#EF5D28"; // primary orange
+  return "#ef4444"; // red
+}
 
 export function PricingCoverage() {
   const [data, setData] = useState<CoverageData | null>(null);
@@ -195,13 +203,13 @@ export function PricingCoverage() {
         </span>
       </div>
 
-      {/* Gradient progress bar */}
+      {/* Progress bar — color reflects how close to target */}
       <div className="h-5 rounded-full bg-white/[0.04] overflow-hidden mb-1">
         <div
           className="h-full rounded-full transition-all duration-700"
           style={{
             width: `${data.valued_pct}%`,
-            background: "linear-gradient(90deg, #EF5D28, #f59e0b, #10b981)",
+            backgroundColor: progressColor(data.valued_pct),
           }}
         />
       </div>
@@ -256,8 +264,8 @@ export function PricingCoverage() {
             const pct = tierMax > 0 ? (count / tierMax) * 100 : 0;
             return (
               <div key={t.key} className="flex items-center gap-3">
-                <span className="text-[10px] font-mono text-on-surface/40 w-20 shrink-0">
-                  Tier {t.tier} {t.label}
+                <span className="text-[10px] font-mono text-on-surface/40 w-24 shrink-0">
+                  Tier {t.tier} — {t.label}
                 </span>
                 <div className="flex-1 h-3 rounded-full bg-white/[0.04] overflow-hidden">
                   <div
@@ -268,12 +276,23 @@ export function PricingCoverage() {
                     }}
                   />
                 </div>
-                <span className="text-xs font-mono text-on-surface/60 w-10 text-right">
-                  {count}
+                <span className="text-xs font-mono text-on-surface/60 w-12 text-right">
+                  {count.toLocaleString()}
                 </span>
               </div>
             );
           })}
+        </div>
+      </div>
+
+      {/* Tier legend */}
+      <div className="mb-4 pt-2 border-t border-white/[0.04]">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+          {TIER_CONFIG.map((t) => (
+            <p key={t.key} className="text-[10px] font-mono text-on-surface/25">
+              <span style={{ color: t.color }}>Tier {t.tier}</span> = {t.desc}
+            </p>
+          ))}
         </div>
       </div>
 
