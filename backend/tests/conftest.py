@@ -33,6 +33,53 @@ def _make_token(user_id: str = "test-user-1", role: str = "admin", expires_hours
 # ── In-memory DB mock ──────────────────────────────────────────────────────
 
 
+def _seed_fuelled_listings() -> list[dict]:
+    """Create 6 fuelled listings spanning all 4 data-completeness tiers."""
+    now = datetime.now(timezone.utc)
+    thirty_days_ago = now - timedelta(days=30)
+    base = {
+        "source": "fuelled",
+        "is_active": True,
+        "hours": None,
+        "horsepower": None,
+        "fair_value": None,
+        "first_seen": thirty_days_ago,
+        "last_seen": now,
+    }
+    return [
+        # Tier 1 (make+model+year) — priced
+        {**base, "id": "fu-t1-priced", "title": "2018 Ariel JGK/4 Compressor",
+         "category": "compressors", "make": "Ariel", "model": "JGK/4",
+         "year": 2018, "condition": "Good", "asking_price": 450000,
+         "url": "https://fuelled.com/listing/1"},
+        # Tier 1 (make+model+year) — unpriced
+        {**base, "id": "fu-t1-unpriced", "title": "2020 Caterpillar 3512 Generator",
+         "category": "generators", "make": "Caterpillar", "model": "3512",
+         "year": 2020, "condition": "Excellent", "asking_price": None,
+         "url": "https://fuelled.com/listing/2"},
+        # Tier 2 (make+year, no model) — unpriced
+        {**base, "id": "fu-t2-a", "title": "2016 Waukesha Engine",
+         "category": "engines", "make": "Waukesha", "model": None,
+         "year": 2016, "condition": "Fair", "asking_price": None,
+         "url": "https://fuelled.com/listing/3"},
+        # Tier 2 (make+year, no model) — unpriced
+        {**base, "id": "fu-t2-b", "title": "2019 Dresser-Rand Compressor",
+         "category": "compressors", "make": "Dresser-Rand", "model": None,
+         "year": 2019, "condition": "Good", "asking_price": None,
+         "url": "https://fuelled.com/listing/4"},
+        # Tier 3 (make only) — unpriced
+        {**base, "id": "fu-t3", "title": "Sullair Compressor Package",
+         "category": "compressors", "make": "Sullair", "model": None,
+         "year": None, "condition": "Fair", "asking_price": None,
+         "url": "https://fuelled.com/listing/5"},
+        # Tier 4 (no make) — unpriced
+        {**base, "id": "fu-t4", "title": "Production Separator 48x10",
+         "category": "separators", "make": None, "model": None,
+         "year": None, "condition": "Poor", "asking_price": None,
+         "url": "https://fuelled.com/listing/6"},
+    ]
+
+
 class _InMemoryDB:
     """Simple in-memory storage that mimics the tables used by conversations and evidence."""
 
@@ -42,7 +89,7 @@ class _InMemoryDB:
         self.evidence: dict[str, dict] = {}
         self.scrape_targets: dict[str, dict] = {}
         self.scrape_runs: dict[str, dict] = {}
-        self.listings: list[dict] = []
+        self.listings: list[dict] = _seed_fuelled_listings()
 
 
 _db = _InMemoryDB()
@@ -446,9 +493,112 @@ class MockSession:
             rows = [{0: k, 1: v} for k, v in sorted(counts_by_src.items(), key=lambda x: -x[1])]
             return MockResult(rows)
 
+        # ── Fuelled Coverage ────────────────────────────────────────
+
+        # INSERT INTO fuelled_valuations — no-op
+        if "INSERT INTO fuelled_valuations" in sql:
+            return MockResult(rowcount=1)
+
+        # UPDATE listings SET fair_value — apply in-memory
+        if "UPDATE listings SET fair_value" in sql:
+            lid = params.get("lid", "")
+            fv = params.get("fv")
+            for l in self._db.listings:
+                if l["id"] == lid:
+                    l["fair_value"] = fv
+                    break
+            return MockResult(rowcount=1)
+
+        # Coverage stats: source='fuelled' + COUNT(*) + AVG(
+        if "source = 'fuelled'" in sql and "COUNT(*)" in sql and "AVG(" in sql:
+            fl = [l for l in self._db.listings if l.get("source") == "fuelled" and l.get("is_active")]
+            total = len(fl)
+            asking_ct = sum(1 for l in fl if (l.get("asking_price") or 0) > 0)
+            valued_ct = sum(1 for l in fl if (l.get("asking_price") or 0) > 0 or (l.get("fair_value") or 0) > 0)
+            ai_only_ct = sum(1 for l in fl if (l.get("fair_value") or 0) > 0 and not ((l.get("asking_price") or 0) > 0))
+            # Completeness per item
+            scores = []
+            for l in fl:
+                s = 0
+                if l.get("make"): s += 25
+                if l.get("model"): s += 20
+                if l.get("year"): s += 25
+                if l.get("hours") is not None: s += 15
+                if l.get("horsepower") is not None: s += 10
+                if l.get("condition"): s += 5
+                scores.append(s)
+            avg_comp = round(sum(scores) / len(scores), 1) if scores else 0
+            return MockResult([{0: total, 1: asking_ct, 2: valued_ct, 3: ai_only_ct, 4: avg_comp}])
+
+        # Tier breakdown: source='fuelled' + tier + GROUP BY
+        if "source = 'fuelled'" in sql and "tier" in sql and "GROUP BY" in sql:
+            fl = [l for l in self._db.listings if l.get("source") == "fuelled" and l.get("is_active")]
+            # Unvalued only
+            unvalued = [l for l in fl if not ((l.get("asking_price") or 0) > 0 or (l.get("fair_value") or 0) > 0)]
+            tier_counts: dict[int, int] = {}
+            for l in unvalued:
+                has_make = bool(l.get("make"))
+                has_model = bool(l.get("model"))
+                has_year = bool(l.get("year"))
+                if has_make and has_model and has_year:
+                    t = 1
+                elif has_make and has_year:
+                    t = 2
+                elif has_make:
+                    t = 3
+                else:
+                    t = 4
+                tier_counts[t] = tier_counts.get(t, 0) + 1
+            rows = [{"tier": t, "cnt": c} for t, c in sorted(tier_counts.items())]
+            return MockResult(rows)
+
+        # Category breakdown: source='fuelled' + category + GROUP BY + LIMIT
+        if "source = 'fuelled'" in sql and "category" in sql and "GROUP BY" in sql and "LIMIT" in sql:
+            fl = [l for l in self._db.listings if l.get("source") == "fuelled" and l.get("is_active")]
+            unvalued = [l for l in fl if not ((l.get("asking_price") or 0) > 0 or (l.get("fair_value") or 0) > 0)]
+            cat_counts: dict[str, int] = {}
+            for l in unvalued:
+                cat = l.get("category") or "unknown"
+                cat_counts[cat] = cat_counts.get(cat, 0) + 1
+            rows = [{"category": c, "cnt": n} for c, n in sorted(cat_counts.items(), key=lambda x: -x[1])[:10]]
+            return MockResult(rows)
+
+        # Report query: source='fuelled' + first_seen + ORDER BY — full rows for unvalued
+        if "source = 'fuelled'" in sql and "first_seen" in sql and "ORDER BY" in sql:
+            fl = [l for l in self._db.listings if l.get("source") == "fuelled" and l.get("is_active")]
+            unvalued = [l for l in fl if not ((l.get("asking_price") or 0) > 0 or (l.get("fair_value") or 0) > 0)]
+            rows = []
+            for l in unvalued:
+                rows.append({
+                    "id": l["id"], "title": l.get("title"), "category": l.get("category"),
+                    "make": l.get("make"), "model": l.get("model"), "year": l.get("year"),
+                    "condition": l.get("condition"), "hours": l.get("hours"),
+                    "horsepower": l.get("horsepower"), "url": l.get("url"),
+                    "first_seen": l.get("first_seen"),
+                })
+            return MockResult(rows)
+
+        # Batch query: source='fuelled' + LIMIT + id + title — items for pricing
+        if "source = 'fuelled'" in sql and "LIMIT" in sql and "id" in sql and "title" in sql:
+            fl = [l for l in self._db.listings if l.get("source") == "fuelled" and l.get("is_active")]
+            unvalued = [l for l in fl if not ((l.get("asking_price") or 0) > 0 or (l.get("fair_value") or 0) > 0)]
+            limit = 10
+            rows = []
+            for l in unvalued[:limit]:
+                rows.append({
+                    "id": l["id"], "title": l.get("title"), "category": l.get("category"),
+                    "make": l.get("make"), "model": l.get("model"), "year": l.get("year"),
+                    "condition": l.get("condition"), "hours": l.get("hours"),
+                    "horsepower": l.get("horsepower"),
+                })
+            return MockResult(rows)
+
         return MockResult()
 
     async def commit(self):
+        pass
+
+    async def rollback(self):
         pass
 
 
@@ -464,15 +614,17 @@ def _patch_db():
     _db = _InMemoryDB()
 
     # Reset table-creation flags
-    from app.api import conversations, evidence, admin_scrapers
+    from app.api import conversations, evidence, admin_scrapers, fuelled_coverage
     conversations._tables_ready = False
     evidence._tables_ready = False
     admin_scrapers._tables_ready = False
+    fuelled_coverage._table_init = False
 
     with patch("app.db.session.get_session", _mock_get_session), \
          patch("app.api.conversations.get_session", _mock_get_session), \
          patch("app.api.evidence.get_session", _mock_get_session), \
-         patch("app.api.admin_scrapers.get_session", _mock_get_session):
+         patch("app.api.admin_scrapers.get_session", _mock_get_session), \
+         patch("app.api.fuelled_coverage.get_session", _mock_get_session):
         yield
 
 
