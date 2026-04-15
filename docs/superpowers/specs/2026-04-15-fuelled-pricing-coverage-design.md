@@ -2,42 +2,109 @@
 
 **Date**: 2026-04-15
 **Branch**: `feature/fuelled-pricing-coverage`
-**Goal**: Give Mark visibility into what % of Fuelled inventory has prices, surface data gaps, and enable batch AI pricing of unpriced items.
+**Goal**: Give Mark visibility into Fuelled inventory pricing gaps, surface data quality issues, and enable batch AI valuation of unpriced items.
 
 ## Context
 
-Fuelled.com has 6,975 listings. Only 2,070 (29.7%) have an asking price. The remaining 4,905 items sit unpriced — invisible to buyers filtering by price and impossible to comp against. Mark wants 100% pricing coverage.
+A significant portion of Fuelled.com listings have no asking price — they're invisible to buyers filtering by price and impossible to comp against. Mark wants to drive toward 100% pricing coverage.
 
-**Data quality of unpriced items:**
+The exact counts are dynamic. The canonical queries that define the KPIs are specified in the Backend section below.
 
-| Tier | Criteria | Count | Pricing confidence |
-|------|----------|------:|-------------------|
-| 1 | Make + Model + Year | 212 | High |
-| 2 | Make + Year | 1,565 | Medium |
-| 3 | Make only | 2,131 | Low |
-| 4 | Category only | 997 | Very low |
+**Data quality observations** (unpriced items, as of 2026-04-15):
+- Condition data is near 100%
+- Make coverage ~80%, model coverage ~7%, year ~39%
+- Zero hours data across all unpriced items
 
-All items have condition data (100%). Zero have hours. Model coverage is 7%.
+**Pricability tiers** (defined by available data):
+
+| Tier | Criteria | Pricing confidence |
+|------|----------|-------------------|
+| 1 | Make + Model + Year | High |
+| 2 | Make + Year | Medium |
+| 3 | Make only | Low |
+| 4 | Category only | Very low |
 
 ## Approach
 
-**Phase A (this spec)**: Dashboard widget + downloadable report + batch pricing trigger. Internal only — AI prices stored as `fair_value`, not published to fuelled.com.
+**Phase A (this spec)**: Dashboard widget with two distinct metrics + downloadable report + batch valuation trigger. Internal only — AI valuations stored as `fair_value`, not published to fuelled.com.
 
-**Phase C (future)**: Review-then-publish queue where someone approves AI prices before they go live.
+**Phase C (future)**: Review-then-publish queue where someone approves AI valuations before they become asking prices.
+
+## Two Distinct Metrics
+
+The widget tracks two separate coverage numbers:
+
+1. **Asking Price Coverage** — % of Fuelled listings with `asking_price > 0`. This is the public/buyer-facing number. It only changes when prices are set on fuelled.com.
+2. **Internal Valuation Coverage** — % of Fuelled listings with `asking_price > 0 OR fair_value > 0`. This reflects what Nova knows internally. It increases as the AI prices items.
+
+The gradient progress bar shows **Internal Valuation Coverage** (the number we can move). Asking Price Coverage is shown as a secondary stat so the gap between "what we know" and "what buyers see" is visible.
 
 ## Backend
 
-### DB Migration
+### DB Columns (existing)
 
-Add columns to `listings` table (idempotent, runs on startup):
+The `listings` table already has these columns — no migration needed:
+
+- `fair_value DOUBLE PRECISION` — AI-generated FMV midpoint
+- `last_valued_at TIMESTAMPTZ` — when it was last valued
+
+Confidence is stored in a separate `fuelled_valuations` log table (see below), not on the listing itself.
+
+### New table: `fuelled_valuations`
+
+Created on first use (idempotent `CREATE TABLE IF NOT EXISTS`):
 
 ```sql
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS fair_value DOUBLE PRECISION;
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS fair_value_confidence VARCHAR(10);
-ALTER TABLE listings ADD COLUMN IF NOT EXISTS fair_value_at TIMESTAMPTZ;
+CREATE TABLE IF NOT EXISTS fuelled_valuations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    listing_id UUID NOT NULL,
+    fmv_low DOUBLE PRECISION,
+    fmv_mid DOUBLE PRECISION,
+    fmv_high DOUBLE PRECISION,
+    confidence VARCHAR(10),
+    tier INTEGER,
+    data_completeness INTEGER,
+    tools_used TEXT[],
+    trace_id VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
 ```
 
-`fair_value` stores the AI-generated FMV midpoint. `fair_value_confidence` stores HIGH/MEDIUM/LOW. `fair_value_at` records when it was priced.
+This provides an audit trail — every valuation attempt is recorded, including failures. The listing's `fair_value` and `last_valued_at` are updated only on success.
+
+### Canonical KPI queries
+
+All coverage stats derive from these predicates:
+
+```sql
+-- Base population
+WHERE source = 'fuelled' AND is_active = true
+
+-- Asking price coverage
+COUNT(CASE WHEN asking_price IS NOT NULL AND asking_price > 0 THEN 1 END)
+
+-- Internal valuation coverage  
+COUNT(CASE WHEN (asking_price > 0) OR (fair_value > 0) THEN 1 END)
+
+-- AI-priced only
+COUNT(CASE WHEN fair_value > 0 AND (asking_price IS NULL OR asking_price = 0) THEN 1 END)
+
+-- Tier assignment
+CASE
+  WHEN make IS NOT NULL AND make != '' AND model IS NOT NULL AND model != '' AND year IS NOT NULL THEN 1
+  WHEN make IS NOT NULL AND make != '' AND year IS NOT NULL THEN 2
+  WHEN make IS NOT NULL AND make != '' THEN 3
+  ELSE 4
+END
+
+-- Data completeness (0-100)
+(CASE WHEN make IS NOT NULL AND make != '' THEN 25 ELSE 0 END)
++ (CASE WHEN model IS NOT NULL AND model != '' THEN 20 ELSE 0 END)
++ (CASE WHEN year IS NOT NULL THEN 25 ELSE 0 END)
++ (CASE WHEN hours IS NOT NULL THEN 15 ELSE 0 END)
++ (CASE WHEN horsepower IS NOT NULL THEN 10 ELSE 0 END)
++ (CASE WHEN condition IS NOT NULL AND condition != '' THEN 5 ELSE 0 END)
+```
 
 ### New route file: `backend/app/api/fuelled_coverage.py`
 
@@ -45,42 +112,22 @@ Three endpoints, all admin-only (JWT auth required):
 
 #### `GET /api/admin/fuelled/coverage`
 
-Returns pricing coverage stats for the dashboard widget.
+Returns pricing coverage stats for the dashboard widget. All numbers are computed live from the canonical queries above.
 
 ```json
 {
-  "total": 6975,
-  "priced": 2070,
-  "unpriced": 4905,
-  "coverage_pct": 29.7,
-  "ai_priced": 0,
-  "by_tier": {
-    "tier_1": 212,
-    "tier_2": 1565,
-    "tier_3": 2131,
-    "tier_4": 997
-  },
-  "by_category": [
-    {"category": "Tank", "total": 1009, "completeness_avg": 45},
-    {"category": "Separator", "total": 574, "completeness_avg": 52}
-  ],
-  "completeness_avg": 42
+  "total": 0,
+  "asking_price_count": 0,
+  "asking_price_pct": 0.0,
+  "valued_count": 0,
+  "valued_pct": 0.0,
+  "ai_only_count": 0,
+  "unpriced": 0,
+  "by_tier": {"tier_1": 0, "tier_2": 0, "tier_3": 0, "tier_4": 0},
+  "by_category": [{"category": "Tank", "unpriced": 0, "completeness_avg": 0}],
+  "completeness_avg": 0
 }
 ```
-
-**Tier logic** (SQL CASE):
-- Tier 1: `make IS NOT NULL AND model IS NOT NULL AND year IS NOT NULL`
-- Tier 2: `make IS NOT NULL AND year IS NOT NULL`
-- Tier 3: `make IS NOT NULL`
-- Tier 4: everything else
-
-**Completeness score** per item (0-100):
-- make present: +25
-- model present: +20
-- year present: +25
-- hours present: +15
-- horsepower present: +10
-- condition present: +5
 
 #### `POST /api/admin/fuelled/generate-report`
 
@@ -88,13 +135,11 @@ Generates an XLSX report of all unpriced Fuelled listings with data quality anal
 
 **Columns**: Title, Category, Make, Model, Year, Condition, Hours, HP, Data Completeness %, Missing Fields, Days Listed, Pricability Tier, URL
 
-Returns the file as a download (`Content-Disposition: attachment`).
-
-Uses `openpyxl` (already a dependency for RCN loading).
+Returns the file as a download (`Content-Disposition: attachment`). Uses `openpyxl` (already a dependency).
 
 #### `POST /api/admin/fuelled/price-batch`
 
-Triggers batch AI pricing of unpriced Fuelled items.
+Triggers batch AI valuation of unpriced Fuelled items.
 
 **Request body** (optional):
 ```json
@@ -106,13 +151,33 @@ Triggers batch AI pricing of unpriced Fuelled items.
 
 Defaults to tiers 1+2, limit 50 per run.
 
+**Batch pricing mode**: The pricing query is constructed as a directive, not a question. Instead of "What is a 2018 Ariel JGK4 compressor worth?", it sends:
+
+```
+Provide a fair market value estimate for this equipment. Do not ask follow-up questions — use your best judgment with the data available. If critical data is missing, state your assumptions and provide a wider confidence range.
+
+Equipment: {title}
+Category: {category}
+Manufacturer: {make}
+Model: {model}
+Year: {year}
+Condition: {condition}
+```
+
+This prevents the agent from entering its follow-up-question branch (which fires when hours/specs are missing). The agent will estimate with assumptions and flag them in the response.
+
 **Flow**:
-1. Query unpriced Fuelled listings matching tier filter
+1. Query unpriced Fuelled listings matching tier filter, ordered by tier ASC (best data first)
 2. Create batch job in `_batch_jobs` dict (reuse existing pattern from `batch.py`)
-3. For each item, build a pricing query from title + make + model + year + condition
+3. For each item, build the directive query above
 4. Call `run_pricing()` with 60s timeout
-5. On success: `UPDATE listings SET fair_value = fmv_mid, fair_value_confidence = confidence, fair_value_at = NOW() WHERE id = :id`
-6. Return `job_id` for polling via existing `GET /api/price/batch/{job_id}/status`
+5. Check response: if `structured.valuation.fmv_mid` exists and is > 0, it's a success
+6. On success: `UPDATE listings SET fair_value = fmv_mid, last_valued_at = NOW() WHERE id = :id`
+7. Always: insert row into `fuelled_valuations` table (success or failure)
+8. On failure (no fmv_mid, timeout, or error): log to valuations table with NULL values, skip listing
+9. Return `job_id` for polling via existing `GET /api/price/batch/{job_id}/status`
+
+**Idempotency**: Before starting, check if a job is already running for this endpoint (flag in `_batch_jobs`). Reject duplicate triggers with 409 Conflict. Items that already have `fair_value > 0` are skipped.
 
 ### Route registration
 
@@ -134,20 +199,24 @@ Replaces `<Opportunities />` on the dashboard page.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Fuelled Pricing Coverage                    29.7%      │
+│  Fuelled Pricing Coverage                               │
 │                                                         │
+│  Internal Valuation Coverage              29.7%         │
 │  ████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  100%  │
 │  ← gradient: primary(red/orange) → emerald green →      │
 │                                                         │
 │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────┐               │
 │  │ 6,975│  │ 2,070│  │ 4,905│  │    0 │               │
-│  │Total │  │Priced│  │ Need │  │  AI  │               │
+│  │Total │  │Listed│  │Unvalu│  │  AI  │               │
+│  │      │  │Price │  │  ed  │  │Priced│               │
 │  └──────┘  └──────┘  └──────┘  └──────┘               │
 │                                                         │
-│  Pricability    Tier 1 ██ 212                           │
-│                 Tier 2 ████████████ 1,565               │
-│                 Tier 3 ████████████████ 2,131           │
-│                 Tier 4 ████████ 997                     │
+│  Asking Price (public): 29.7%                           │
+│                                                         │
+│  Pricability    Tier 1 ██ High                          │
+│                 Tier 2 ████████████ Medium               │
+│                 Tier 3 ████████████████ Low              │
+│                 Tier 4 ████████ Very Low                 │
 │                                                         │
 │  Avg Data Completeness: 42%                             │
 │                                                         │
@@ -155,9 +224,9 @@ Replaces `<Opportunities />` on the dashboard page.
 └─────────────────────────────────────────────────────────┘
 ```
 
-**Gradient bar**: CSS `background: linear-gradient(to right, var(--color-primary), #f59e0b, #10b981)` on the filled portion. Unfilled portion is `bg-white/[0.04]`. Rounded corners. The fill width is `coverage_pct%`.
+**Gradient bar**: CSS `background: linear-gradient(to right, var(--color-primary), #f59e0b, #10b981)` on the filled portion. Unfilled portion is `bg-white/[0.04]`. Rounded corners. The fill width is `valued_pct%`.
 
-**Tier bars**: Small horizontal bars, proportional width, using the existing glass-card style with subtle opacity.
+**Two coverage numbers**: The gradient bar and headline show Internal Valuation Coverage (what we can move). Below the stats row, "Asking Price (public): X%" shows the buyer-facing number as secondary context.
 
 **Buttons**:
 - "Download Report" — calls `POST /api/admin/fuelled/generate-report`, triggers file download
@@ -167,14 +236,7 @@ Replaces `<Opportunities />` on the dashboard page.
 
 ### Dashboard page change
 
-In `app/(app)/page.tsx`, replace:
-```tsx
-<Opportunities />
-```
-with:
-```tsx
-<PricingCoverage />
-```
+In `app/(app)/page.tsx`, replace `<Opportunities />` with `<PricingCoverage />`.
 
 ### API wrapper
 
@@ -189,7 +251,7 @@ export async function startFuelledPriceBatch(tiers?: number[], limit?: number) {
 
 | Action | File |
 |--------|------|
-| Create | `backend/app/api/fuelled_coverage.py` (~150 lines) |
+| Create | `backend/app/api/fuelled_coverage.py` (~180 lines) |
 | Modify | `backend/app/main.py` (add router) |
 | Create | `frontend/nova-app/components/dashboard/pricing-coverage.tsx` (~200 lines) |
 | Modify | `frontend/nova-app/app/(app)/page.tsx` (swap Opportunities → PricingCoverage) |
