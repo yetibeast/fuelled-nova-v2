@@ -1,5 +1,9 @@
-"""Tests for GET /api/admin/fuelled/coverage endpoint."""
+"""Tests for Fuelled coverage + report endpoints."""
 from __future__ import annotations
+
+import io
+
+from openpyxl import load_workbook
 
 
 class TestFuelledCoverage:
@@ -45,3 +49,39 @@ class TestFuelledCoverage:
         """Non-admin users (analysts) can access this read-only endpoint."""
         resp = client.get("/api/admin/fuelled/coverage", headers=user_headers)
         assert resp.status_code == 200
+
+
+class TestFuelledReport:
+    """POST /admin/fuelled/generate-report XLSX download tests."""
+
+    def test_requires_auth(self, client):
+        """401 without token."""
+        resp = client.post("/api/admin/fuelled/generate-report")
+        assert resp.status_code == 401
+
+    def test_returns_xlsx(self, client, admin_headers):
+        """200 with spreadsheet content-type."""
+        resp = client.post("/api/admin/fuelled/generate-report", headers=admin_headers)
+        assert resp.status_code == 200
+        assert "spreadsheet" in resp.headers["content-type"]
+
+    def test_xlsx_has_expected_headers(self, client, admin_headers):
+        """All required columns are present in the header row."""
+        resp = client.post("/api/admin/fuelled/generate-report", headers=admin_headers)
+        wb = load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        headers = [cell.value for cell in ws[1]]
+        expected = [
+            "Title", "Category", "Make", "Model", "Year",
+            "Condition", "Hours", "HP", "Data Completeness %",
+            "Missing Fields", "Days Listed", "Pricability Tier", "URL",
+        ]
+        assert headers == expected
+
+    def test_report_row_count_matches_unpriced(self, client, admin_headers):
+        """5 data rows + 1 header = 6 total rows."""
+        resp = client.post("/api/admin/fuelled/generate-report", headers=admin_headers)
+        wb = load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        # 5 unpriced listings + 1 header row = 6 rows
+        assert ws.max_row == 6
