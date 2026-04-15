@@ -17,16 +17,12 @@ router = APIRouter()
 _log = logging.getLogger(__name__)
 
 # ── Langfuse client for feedback scores (optional) ──────────────────────
-_langfuse = None
+_langfuse_ok = False
 try:
-    from langfuse import Langfuse
+    from langfuse import get_client as _lf_get_client
 
     if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
-        _langfuse = Langfuse(
-            public_key=LANGFUSE_PUBLIC_KEY,
-            secret_key=LANGFUSE_SECRET_KEY,
-            host=LANGFUSE_HOST,
-        )
+        _langfuse_ok = True
 except Exception:
     pass
 
@@ -207,9 +203,9 @@ async def post_feedback(body: dict, authorization: str = Header(default="")):
 
     # Send score to Langfuse if trace_id is present
     trace_id = body.get("trace_id")
-    if trace_id and _langfuse:
+    if trace_id and _langfuse_ok:
         try:
-            _langfuse.score(
+            _lf_get_client().score(
                 trace_id=trace_id,
                 name="user_feedback",
                 value=1 if body.get("rating") == "up" else 0,

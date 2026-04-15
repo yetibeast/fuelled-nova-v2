@@ -22,36 +22,22 @@ _log = logging.getLogger(__name__)
 _client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
 # ── Langfuse (optional — graceful no-op when keys are missing) ──────────
-_langfuse = None
+_langfuse_ok = False
 try:
-    from langfuse import Langfuse
-    from langfuse.decorators import observe, langfuse_context
+    from langfuse import observe as _lf_observe, get_client as _lf_get_client
 
     if LANGFUSE_PUBLIC_KEY and LANGFUSE_SECRET_KEY:
-        _langfuse = Langfuse(
-            public_key=LANGFUSE_PUBLIC_KEY,
-            secret_key=LANGFUSE_SECRET_KEY,
-            host=LANGFUSE_HOST,
-        )
+        _langfuse_ok = True
+        observe = _lf_observe
+        _log.info("Langfuse observability enabled (%s)", LANGFUSE_HOST)
 except Exception:  # pragma: no cover
     _log.debug("Langfuse not available — observability disabled")
 
-if _langfuse is None:
-    # Provide no-op fallbacks so decorators and context calls work without Langfuse
+if not _langfuse_ok:
     def observe(**_kw):  # type: ignore[misc]
         def _noop(fn):
             return fn
         return _noop
-
-    class _NoopContext:
-        @staticmethod
-        def update_current_observation(**_kw): pass
-        @staticmethod
-        def update_current_trace(**_kw): pass
-        @staticmethod
-        def get_current_trace_id(): return None
-
-    langfuse_context = _NoopContext()  # type: ignore[assignment]
 
 TOOL_MAP = {
     "fetch_listing": tool_fns.fetch_listing,
@@ -186,23 +172,36 @@ async def run_pricing(
     else:
         confidence = "LOW"
 
+    # ── Cost calculation (Sonnet: $3/M input, $15/M output) ─────
+    cost_usd = (total_input_tokens * 3 / 1_000_000) + (total_output_tokens * 15 / 1_000_000)
+
     # ── Langfuse trace metadata ─────────────────────────────────
     trace_id = None
-    if _langfuse:
+    if _langfuse_ok:
         try:
-            langfuse_context.update_current_observation(
-                metadata={"tools_used": tools_used, "confidence": confidence},
+            lf = _lf_get_client()
+            lf.update_current_span(
+                metadata={"tools_used": tools_used, "confidence": confidence, "model": _model},
             )
-            langfuse_context.update_current_trace(
+            lf.update_current_trace(
                 user_id=user_id,
                 session_id=conversation_id,
             )
-            trace_id = langfuse_context.get_current_trace_id()
+            # Log a generation observation with token usage + cost
+            gen = lf.start_observation(
+                name="claude-tool-loop",
+                as_type="generation",
+                model=_model,
+                input=user_message,
+                output=clean_text[:500],
+                usage_details={"input": total_input_tokens, "output": total_output_tokens},
+                cost_details={"total": cost_usd},
+                metadata={"tools_used": tools_used, "tool_loop_rounds": len(tools_used)},
+            )
+            gen.end()
+            trace_id = lf.get_current_trace_id()
         except Exception:
             _log.debug("Langfuse trace update failed", exc_info=True)
-
-    # ── Cost calculation (Sonnet: $3/M input, $15/M output) ─────
-    cost_usd = (total_input_tokens * 3 / 1_000_000) + (total_output_tokens * 15 / 1_000_000)
 
     result = {
         "response": clean_text,
