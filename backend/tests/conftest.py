@@ -613,12 +613,13 @@ def _patch_db():
     global _db
     _db = _InMemoryDB()
 
-    # Reset table-creation flags
+    # Reset table-creation flags and module-level state
     from app.api import conversations, evidence, admin_scrapers, fuelled_coverage
     conversations._tables_ready = False
     evidence._tables_ready = False
     admin_scrapers._tables_ready = False
     fuelled_coverage._table_init = False
+    fuelled_coverage._fuelled_job = None
 
     with patch("app.db.session.get_session", _mock_get_session), \
          patch("app.api.conversations.get_session", _mock_get_session), \

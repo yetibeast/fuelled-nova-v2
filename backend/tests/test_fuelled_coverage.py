@@ -85,3 +85,43 @@ class TestFuelledReport:
         ws = wb.active
         # 5 unpriced listings + 1 header row = 6 rows
         assert ws.max_row == 6
+
+
+class TestFuelledPriceBatch:
+    """POST /admin/fuelled/price-batch tests."""
+
+    def test_requires_auth(self, client):
+        """401 without token."""
+        resp = client.post("/api/admin/fuelled/price-batch")
+        assert resp.status_code == 401
+
+    def test_analyst_cannot_trigger(self, client, user_headers):
+        """403 — only admins can trigger batch pricing."""
+        resp = client.post("/api/admin/fuelled/price-batch", headers=user_headers)
+        assert resp.status_code == 403
+
+    def test_returns_job_id(self, client, admin_headers):
+        """200 + job_id in response on first call."""
+        resp = client.post("/api/admin/fuelled/price-batch", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "job_id" in data
+        assert "total" in data
+
+    def test_rejects_duplicate(self, client, admin_headers):
+        """409 on second call while a job is still running."""
+        resp1 = client.post("/api/admin/fuelled/price-batch", headers=admin_headers)
+        assert resp1.status_code == 200
+        resp2 = client.post("/api/admin/fuelled/price-batch", headers=admin_headers)
+        assert resp2.status_code == 409
+
+
+class TestFuelledPriceStatus:
+    """GET /admin/fuelled/price-batch/status tests."""
+
+    def test_returns_idle_when_no_job(self, client, admin_headers):
+        """status='idle' when no job has been triggered."""
+        resp = client.get("/api/admin/fuelled/price-batch/status", headers=admin_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "idle"

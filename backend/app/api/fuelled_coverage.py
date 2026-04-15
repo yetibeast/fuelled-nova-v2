@@ -1,18 +1,23 @@
 """Fuelled pricing-coverage analytics endpoint."""
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
+import uuid
 from datetime import datetime, timezone
+from typing import Optional
 
-from fastapi import APIRouter, Header
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Body, Header
+from fastapi.responses import JSONResponse, StreamingResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font
 from sqlalchemy import text
 
 from app.api.admin import _require_auth
+from app.api.calibration import _require_admin
 from app.db.session import get_session
+from app.pricing_v2.service import run_pricing
 
 router = APIRouter(tags=["fuelled-coverage"])
 _log = logging.getLogger(__name__)
@@ -42,23 +47,34 @@ _COMPLETENESS = """(
 )"""
 
 
+_VALUATIONS_DDL = """
+CREATE TABLE IF NOT EXISTS fuelled_valuations (
+    id UUID PRIMARY KEY,
+    listing_id UUID NOT NULL,
+    fmv_low DOUBLE PRECISION,
+    fmv_mid DOUBLE PRECISION,
+    fmv_high DOUBLE PRECISION,
+    confidence VARCHAR(10),
+    status VARCHAR(10) NOT NULL DEFAULT 'success',
+    error_reason TEXT,
+    tier INTEGER,
+    data_completeness INTEGER,
+    tools_used TEXT,
+    trace_id VARCHAR(64),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+)
+"""
+
+# Module-level job state for batch pricing
+_fuelled_job: dict | None = None
+
+
 async def _ensure_table(session):
     """Create fuelled_valuations table if it doesn't exist yet."""
     global _table_init
     if _table_init:
         return
-    await session.execute(text("""
-        CREATE TABLE IF NOT EXISTS fuelled_valuations (
-            id TEXT PRIMARY KEY,
-            listing_id TEXT NOT NULL,
-            fmv_low REAL,
-            fmv_mid REAL,
-            fmv_high REAL,
-            confidence TEXT,
-            method TEXT,
-            created_at TIMESTAMP DEFAULT NOW()
-        )
-    """))
+    await session.execute(text(_VALUATIONS_DDL))
     await session.commit()
     _table_init = True
 
@@ -240,3 +256,209 @@ async def fuelled_generate_report(authorization: str = Header(None)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# Batch pricing helpers
+# ---------------------------------------------------------------------------
+
+def _build_pricing_query(row) -> str:
+    """Build a directive prompt for a single listing that tells the agent NOT to ask follow-ups."""
+    def _get(f):
+        return row[f] if isinstance(row, dict) else getattr(row, f, None)
+
+    parts = [
+        "Provide a fair market value estimate for this equipment.",
+        "Do not ask follow-up questions — use your best judgment with the data available.",
+        "If critical data is missing, state your assumptions and provide a wider confidence range.",
+        "",
+    ]
+    fields = [
+        ("Equipment", _get("title")),
+        ("Category", _get("category")),
+        ("Manufacturer", _get("make")),
+        ("Model", _get("model")),
+        ("Year", _get("year")),
+        ("Condition", _get("condition")),
+        ("Hours", _get("hours")),
+        ("Horsepower", _get("horsepower")),
+    ]
+    for label, val in fields:
+        if val is not None:
+            parts.append(f"{label}: {val}")
+    return "\n".join(parts)
+
+
+async def _price_fuelled_batch(items: list[dict], job: dict):
+    """Background task: price each item via run_pricing, write audit rows + update listings."""
+    global _fuelled_job
+    for i, item in enumerate(items):
+        job["current_item"] = item.get("title", "")
+        query = _build_pricing_query(item)
+
+        fmv_low = fmv_mid = fmv_high = None
+        confidence = None
+        tools_used_str = ""
+        trace_id = None
+        status = "success"
+        error_reason = None
+
+        try:
+            out = await asyncio.wait_for(run_pricing(query), timeout=60)
+            v = out.get("structured", {}).get("valuation", {})
+            fmv_low = v.get("fmv_low", 0) or 0
+            fmv_mid = v.get("fmv_mid", 0) or 0
+            fmv_high = v.get("fmv_high", 0) or 0
+            confidence = out.get("confidence", "LOW")
+            tools_used_str = ",".join(out.get("tools_used", []))
+            trace_id = out.get("trace_id")
+        except asyncio.TimeoutError:
+            status = "failed"
+            error_reason = "Timed out after 60s"
+        except Exception as e:
+            status = "failed"
+            error_reason = str(e)[:500]
+
+        listing_id = item["id"]
+        tier_val = _tier(item)
+        completeness_val, _ = _completeness_and_missing(item)
+
+        try:
+            async with get_session() as session:
+                await _ensure_table(session)
+
+                # Insert audit row
+                await session.execute(text("""
+                    INSERT INTO fuelled_valuations
+                        (id, listing_id, fmv_low, fmv_mid, fmv_high,
+                         confidence, status, error_reason, tier,
+                         data_completeness, tools_used, trace_id)
+                    VALUES
+                        (:id, :lid, :fmv_low, :fmv_mid, :fmv_high,
+                         :conf, :status, :err, :tier,
+                         :comp, :tools, :trace)
+                """), {
+                    "id": str(uuid.uuid4()),
+                    "lid": listing_id,
+                    "fmv_low": fmv_low,
+                    "fmv_mid": fmv_mid,
+                    "fmv_high": fmv_high,
+                    "conf": confidence,
+                    "status": status,
+                    "err": error_reason,
+                    "tier": tier_val,
+                    "comp": completeness_val,
+                    "tools": tools_used_str,
+                    "trace": trace_id,
+                })
+
+                # Update listing fair_value if success and fmv_mid > 0
+                if status == "success" and fmv_mid and fmv_mid > 0:
+                    await session.execute(text("""
+                        UPDATE listings SET fair_value = :fv, last_valued_at = NOW()
+                        WHERE id = :lid
+                    """), {"fv": fmv_mid, "lid": listing_id})
+
+                await session.commit()
+
+            if status == "success":
+                job["succeeded"] += 1
+            else:
+                job["failed"] += 1
+        except Exception as e:
+            _log.error("DB write failed for listing %s: %s", listing_id, e)
+            job["failed"] += 1
+
+        job["completed"] = i + 1
+
+    job["status"] = "completed"
+    job["current_item"] = None
+    job["finished_at"] = datetime.now(timezone.utc).isoformat()
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/fuelled/price-batch
+# ---------------------------------------------------------------------------
+
+@router.post("/admin/fuelled/price-batch")
+async def fuelled_price_batch(
+    authorization: str = Header(None),
+    body: Optional[dict] = Body(None),
+):
+    """Launch batch AI pricing for unpriced Fuelled listings. Admin only."""
+    global _fuelled_job
+    _require_admin(authorization)
+
+    # Reject duplicate while a job is running
+    if _fuelled_job and _fuelled_job.get("status") == "running":
+        return JSONResponse(
+            status_code=409,
+            content={"detail": "A batch job is already running", "job_id": _fuelled_job["job_id"]},
+        )
+
+    # Parse optional filters
+    tiers = (body or {}).get("tiers")
+    limit = (body or {}).get("limit", 50)
+
+    # Build tier filter clause
+    tier_clause = ""
+    if tiers:
+        tier_list = ",".join(str(int(t)) for t in tiers)
+        tier_clause = f"AND ({_TIER}) IN ({tier_list})"
+
+    async with get_session() as session:
+        await _ensure_table(session)
+
+        result = await session.execute(text(f"""
+            SELECT id, title, category, make, model, year,
+                   condition, hours, horsepower
+            FROM listings
+            WHERE {_BASE} AND NOT {_HAS_VALUE}
+            {tier_clause}
+            ORDER BY ({_COMPLETENESS}) DESC
+            LIMIT :lim
+        """), {"lim": limit})
+        rows = result.fetchall()
+
+    if not rows:
+        return {"job_id": None, "total": 0, "detail": "No unpriced items found"}
+
+    items = []
+    for r in rows:
+        items.append({
+            "id": r["id"], "title": r["title"], "category": r["category"],
+            "make": r["make"], "model": r["model"], "year": r["year"],
+            "condition": r["condition"], "hours": r["hours"],
+            "horsepower": r["horsepower"],
+        })
+
+    job_id = str(uuid.uuid4())
+    _fuelled_job = {
+        "job_id": job_id,
+        "status": "running",
+        "total": len(items),
+        "completed": 0,
+        "succeeded": 0,
+        "failed": 0,
+        "current_item": None,
+        "started_at": datetime.now(timezone.utc).isoformat(),
+        "finished_at": None,
+    }
+
+    asyncio.create_task(_price_fuelled_batch(items, _fuelled_job))
+
+    return {"job_id": job_id, "total": len(items)}
+
+
+# ---------------------------------------------------------------------------
+# GET /admin/fuelled/price-batch/status
+# ---------------------------------------------------------------------------
+
+@router.get("/admin/fuelled/price-batch/status")
+async def fuelled_price_batch_status(authorization: str = Header(None)):
+    """Return current batch job status. Read-only — any authenticated user."""
+    _require_auth(authorization)
+
+    if _fuelled_job is None:
+        return {"status": "idle"}
+    return _fuelled_job
