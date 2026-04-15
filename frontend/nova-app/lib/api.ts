@@ -454,6 +454,42 @@ export async function flagEvidenceReview(data: {
   return res.json();
 }
 
+// ── Fuelled Pricing Coverage ──────────────────────────────────────────
+
+export async function fetchFuelledCoverage() {
+  return adminGet("/api/admin/fuelled/coverage");
+}
+
+export async function downloadFuelledReport() {
+  const res = await fetch("/api/admin/fuelled/generate-report", {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Failed to generate report");
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `fuelled_unpriced_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export async function startFuelledPriceBatch(tiers: number[] = [1, 2], limit = 50) {
+  const res = await fetch("/api/admin/fuelled/price-batch", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ tiers, limit }),
+  });
+  if (res.status === 409) throw new Error("Batch pricing already running");
+  if (!res.ok) throw new Error("Failed to start batch pricing");
+  return res.json();
+}
+
+export async function pollFuelledPriceStatus() {
+  return adminGet("/api/admin/fuelled/price-batch/status");
+}
+
 export function fetchReviewQueue() { return adminGet("/api/admin/evidence/review-queue"); }
 
 export async function promoteEvidence(id: string) {

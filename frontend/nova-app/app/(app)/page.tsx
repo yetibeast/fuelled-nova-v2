@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { MetricCards } from "@/components/dashboard/metric-cards";
 import { RecentActivity } from "@/components/dashboard/recent-activity";
-import { Opportunities } from "@/components/dashboard/opportunities";
+import { PricingCoverage } from "@/components/dashboard/pricing-coverage";
 import { QuickActions } from "@/components/dashboard/quick-actions";
 
 function DashboardSkeleton() {
@@ -46,8 +46,8 @@ export default function DashboardPage() {
         <RecentActivity />
       </div>
 
-      {/* Market Opportunities */}
-      <Opportunities />
+      {/* Fuelled Pricing Coverage */}
+      <PricingCoverage />
 
       {/* Quick Actions */}
       <QuickActions />
