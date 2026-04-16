@@ -1,15 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AcquisitionQueue, type AcquisitionSummary, type AcquisitionTarget } from "@/components/competitive/acquisition-queue";
 import { MetricCard } from "@/components/ui/metric-card";
 import { MaterialIcon } from "@/components/ui/material-icon";
 import { CompetitiveSourceCoverage } from "@/components/competitive/source-coverage";
 import { OpportunitiesTable } from "@/components/competitive/opportunities";
 import { RepricingTable } from "@/components/competitive/repricing";
+import { StaleTargetsTable, type StaleTarget } from "@/components/competitive/stale-targets";
 import {
+  fetchAcquisitionSummary,
+  fetchAcquisitionTargets,
   fetchCompetitiveSummary,
+  fetchCompetitiveStaleTargets,
   fetchMarketOpportunities,
   fetchMarketRepricing,
+  generateAcquisitionDraft,
+  getStoredUser,
+  promoteAcquisitionTarget,
+  type NovaUser,
+  updateAcquisitionStatus,
 } from "@/lib/api";
 
 interface Summary {
@@ -30,18 +40,69 @@ interface Opportunity {
 }
 
 export default function CompetitivePage() {
+  const [user, setUser] = useState<NovaUser | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [staleTargets, setStaleTargets] = useState<StaleTarget[]>([]);
+  const [staleLoading, setStaleLoading] = useState(true);
+  const [staleError, setStaleError] = useState(false);
+  const [queueSummary, setQueueSummary] = useState<AcquisitionSummary | null>(null);
+  const [queueTargets, setQueueTargets] = useState<AcquisitionTarget[]>([]);
+  const [queueLoading, setQueueLoading] = useState(false);
+  const [queueError, setQueueError] = useState(false);
+  const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [draftingId, setDraftingId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [opps, setOpps] = useState<Opportunity[]>([]);
   const [repricing, setRepricing] = useState<Opportunity[]>([]);
+  const isAdmin = user?.role === "admin";
+
+  async function loadStaleTargets() {
+    setStaleLoading(true);
+    setStaleError(false);
+    try {
+      const data = await fetchCompetitiveStaleTargets();
+      setStaleTargets(data);
+    } catch {
+      setStaleError(true);
+    } finally {
+      setStaleLoading(false);
+    }
+  }
+
+  async function loadQueue() {
+    if (!isAdmin) return;
+    setQueueLoading(true);
+    setQueueError(false);
+    try {
+      const [summaryData, targetsData] = await Promise.all([
+        fetchAcquisitionSummary(),
+        fetchAcquisitionTargets(),
+      ]);
+      setQueueSummary(summaryData);
+      setQueueTargets(targetsData);
+    } catch {
+      setQueueError(true);
+    } finally {
+      setQueueLoading(false);
+    }
+  }
 
   useEffect(() => {
+    setUser(getStoredUser());
+    loadStaleTargets();
     fetchCompetitiveSummary()
       .then((data: Summary) => setSummary(data))
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (isAdmin) {
+      loadQueue();
+    }
+  }, [isAdmin]);
 
   function handleLoad() {
     setLoading(true);
@@ -59,6 +120,38 @@ export default function CompetitivePage() {
         setLoaded(true);
       });
   }
+
+  async function handlePromote(sourceListingId: string) {
+    setPromotingId(sourceListingId);
+    try {
+      await promoteAcquisitionTarget(sourceListingId);
+      await loadQueue();
+    } finally {
+      setPromotingId(null);
+    }
+  }
+
+  async function handleStatusChange(targetId: string, status: string) {
+    setUpdatingId(targetId);
+    try {
+      await updateAcquisitionStatus(targetId, status);
+      await loadQueue();
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function handleGenerateDraft(targetId: string) {
+    setDraftingId(targetId);
+    try {
+      await generateAcquisitionDraft(targetId);
+      await loadQueue();
+    } finally {
+      setDraftingId(null);
+    }
+  }
+
+  const promotedIds = new Set(queueTargets.map((target) => target.source_listing_id));
 
   return (
     <>
@@ -90,6 +183,29 @@ export default function CompetitivePage() {
       <div className="mb-6">
         <CompetitiveSourceCoverage />
       </div>
+
+      <StaleTargetsTable
+        items={staleTargets}
+        loading={staleLoading}
+        error={staleError}
+        isAdmin={Boolean(isAdmin)}
+        promotedIds={promotedIds}
+        promotingId={promotingId}
+        onPromote={handlePromote}
+      />
+
+      {isAdmin && (
+        <AcquisitionQueue
+          summary={queueSummary}
+          items={queueTargets}
+          loading={queueLoading}
+          error={queueError}
+          updatingId={updatingId}
+          draftingId={draftingId}
+          onStatusChange={handleStatusChange}
+          onGenerateDraft={handleGenerateDraft}
+        />
+      )}
 
       <div className="glass-card rounded-xl overflow-hidden mb-6">
         <div className="px-6 py-4 flex justify-between items-center">

@@ -80,6 +80,143 @@ def _seed_fuelled_listings() -> list[dict]:
     ]
 
 
+def _seed_competitor_listings() -> list[dict]:
+    """Create competitor listings for stale-inventory and acquisition tests."""
+    now = datetime.now(timezone.utc)
+    stale_400 = now - timedelta(days=400)
+    stale_390 = now - timedelta(days=390)
+    stale_450 = now - timedelta(days=450)
+    recent_10 = now - timedelta(days=10)
+    recent_45 = now - timedelta(days=45)
+    recent_60 = now - timedelta(days=60)
+    recent_75 = now - timedelta(days=75)
+
+    return [
+        {
+            "id": "cmp-stale-dealer",
+            "source": "machinio",
+            "title": "2018 Ariel JGK/4 Compressor Package",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "make": "Ariel",
+            "model": "JGK/4",
+            "year": 2018,
+            "condition": "Good",
+            "hours": 12000,
+            "horsepower": 540,
+            "asking_price": 425000,
+            "location": "Alberta",
+            "url": "https://machinio.example/listing/1",
+            "first_seen": stale_400,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-stale-auction",
+            "source": "ironplanet",
+            "title": "2017 Ariel JGK/4 Compressor Package",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "make": "Ariel",
+            "model": "JGK/4",
+            "year": 2017,
+            "condition": "Good",
+            "hours": 14000,
+            "horsepower": 540,
+            "asking_price": 390000,
+            "location": "Texas",
+            "url": "https://ironplanet.example/listing/2",
+            "first_seen": stale_390,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-recent-dealer",
+            "source": "surplusrecord",
+            "title": "2019 Ariel KBZ/6 Compressor Package",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "make": "Ariel",
+            "model": "KBZ/6",
+            "year": 2019,
+            "condition": "Good",
+            "hours": 9000,
+            "horsepower": 600,
+            "asking_price": 360000,
+            "location": "Colorado",
+            "url": "https://surplusrecord.example/listing/3",
+            "first_seen": recent_10,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-peer-1",
+            "source": "machinio",
+            "title": "2016 Ariel JGK/4 Compressor",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "asking_price": 330000,
+            "location": "Alberta",
+            "url": "https://machinio.example/listing/4",
+            "first_seen": recent_45,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-peer-2",
+            "source": "machinio",
+            "title": "2017 Ariel JGK/4 Compressor",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "asking_price": 340000,
+            "location": "Saskatchewan",
+            "url": "https://machinio.example/listing/5",
+            "first_seen": recent_60,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-peer-3",
+            "source": "surplusrecord",
+            "title": "2018 Ariel JGK/4 Compressor",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "asking_price": 355000,
+            "location": "Oklahoma",
+            "url": "https://surplusrecord.example/listing/6",
+            "first_seen": recent_75,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "cmp-peer-4",
+            "source": "machinio",
+            "title": "2015 Ariel JGK/4 Compressor",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "asking_price": 365000,
+            "location": "North Dakota",
+            "url": "https://machinio.example/listing/7",
+            "first_seen": recent_60,
+            "last_seen": now,
+            "is_active": True,
+        },
+        {
+            "id": "fu-stale-ignored",
+            "source": "fuelled",
+            "title": "2014 Fuelled Legacy Compressor",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "asking_price": 500000,
+            "location": "Alberta",
+            "url": "https://fuelled.com/listing/stale",
+            "first_seen": stale_450,
+            "last_seen": now,
+            "is_active": False,
+        },
+    ]
+
+
 class _InMemoryDB:
     """Simple in-memory storage that mimics the tables used by conversations and evidence."""
 
@@ -89,7 +226,9 @@ class _InMemoryDB:
         self.evidence: dict[str, dict] = {}
         self.scrape_targets: dict[str, dict] = {}
         self.scrape_runs: dict[str, dict] = {}
-        self.listings: list[dict] = _seed_fuelled_listings()
+        self.competitive_acquisition_targets: dict[str, dict] = {}
+        self.competitive_acquisition_events: dict[str, dict] = {}
+        self.listings: list[dict] = _seed_fuelled_listings() + _seed_competitor_listings()
 
 
 _db = _InMemoryDB()
@@ -493,6 +632,154 @@ class MockSession:
             rows = [{0: k, 1: v} for k, v in sorted(counts_by_src.items(), key=lambda x: -x[1])]
             return MockResult(rows)
 
+        # ── Competitive stale inventory / acquisition ─────────────
+
+        if "SELECT COUNT(*) FROM listings WHERE LOWER(source) != 'fuelled'" in sql:
+            count = sum(1 for l in self._db.listings if str(l.get("source", "")).lower() != "fuelled")
+            return MockResult([{0: count}])
+
+        if "COUNT(*)" in sql and "first_seen >= NOW() - INTERVAL '7 days'" in sql and "LOWER(source) != 'fuelled'" in sql:
+            now = datetime.now(timezone.utc)
+            count = sum(
+                1 for l in self._db.listings
+                if str(l.get("source", "")).lower() != "fuelled"
+                and l.get("first_seen")
+                and l["first_seen"] >= now - timedelta(days=7)
+            )
+            return MockResult([{0: count}])
+
+        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '365 days'" in sql and "asking_price > 0" in sql:
+            now = datetime.now(timezone.utc)
+            exclude_fuelled = "LOWER(source) != 'fuelled'" in sql
+            count = 0
+            for l in self._db.listings:
+                if exclude_fuelled and str(l.get("source", "")).lower() == "fuelled":
+                    continue
+                if not l.get("first_seen") or not l.get("last_seen"):
+                    continue
+                if (l.get("asking_price") or 0) <= 0:
+                    continue
+                if l["first_seen"] < now - timedelta(days=365) and l["last_seen"] > now - timedelta(days=30):
+                    count += 1
+            return MockResult([{0: count}])
+
+        if "EXTRACT(DAY FROM NOW() - first_seen)" in sql and "FROM listings" in sql:
+            now = datetime.now(timezone.utc)
+            exclude_fuelled = "LOWER(source) != 'fuelled'" in sql
+            rows = []
+            for l in self._db.listings:
+                if exclude_fuelled and str(l.get("source", "")).lower() == "fuelled":
+                    continue
+                if not l.get("first_seen") or not l.get("last_seen"):
+                    continue
+                if (l.get("asking_price") or 0) <= 0:
+                    continue
+                if l["first_seen"] >= now - timedelta(days=365):
+                    continue
+                if l["last_seen"] <= now - timedelta(days=30):
+                    continue
+                rows.append({
+                    0: l.get("title"),
+                    1: l.get("source"),
+                    2: l.get("asking_price"),
+                    3: l.get("category_normalized") or l.get("category"),
+                    4: l.get("location"),
+                    5: l.get("url"),
+                    6: l.get("first_seen"),
+                    7: (now - l["first_seen"]).days,
+                })
+            rows.sort(key=lambda row: row[6])
+            return MockResult(rows[:25])
+
+        if "FROM listings" in sql and "LOWER(source) != 'fuelled'" in sql and "asking_price > 0" in sql and "last_seen" in sql and "first_seen" in sql and "GROUP BY" not in sql and "COUNT(*)" not in sql:
+            now = datetime.now(timezone.utc)
+            rows = []
+            for l in self._db.listings:
+                if str(l.get("source", "")).lower() == "fuelled":
+                    continue
+                if not l.get("first_seen") or not l.get("last_seen"):
+                    continue
+                if (l.get("asking_price") or 0) <= 0:
+                    continue
+                rows.append({
+                    "id": l.get("id"),
+                    "title": l.get("title"),
+                    "source": l.get("source"),
+                    "asking_price": l.get("asking_price"),
+                    "category": l.get("category"),
+                    "category_normalized": l.get("category_normalized") or l.get("category"),
+                    "make": l.get("make"),
+                    "model": l.get("model"),
+                    "year": l.get("year"),
+                    "condition": l.get("condition"),
+                    "hours": l.get("hours"),
+                    "horsepower": l.get("horsepower"),
+                    "location": l.get("location"),
+                    "url": l.get("url"),
+                    "first_seen": l.get("first_seen"),
+                    "last_seen": l.get("last_seen"),
+                    "days_listed": (now - l["first_seen"]).days,
+                })
+            return MockResult(rows)
+
+        if "SELECT * FROM competitive_acquisition_targets" in sql and "source_listing_id = :source_listing_id" in sql:
+            source_listing_id = params.get("source_listing_id")
+            row = next(
+                (r for r in self._db.competitive_acquisition_targets.values() if r["source_listing_id"] == source_listing_id),
+                None,
+            )
+            return MockResult([row] if row else [])
+
+        if "SELECT * FROM competitive_acquisition_targets" in sql and "id = :target_id" in sql:
+            row = self._db.competitive_acquisition_targets.get(params.get("target_id", ""))
+            return MockResult([row] if row else [])
+
+        if "SELECT * FROM competitive_acquisition_targets" in sql:
+            rows = sorted(
+                self._db.competitive_acquisition_targets.values(),
+                key=lambda row: row["updated_at"],
+                reverse=True,
+            )
+            status = params.get("status")
+            if status:
+                rows = [row for row in rows if row.get("status") == status]
+            return MockResult(rows)
+
+        if "INSERT INTO competitive_acquisition_targets" in sql:
+            row = dict(params)
+            self._db.competitive_acquisition_targets[row["id"]] = row
+            return MockResult(rowcount=1)
+
+        if "UPDATE competitive_acquisition_targets SET status = :status" in sql:
+            row = self._db.competitive_acquisition_targets.get(params.get("target_id", ""))
+            if not row:
+                return MockResult(rowcount=0)
+            row["status"] = params.get("status")
+            row["assigned_to"] = params.get("assigned_to")
+            row["notes"] = params.get("notes")
+            row["updated_at"] = params.get("updated_at")
+            return MockResult(rowcount=1)
+
+        if "UPDATE competitive_acquisition_targets SET draft_payload = :draft_payload" in sql:
+            row = self._db.competitive_acquisition_targets.get(params.get("target_id", ""))
+            if not row:
+                return MockResult(rowcount=0)
+            row["draft_payload"] = params.get("draft_payload")
+            row["updated_at"] = params.get("updated_at")
+            return MockResult(rowcount=1)
+
+        if "SELECT status, COUNT(*) AS cnt FROM competitive_acquisition_targets GROUP BY status" in sql:
+            counts: dict[str, int] = {}
+            for row in self._db.competitive_acquisition_targets.values():
+                status = row.get("status", "new")
+                counts[status] = counts.get(status, 0) + 1
+            return MockResult([{0: status, 1: count, "status": status, "cnt": count} for status, count in counts.items()])
+
+        if "INSERT INTO competitive_acquisition_events" in sql:
+            row = dict(params)
+            self._db.competitive_acquisition_events[row["id"]] = row
+            return MockResult(rowcount=1)
+
         # ── Fuelled Coverage ────────────────────────────────────────
 
         # INSERT INTO fuelled_valuations — no-op
@@ -607,6 +894,11 @@ async def _mock_get_session():
     yield MockSession(_db)
 
 
+@asynccontextmanager
+async def _mock_get_state_session():
+    yield MockSession(_db)
+
+
 @pytest.fixture(autouse=True)
 def _patch_db():
     """Replace get_session with in-memory mock for DB-dependent endpoints."""
@@ -614,14 +906,19 @@ def _patch_db():
     _db = _InMemoryDB()
 
     # Reset table-creation flags and module-level state
-    from app.api import conversations, evidence, admin_scrapers, fuelled_coverage
+    from app.api import conversations, evidence, admin_scrapers, fuelled_coverage, competitive, competitive_queue
     conversations._tables_ready = False
     evidence._tables_ready = False
     admin_scrapers._tables_ready = False
+    competitive_queue._state_tables_ready = False
     fuelled_coverage._table_init = False
     fuelled_coverage._fuelled_job = None
 
     with patch("app.db.session.get_session", _mock_get_session), \
+         patch("app.db.state_session.get_state_session", _mock_get_state_session), \
+         patch("app.api.competitive.get_session", _mock_get_session), \
+         patch("app.api.competitive_queue.get_session", _mock_get_session), \
+         patch("app.api.competitive_queue.get_state_session", _mock_get_state_session), \
          patch("app.api.conversations.get_session", _mock_get_session), \
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
