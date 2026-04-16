@@ -302,6 +302,61 @@ export async function deleteGoldRcn(id: string) {
 
 export function fetchCompetitiveSummary() { return adminGet("/api/competitive/summary"); }
 
+export async function fetchCompetitiveStaleTargets(promotableOnly = false) {
+  const url = promotableOnly
+    ? "/api/competitive/stale-targets?promotable_only=true"
+    : "/api/competitive/stale-targets";
+  const res = await fetch(url, { headers: authHeaders() });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
+export function fetchAcquisitionSummary() {
+  return adminGet("/api/admin/competitive/acquisition/summary");
+}
+
+export function fetchAcquisitionTargets() {
+  return adminGet("/api/admin/competitive/acquisition/targets");
+}
+
+export async function promoteAcquisitionTarget(sourceListingId: string, note?: string) {
+  const res = await fetch("/api/admin/competitive/acquisition/promote", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ source_listing_id: sourceListingId, note }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to promote target" }));
+    throw new Error(body.detail || "Failed to promote target");
+  }
+  return res.json();
+}
+
+export async function updateAcquisitionStatus(targetId: string, status: string, notes?: string, assignedTo?: string) {
+  const res = await fetch(`/api/admin/competitive/acquisition/${targetId}/status`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ status, notes, assigned_to: assignedTo }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to update status" }));
+    throw new Error(body.detail || "Failed to update status");
+  }
+  return res.json();
+}
+
+export async function generateAcquisitionDraft(targetId: string) {
+  const res = await fetch(`/api/admin/competitive/acquisition/${targetId}/draft`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Failed to generate draft" }));
+    throw new Error(body.detail || "Failed to generate draft");
+  }
+  return res.json();
+}
+
 /* ---------- Batch Pricing ---------- */
 
 export async function uploadBatchSpreadsheet(file: File) {
@@ -488,6 +543,21 @@ export async function startFuelledPriceBatch(tiers: number[] = [1, 2], limit = 5
 
 export async function pollFuelledPriceStatus() {
   return adminGet("/api/admin/fuelled/price-batch/status");
+}
+
+export async function uploadFuelledPrices(file: File): Promise<{ updated: number; total_rows: number }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch("/api/admin/fuelled/import-prices", {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(body.detail || "Upload failed");
+  }
+  return res.json();
 }
 
 export function fetchReviewQueue() { return adminGet("/api/admin/evidence/review-queue"); }

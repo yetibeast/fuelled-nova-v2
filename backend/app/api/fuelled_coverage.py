@@ -8,9 +8,9 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Body, Header
+from fastapi import APIRouter, Body, File, Header, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, StreamingResponse
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font
 from sqlalchemy import text
 
@@ -193,7 +193,8 @@ def _tier(row) -> int:
 _REPORT_COLUMNS = [
     "Title", "Category", "Make", "Model", "Year",
     "Condition", "Hours", "HP", "Data Completeness %",
-    "Missing Fields", "Days Listed", "Pricability Tier", "URL",
+    "Missing Fields", "Days Listed", "Pricability Tier",
+    "Projected FMV", "Confidence", "URL",
 ]
 
 
@@ -244,7 +245,9 @@ async def fuelled_generate_report(authorization: str = Header(None)):
         ws.cell(row=row_idx, column=10, value=missing)
         ws.cell(row=row_idx, column=11, value=days_listed)
         ws.cell(row=row_idx, column=12, value=tier)
-        ws.cell(row=row_idx, column=13, value=row["url"])
+        ws.cell(row=row_idx, column=13, value=None)  # Projected FMV — fill in externally
+        ws.cell(row=row_idx, column=14, value=None)  # Confidence — fill in externally
+        ws.cell(row=row_idx, column=15, value=row["url"])
 
     buf = io.BytesIO()
     wb.save(buf)
@@ -256,6 +259,91 @@ async def fuelled_generate_report(authorization: str = Header(None)):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /admin/fuelled/import-prices
+# ---------------------------------------------------------------------------
+
+@router.post("/admin/fuelled/import-prices")
+async def fuelled_import_prices(
+    file: UploadFile = File(...),
+    authorization: str = Header(None),
+):
+    """Import a priced spreadsheet — matches by URL, writes fair_value to listings."""
+    _require_admin(authorization)
+
+    content = await file.read()
+    wb = load_workbook(io.BytesIO(content), read_only=True)
+    ws = wb.active
+
+    # Find column indices from header row
+    headers = [cell.value for cell in ws[1]]
+    url_col = None
+    fmv_col = None
+    conf_col = None
+    for i, h in enumerate(headers):
+        if not h:
+            continue
+        hl = h.strip().lower()
+        if hl == "url":
+            url_col = i
+        elif "projected" in hl or "fmv" in hl or "fair" in hl:
+            fmv_col = i
+        elif "confidence" in hl:
+            conf_col = i
+
+    if url_col is None or fmv_col is None:
+        raise HTTPException(status_code=400, detail="Spreadsheet must have 'URL' and 'Projected FMV' columns")
+
+    # Parse rows
+    updates = []
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        url = row[url_col] if url_col < len(row) else None
+        fmv = row[fmv_col] if fmv_col < len(row) else None
+        conf = row[conf_col] if conf_col is not None and conf_col < len(row) else None
+        if not url or not fmv:
+            continue
+        try:
+            fmv_val = float(fmv)
+        except (ValueError, TypeError):
+            continue
+        if fmv_val <= 0:
+            continue
+        updates.append({"url": str(url).strip(), "fmv": fmv_val, "conf": str(conf or "MEDIUM").upper()})
+
+    wb.close()
+
+    if not updates:
+        return {"updated": 0, "detail": "No valid rows with URL + Projected FMV found"}
+
+    # Write to DB — match by URL
+    updated = 0
+    async with get_session() as session:
+        await _ensure_table(session)
+        for u in updates:
+            result = await session.execute(text("""
+                UPDATE listings SET fair_value = :fv, last_valued_at = NOW()
+                WHERE url = :url AND source = 'fuelled'
+                RETURNING id
+            """), {"fv": u["fmv"], "url": u["url"]})
+            row = result.fetchone()
+            if row:
+                updated += 1
+                # Audit trail
+                await session.execute(text("""
+                    INSERT INTO fuelled_valuations
+                        (id, listing_id, fmv_mid, confidence, status, tier, data_completeness)
+                    VALUES (:id, :lid, :fmv, :conf, 'import', 0, 0)
+                """), {
+                    "id": str(uuid.uuid4()),
+                    "lid": row[0],
+                    "fmv": u["fmv"],
+                    "conf": u["conf"],
+                })
+        await session.commit()
+
+    return {"updated": updated, "total_rows": len(updates)}
 
 
 # ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {
   downloadFuelledReport,
   startFuelledPriceBatch,
   pollFuelledPriceStatus,
+  uploadFuelledPrices,
 } from "@/lib/api";
 import { MaterialIcon } from "@/components/ui/material-icon";
 
@@ -56,6 +57,9 @@ export function PricingCoverage() {
   const [downloading, setDownloading] = useState(false);
   const [batchJob, setBatchJob] = useState<BatchJob | null>(null);
   const [batchStarting, setBatchStarting] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadResult, setUploadResult] = useState<{ updated: number; total_rows: number } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load coverage data on mount
@@ -146,6 +150,25 @@ export function PricingCoverage() {
       alert(msg);
     } finally {
       setBatchStarting(false);
+    }
+  }
+
+  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    setUploadResult(null);
+    try {
+      const result = await uploadFuelledPrices(file);
+      setUploadResult(result);
+      // Refresh coverage stats
+      fetchFuelledCoverage().then(setData).catch(() => {});
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Upload failed";
+      alert(msg);
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
@@ -344,7 +367,25 @@ export function PricingCoverage() {
         </div>
       )}
 
+      {uploadResult && (
+        <div className="mb-4 p-3 rounded-lg border border-emerald-500/20" style={{ background: "rgba(16, 185, 129, 0.06)" }}>
+          <div className="flex items-center gap-2">
+            <MaterialIcon icon="check_circle" className="text-[16px] text-emerald-400" />
+            <span className="text-xs font-mono text-emerald-400">
+              Import complete: {uploadResult.updated} listings updated from {uploadResult.total_rows} rows
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Action buttons */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".xlsx,.xls,.csv"
+        onChange={handleUpload}
+        className="hidden"
+      />
       <div className="flex gap-3">
         <button
           onClick={handleDownload}
@@ -353,6 +394,14 @@ export function PricingCoverage() {
         >
           <MaterialIcon icon="download" className="text-[16px]" />
           {downloading ? "Generating..." : "Download Report"}
+        </button>
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="px-4 py-2 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs font-mono text-on-surface/60 hover:bg-white/[0.08] transition-all flex items-center gap-2 disabled:opacity-40"
+        >
+          <MaterialIcon icon="upload" className="text-[16px]" />
+          {uploading ? "Importing..." : "Upload Prices"}
         </button>
         <button
           onClick={handleBatchPrice}
