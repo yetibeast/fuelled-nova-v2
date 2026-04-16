@@ -82,8 +82,9 @@ async def create_user(body: CreateUserRequest, authorization: str = Header(None)
     async with get_session() as session:
         result = await session.execute(
             text(
-                "INSERT INTO users (name, email, role, password_hash, status) "
-                "VALUES (:name, :email, :role, :hash, 'active') RETURNING id, created_at"
+                "INSERT INTO users (id, name, email, role, password_hash, status) "
+                "VALUES (gen_random_uuid(), :name, :email, :role, :hash, 'active') "
+                "RETURNING id, created_at"
             ),
             {"name": body.name, "email": body.email.strip().lower(),
              "role": body.role, "hash": hashed},
