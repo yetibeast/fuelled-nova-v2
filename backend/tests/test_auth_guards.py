@@ -9,6 +9,8 @@ ADMIN_ENDPOINTS = [
     ("GET", "/api/admin/calibration/golden-fixtures"),
     ("GET", "/api/admin/calibration/results"),
     ("GET", "/api/admin/evidence/review-queue"),
+    ("GET", "/api/admin/competitive/acquisition/summary"),
+    ("GET", "/api/admin/competitive/acquisition/targets"),
 ]
 
 
