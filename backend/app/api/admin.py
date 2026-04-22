@@ -41,6 +41,13 @@ def _require_auth(authorization: str | None) -> str:
     return payload["sub"]
 
 
+def _require_auth_identity(authorization: str | None) -> tuple[str, str | None]:
+    """Like _require_auth, but also returns the user's email from the JWT."""
+    user_id = _require_auth(authorization)
+    payload = jwt.decode(authorization[7:], JWT_SECRET, algorithms=["HS256"])
+    return user_id, payload.get("email")
+
+
 def _require_admin(authorization: str | None) -> str:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing token")

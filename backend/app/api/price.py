@@ -6,7 +6,7 @@ from fastapi import APIRouter, Form, File, Header, HTTPException, UploadFile
 from fastapi.responses import Response
 from app.pricing_v2.service import run_pricing
 from app.pricing_v2.report import generate_report
-from app.api.admin import _require_auth
+from app.api.admin import _require_auth, _require_auth_identity
 
 router = APIRouter()
 _log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def post_price(
     conversation_id: str = Form(default=""),
     authorization: str = Header(default=""),
 ):
-    user_id = _require_auth(authorization)
+    user_id, user_email = _require_auth_identity(authorization)
     attachments = []
     for f in files:
         content = await f.read(10_485_761)
@@ -50,6 +50,7 @@ async def post_price(
         attachments if attachments else None,
         conversation_history,
         user_id=user_id,
+        user_email=user_email,
         conversation_id=conversation_id or None,
     )
 

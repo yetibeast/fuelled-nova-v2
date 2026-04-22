@@ -78,9 +78,10 @@ async def run_pricing(
     attachments: list[dict] | None = None,
     conversation_history: list[dict] | None = None,
     user_id: str | None = None,
+    user_email: str | None = None,
     conversation_id: str | None = None,
 ) -> dict:
-    system_prompt = build_system_prompt()
+    system_prompt = build_system_prompt(email=user_email)
     _model = "claude-sonnet-4-20250514"
 
     # Build messages

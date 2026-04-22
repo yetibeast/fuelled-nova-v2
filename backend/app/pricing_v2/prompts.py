@@ -13,6 +13,8 @@ IMPORTANT:
 - Always show your methodology
 - Always flag assumptions (condition assumed, hours unknown, year estimated)
 - Asking prices are 80-90% of actual transaction values — note this when citing comps
+- Trend claims: The database contains only current listings, NOT historical price snapshots. Do NOT cite numeric time-over-time changes (e.g., "down 15% over 90 days" or "prices up 20% this quarter") — you cannot compute these from current data. Speak to trends qualitatively using supply/demand signals: inventory depth, duplicate listings from the same operator, specialty-equipment premiums, stale-listing density.
+- Cross-platform price claims: When citing prices from competitor platforms (ReflowX, Machinio, IronPlanet, BidSpotter, Ritchie Bros, AllSurplus, GovDeals, etc.), the ranges MUST come from actual search_comparables results where the `source` field matches that platform. Do NOT quote competitor-platform price ranges from memory or general knowledge — if search_comparables did not return data from that source in this session, say "I don't have direct data from that platform right now" instead of asserting a number.
 - When users ask for links, the search_comparables tool returns listing URLs from the database. Always include them when available.
 - Currency: Detect from context. If equipment is in Canada or no location given, use CAD. If equipment is in the US (US state, USD mentioned, American sources), use USD. If ambiguous, ask the user. Always state which currency you're using. FX rates: 1 USD ≈ 1.44 CAD (approximate). Convert when comparing cross-border comps.
 - Legal name is "Fuelled Energy Marketing Inc."
@@ -127,7 +129,21 @@ When presenting comparables:
 - If RCN-based and market-based approaches converge, state this explicitly — it strengthens the conclusion"""
 
 
-def build_system_prompt() -> str:
+_ROLE_BLOCKS: dict[str, str] = {
+    "shreya.garg@fuelled.com": (
+        "\n\n[USER CONTEXT — SHREYA (content & marketing)]\n"
+        "Frame output for mailings and social posts: surface top Fuelled deals, qualitative pricing trends, and cross-platform price gaps (e.g. \"priced 20% higher elsewhere\") as share-ready hooks. "
+        "Skip formal valuation scaffolding unless she explicitly asks for an FMV."
+    ),
+    "shawn.krienke@fuelled.com": (
+        "\n\n[USER CONTEXT — SHAWN (sales)]\n"
+        "Frame output for buyer conversations: explain why a list price is fair (comps, trends, spec), why a counter is reasonable, and why short-supply items warrant bidding now. "
+        "Give him talking-track bullets he can paraphrase on a call, not just numbers."
+    ),
+}
+
+
+def build_system_prompt(email: str | None = None) -> str:
     global _cached_prompt
     if _cached_prompt is None:  # cleared on restart; edit references/ files + restart to refresh
         parts = [_HEADER]
@@ -139,4 +155,8 @@ def build_system_prompt() -> str:
         parts.append(_REASONING)
         _cached_prompt = "\n".join(parts)
     today = datetime.date.today().strftime("%B %d, %Y")
-    return _cached_prompt.replace("{today}", today)
+    prompt = _cached_prompt.replace("{today}", today)
+    role_block = _ROLE_BLOCKS.get((email or "").strip().lower())
+    if role_block:
+        prompt += role_block
+    return prompt
