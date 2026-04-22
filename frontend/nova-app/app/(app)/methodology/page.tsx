@@ -5,18 +5,10 @@ import { MaterialIcon } from "@/components/ui/material-icon";
 import { fetchRiskRules } from "@/lib/api";
 import { DepreciationTable } from "@/components/methodology/depreciation-table";
 import { RcnBenchmarks } from "@/components/methodology/rcn-benchmarks";
+import { PipelineFlow } from "@/components/methodology/pipeline-flow";
 
 interface RiskRule { title: string; trigger: string; disclosure: string; cost_impact: string; valuation_impact: string }
 interface RiskCategory { title: string; rules: RiskRule[] }
-
-const PIPELINE = [
-  { icon: "search", label: "Input Parsing", desc: "Extract equipment type, specs, condition" },
-  { icon: "storage", label: "RCN Lookup", desc: "Base cost from reference tables, HP/weight scaling" },
-  { icon: "trending_down", label: "Depreciation", desc: "Category-specific age curves, interpolation" },
-  { icon: "tune", label: "Market Factors", desc: "NACE, H2S, material, drive, geography, WTI" },
-  { icon: "compare_arrows", label: "Comparables", desc: "Peer median from listings DB" },
-  { icon: "calculate", label: "FMV Calc", desc: "RCN_adj x Age x Cond x Mkt x Geo" },
-];
 
 export default function MethodologyPage() {
   const [risks, setRisks] = useState<RiskCategory[]>([]);
@@ -31,21 +23,7 @@ export default function MethodologyPage() {
         <p className="text-on-surface/40 text-xs font-mono mt-1">How Nova calculates fair market value</p>
       </div>
 
-      {/* Pipeline */}
-      <div className="glass-card rounded-xl p-6 mb-6">
-        <h3 className="font-headline font-bold text-sm tracking-tight mb-4">Valuation Pipeline</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          {PIPELINE.map((s, i) => (
-            <div key={i} className="text-center">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mx-auto mb-2">
-                <MaterialIcon icon={s.icon} className="text-[20px] text-primary" />
-              </div>
-              <div className="text-[11px] font-mono text-on-surface font-medium">{s.label}</div>
-              <div className="text-[9px] font-mono text-on-surface/40 mt-1 leading-relaxed">{s.desc}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <PipelineFlow exampleHref="/methodology/example" />
 
       <DepreciationTable />
       <RcnBenchmarks />
