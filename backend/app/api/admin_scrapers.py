@@ -8,6 +8,7 @@ import httpx
 import jwt
 from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from app.config import JWT_SECRET
 from app.db.session import get_session
 
@@ -222,18 +223,25 @@ async def create_scraper(body: dict, authorization: str = Header(None)):
         raise HTTPException(status_code=400, detail="name is required")
 
     async with get_session() as session:
-        result = await session.execute(text("""
-            INSERT INTO scrape_targets (name, url, scraper_type, schedule_cron)
-            VALUES (:name, :url, :type, :cron)
-            RETURNING id, name, url, scraper_type, schedule_cron, status, created_at
-        """), {
-            "name": name,
-            "url": body.get("url"),
-            "type": body.get("scraper_type", "scrapekit"),
-            "cron": body.get("schedule_cron"),
-        })
-        row = result.fetchone()
-        await session.commit()
+        try:
+            result = await session.execute(text("""
+                INSERT INTO scrape_targets (id, name, url, scraper_type, schedule_cron)
+                VALUES (gen_random_uuid(), :name, :url, :type, :cron)
+                RETURNING id, name, url, scraper_type, schedule_cron, status, created_at
+            """), {
+                "name": name,
+                "url": body.get("url"),
+                "type": body.get("scraper_type", "scrapekit"),
+                "cron": body.get("schedule_cron"),
+            })
+            row = result.fetchone()
+            await session.commit()
+        except IntegrityError as exc:
+            await session.rollback()
+            msg = str(getattr(exc, "orig", exc))
+            if "unique" in msg.lower() or "duplicate" in msg.lower():
+                raise HTTPException(status_code=409, detail=f"Scraper '{name}' already exists")
+            raise HTTPException(status_code=400, detail=f"Could not create scraper: {msg}")
 
     return {
         "id": str(row[0]),

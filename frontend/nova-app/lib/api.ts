@@ -176,19 +176,40 @@ export async function generateReport(formData: FormData) {
 
 /* ---------- Admin: Scrapers ---------- */
 
+async function adminRequest(path: string, init?: RequestInit) {
+  const res = await fetch(path, {
+    ...init,
+    headers: { ...(init?.headers ?? {}), ...authHeaders() },
+  });
+  if (!res.ok) {
+    let detail = `API error: ${res.status}`;
+    try {
+      const body = await res.text();
+      if (body) {
+        try {
+          const parsed = JSON.parse(body);
+          if (parsed?.detail) detail = typeof parsed.detail === "string" ? parsed.detail : JSON.stringify(parsed.detail);
+        } catch { detail = body; }
+      }
+    } catch { /* ignore */ }
+    throw new Error(detail);
+  }
+  if (res.status === 204) return null;
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
 async function adminGet(path: string) {
-  const res = await fetch(path, { headers: authHeaders() });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  return adminRequest(path);
 }
 
 export function fetchScrapers() { return adminGet("/api/admin/scrapers"); }
 
 export function createScraper(data: { name: string; url: string; scraper_type: string; schedule_cron?: string }) {
-  return fetch("/api/admin/scrapers", { method: "POST", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(data) }).then(r => r.json());
+  return adminRequest("/api/admin/scrapers", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 }
 export function updateScraper(id: string, data: Record<string, unknown>) {
-  return fetch(`/api/admin/scrapers/${id}`, { method: "PUT", headers: { "Content-Type": "application/json", ...authHeaders() }, body: JSON.stringify(data) }).then(r => r.json());
+  return adminRequest(`/api/admin/scrapers/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
 }
 export function deleteScraper(id: string) {
   return fetch(`/api/admin/scrapers/${id}`, { method: "DELETE", headers: authHeaders() });
