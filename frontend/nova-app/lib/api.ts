@@ -300,23 +300,16 @@ export function fetchGoldMarket() { return adminGet("/api/admin/gold/market"); }
 export function fetchGoldDepreciation() { return adminGet("/api/admin/gold/depreciation"); }
 export function fetchGoldGaps() { return adminGet("/api/admin/gold/gaps"); }
 
-export async function updateGoldRcn(id: string, data: Record<string, unknown>) {
-  const res = await fetch(`/api/admin/gold/rcn/${id}`, {
+export function updateGoldRcn(id: string, data: Record<string, unknown>) {
+  return adminRequest(`/api/admin/gold/rcn/${id}`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error(`Update failed: ${res.status}`);
-  return res.json();
 }
 
-export async function deleteGoldRcn(id: string) {
-  const res = await fetch(`/api/admin/gold/rcn/${id}`, {
-    method: "DELETE",
-    headers: authHeaders(),
-  });
-  if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
-  return res.json();
+export function deleteGoldRcn(id: string) {
+  return adminRequest(`/api/admin/gold/rcn/${id}`, { method: "DELETE" });
 }
 
 /* ---------- Competitive ---------- */

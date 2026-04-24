@@ -35,9 +35,11 @@ export function RcnTab() {
 
   async function handleSave(id: string) {
     try {
-      const updates: Record<string, unknown> = {};
-      if (editRcn) updates.escalated_rcn_cad = parseFloat(editRcn);
-      if (editStatus) updates.validation_status = editStatus;
+      const rcn = parseFloat(editRcn);
+      const updates: Record<string, unknown> = {
+        validation_status: editStatus,
+      };
+      if (!Number.isNaN(rcn)) updates.escalated_rcn_cad = rcn;
       await updateGoldRcn(id, updates);
       setEditId(null);
       const fresh = await fetchGoldRcn();
@@ -164,8 +166,8 @@ export function RcnTab() {
             <button
               onClick={() => {
                 setEditId(r.id);
-                setEditRcn("");
-                setEditStatus("");
+                setEditRcn(r.escalated_rcn_cad != null ? String(r.escalated_rcn_cad) : "");
+                setEditStatus(r.validation_status || "pending");
               }}
               className="text-on-surface/30 hover:text-primary"
             >
