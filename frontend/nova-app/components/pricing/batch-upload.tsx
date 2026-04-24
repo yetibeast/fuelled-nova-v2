@@ -58,7 +58,9 @@ export function BatchUpload({ onBatchResults }: BatchUploadProps) {
     pollingRef.current = setInterval(async () => {
       try {
         const status = await pollBatchStatus(id);
-        if (status.current_item) {
+        if (status.status === "parsing") {
+          setProgress(status.current_item ?? "Analyzing file...");
+        } else if (status.current_item) {
           setProgress(`Pricing item ${status.completed ?? 0} of ${status.total ?? "?"}... ${status.current_item}`);
         }
         if (status.status === "completed") {
@@ -152,9 +154,9 @@ export function BatchUpload({ onBatchResults }: BatchUploadProps) {
           dragging ? "border-primary bg-primary/5" : "border-white/10 hover:border-white/20"
         }`}
       >
-        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
+        <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls,.eml" className="hidden" onChange={(e) => { if (e.target.files?.[0]) handleFile(e.target.files[0]); }} />
         <MaterialIcon icon="upload_file" className="text-3xl text-on-surface/30 mb-2" />
-        <p className="text-sm text-on-surface/60">{file ? file.name : "Drop .csv or .xlsx here, or click to browse"}</p>
+        <p className="text-sm text-on-surface/60">{file ? file.name : "Drop .xlsx, .csv, or .eml here, or click to browse"}</p>
       </div>
 
       {/* Upload button */}

@@ -149,34 +149,64 @@ async def _price_batch_async(job_id: str, items: list[BatchItem]):
         f.write(json.dumps(entry) + "\n")
 
 
-def _parse_file_to_items(data: bytes, filename: str) -> list[BatchItem]:
-    """Parse uploaded file bytes into BatchItem list. Raises HTTPException on error."""
-    ext = (filename or "").rsplit(".", 1)[-1].lower()
+async def _parse_file_to_items(data: bytes, filename: str) -> list[BatchItem]:
+    """Parse uploaded file bytes into BatchItem list.
 
+    Fast path: row-per-item CSV/XLSX with schema headers (title, make, model, ...).
+    Fallback: hand the file to Claude to extract items from arbitrary shapes
+    (pivoted matrices, emails, free-form inventories).
+    """
+    ext = (filename or "").rsplit(".", 1)[-1].lower()
+    if ext not in ("csv", "xlsx", "xls", "eml"):
+        raise HTTPException(status_code=400, detail="Unsupported file type. Use .xlsx, .csv, or .eml")
+
+    # Fast path: try strict row-per-item schema for CSV/XLSX only.
+    if ext in ("csv", "xlsx", "xls"):
+        items = _try_schema_parse(data, ext)
+        if items:
+            return items
+
+    # Fallback: LLM extraction for anything else (pivoted sheets, emails, unknown shapes).
+    from app.pricing_v2.batch_extractor import extract_items
+    try:
+        raw_items = await extract_items(data, filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Could not extract items: {e}")
+
+    if not raw_items:
+        raise HTTPException(status_code=400, detail="No equipment items found in the file")
+    return [BatchItem(**it) for it in raw_items]
+
+
+def _try_schema_parse(data: bytes, ext: str) -> list[BatchItem] | None:
+    """Attempt the fast row-per-item parse.
+
+    Returns:
+        - list[BatchItem] if a title column was detected and rows parsed successfully.
+        - None if the file doesn't look row-per-item (no title column) — caller
+          should fall back to the LLM extractor.
+
+    Raises HTTPException(400) if a schema header is present but there are no data rows
+    (clear user error; no point asking the LLM).
+    """
     if ext == "csv":
-        text = data.decode("utf-8-sig")
-        reader = csv.reader(StringIO(text))
-        all_rows = list(reader)
-    elif ext in ("xlsx", "xls"):
+        text = data.decode("utf-8-sig", errors="replace")
+        all_rows = list(csv.reader(StringIO(text)))
+    else:
         import openpyxl
         wb = openpyxl.load_workbook(BytesIO(data), read_only=True, data_only=True)
         ws = wb.active
         all_rows = [[str(c.value or "") for c in row] for row in ws.iter_rows()]
         wb.close()
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Use .xlsx or .csv")
 
-    if len(all_rows) < 2:
-        raise HTTPException(status_code=400, detail="Spreadsheet has no data rows")
-
+    if not all_rows:
+        return None
     col_map = _detect_columns(all_rows[0])
     if "title" not in col_map:
-        raise HTTPException(status_code=400, detail="Could not detect a title/equipment column")
-
+        return None
     items = _rows_to_items(all_rows[1:], col_map)
     if not items:
-        raise HTTPException(status_code=400, detail="No valid items found in spreadsheet")
-
+        raise HTTPException(status_code=400, detail="Spreadsheet has header row but no data rows")
     return items
 
 
@@ -187,24 +217,46 @@ async def batch_start(file: UploadFile = File(...), authorization: str = Header(
     data = await file.read(10_485_761)
     if len(data) > 10_485_760:
         raise HTTPException(status_code=413, detail="File too large (10MB max)")
-    items = _parse_file_to_items(data, file.filename or "")
 
     _cleanup_old_jobs()
 
+    # Parse lazily in the background — the LLM fallback can take minutes on
+    # large pivoted files, longer than any proxy will hold an HTTP POST open.
     job_id = str(uuid.uuid4())
     _batch_jobs[job_id] = {
         "job_id": job_id,
-        "status": "running",
-        "total": len(items),
+        "status": "parsing",
+        "total": 0,
         "completed": 0,
-        "current_item": None,
+        "current_item": "Analyzing file — this can take a few minutes for complex layouts…",
         "results": [],
         "errors": [],
         "summary": None,
         "created_at": datetime.datetime.utcnow(),
     }
-    asyncio.create_task(_price_batch_async(job_id, items))
+    asyncio.create_task(_parse_then_price(job_id, data, file.filename or ""))
     return {"job_id": job_id}
+
+
+async def _parse_then_price(job_id: str, data: bytes, filename: str):
+    job = _batch_jobs[job_id]
+    try:
+        items = await _parse_file_to_items(data, filename)
+    except HTTPException as e:
+        job["status"] = "failed"
+        job["error"] = e.detail
+        job["current_item"] = None
+        return
+    except Exception as e:
+        job["status"] = "failed"
+        job["error"] = f"Failed to parse file: {e}"
+        job["current_item"] = None
+        return
+
+    job["status"] = "running"
+    job["total"] = len(items)
+    job["current_item"] = None
+    await _price_batch_async(job_id, items)
 
 
 # ── GET /api/price/batch/{job_id}/status ─────────────────────
@@ -272,7 +324,7 @@ async def batch_upload(file: UploadFile = File(...), authorization: str = Header
     data = await file.read(10_485_761)
     if len(data) > 10_485_760:
         raise HTTPException(status_code=413, detail="File too large (10MB max)")
-    items = _parse_file_to_items(data, file.filename or "")
+    items = await _parse_file_to_items(data, file.filename or "")
     return await _price_batch(items)
 
 

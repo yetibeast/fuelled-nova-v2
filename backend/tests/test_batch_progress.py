@@ -1,5 +1,11 @@
 """Tests for async batch job tracking (Task 9)."""
+import asyncio
+
 from app.api.batch import _batch_jobs, _parse_file_to_items, BatchItem
+
+
+def _parse(data: bytes, filename: str):
+    return asyncio.run(_parse_file_to_items(data, filename))
 
 
 def test_batch_jobs_dict_exists():
@@ -15,7 +21,7 @@ def test_batch_status_unknown_job():
 def test_parse_file_to_items_csv():
     """CSV bytes should parse into BatchItem list."""
     csv_bytes = b"title,category\nAriel JGK/4,compressor\nWaukesha VHP,engine\n"
-    items = _parse_file_to_items(csv_bytes, "test.csv")
+    items = _parse(csv_bytes, "test.csv")
     assert len(items) == 2
     assert isinstance(items[0], BatchItem)
     assert items[0].title == "Ariel JGK/4"
@@ -25,7 +31,7 @@ def test_parse_file_to_items_csv():
 def test_parse_file_to_items_detects_specs():
     """Extra columns like make/model should land in specs."""
     csv_bytes = b"equipment,category,make,model,year\nFlare Stack,flare,ABC Corp,FS-100,2018\n"
-    items = _parse_file_to_items(csv_bytes, "test.csv")
+    items = _parse(csv_bytes, "test.csv")
     assert len(items) == 1
     assert items[0].specs.get("make") == "ABC Corp"
     assert items[0].specs.get("model") == "FS-100"
@@ -33,22 +39,22 @@ def test_parse_file_to_items_detects_specs():
 
 
 def test_parse_file_rejects_unsupported_format():
-    """Non-csv/xlsx files should raise HTTPException."""
+    """Non-csv/xlsx/eml files should raise HTTPException."""
     import pytest
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc_info:
-        _parse_file_to_items(b"data", "test.json")
+        _parse(b"data", "test.json")
     assert exc_info.value.status_code == 400
 
 
-def test_parse_file_rejects_empty():
-    """CSV with only headers and no data should raise."""
+def test_parse_file_rejects_empty_schema_csv():
+    """CSV with a schema header but no data rows should fail fast (no LLM fallback)."""
     import pytest
     from fastapi import HTTPException
 
     with pytest.raises(HTTPException) as exc_info:
-        _parse_file_to_items(b"title,category\n", "test.csv")
+        _parse(b"title,category\n", "test.csv")
     assert exc_info.value.status_code == 400
 
 
