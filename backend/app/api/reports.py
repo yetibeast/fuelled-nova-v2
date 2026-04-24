@@ -9,15 +9,13 @@ import jwt
 from fastapi import APIRouter, Header, HTTPException
 from fastapi.responses import Response
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LOG_DIR as _LOG_DIR
 from app.pricing_v2.report import generate_report
 from app.pricing_v2.report_onepager import generate_onepager
 from app.pricing_v2.report_support import generate_support_report
 from app.pricing_v2.portfolio_report import generate_portfolio_report
 
 router = APIRouter(prefix="/reports", tags=["reports"])
-
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 
 def _require_auth(authorization: str | None) -> str:

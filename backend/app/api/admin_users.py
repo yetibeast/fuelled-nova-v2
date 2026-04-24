@@ -11,7 +11,7 @@ from fastapi import APIRouter, Header, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LOG_DIR as _LOG_DIR
 from app.db.session import get_session
 
 router = APIRouter(prefix="/admin")
@@ -29,9 +29,6 @@ def _require_admin(authorization: str | None) -> str:
     if payload.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     return payload["sub"]
-
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
-
 
 # ── User CRUD ──────────────────────────────────────────────────────────────
 

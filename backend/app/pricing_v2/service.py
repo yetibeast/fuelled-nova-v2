@@ -213,7 +213,7 @@ async def run_pricing(
     }
 
     # Append log entry (non-blocking)
-    log_dir = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
+    from app.config import LOG_DIR as log_dir
     os.makedirs(log_dir, exist_ok=True)
     entry = {
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",

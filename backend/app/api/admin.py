@@ -10,7 +10,7 @@ import jwt
 from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
 
-from app.config import JWT_SECRET, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST
+from app.config import JWT_SECRET, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY, LANGFUSE_HOST, LOG_DIR as _LOG_DIR
 from app.db.session import get_session
 
 router = APIRouter()
@@ -25,8 +25,6 @@ try:
         _langfuse_ok = True
 except Exception:
     pass
-
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 
 def _require_auth(authorization: str | None) -> str:

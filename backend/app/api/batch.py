@@ -13,12 +13,10 @@ from fastapi import APIRouter, Header, HTTPException, File, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LOG_DIR
 from app.pricing_v2.service import run_pricing
 
 router = APIRouter(prefix="/price", tags=["batch"])
-
-LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 
 # ── Auth helper ───────────────────────────────────────────────

@@ -17,3 +17,11 @@ _jwt_secret = os.environ.get("JWT_SECRET", "")
 if not _jwt_secret:
     raise RuntimeError("JWT_SECRET environment variable is required. Set it in .env or your deployment config.")
 JWT_SECRET = _jwt_secret
+
+# JSONL logs — API spend, feedback, batch/reports history.
+# Prod (Railway) must point this at a mounted volume path (e.g. /data/logs)
+# so history survives container redeploys. Local default is backend/logs/.
+LOG_DIR = os.environ.get(
+    "LOG_DIR",
+    os.path.join(os.path.dirname(__file__), "..", "logs"),
+)

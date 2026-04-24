@@ -10,12 +10,10 @@ import jwt
 from fastapi import APIRouter, Header, HTTPException
 from sqlalchemy import text
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LOG_DIR as _LOG_DIR
 from app.db.session import get_session
 
 router = APIRouter(tags=["evidence"])
-
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 
 _INIT_SQL = """
 CREATE TABLE IF NOT EXISTS pricing_evidence_intake (

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from fastapi import APIRouter, Header, HTTPException
 
-from app.config import JWT_SECRET
+from app.config import JWT_SECRET, LOG_DIR as _LOG_DIR
 
 router = APIRouter(prefix="/admin")
 
@@ -26,7 +26,6 @@ def _require_admin(authorization: str | None) -> str:
         raise HTTPException(status_code=403, detail="Admin only")
     return payload["sub"]
 
-_LOG_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "logs")
 _REFS_DIR = os.path.join(os.path.dirname(__file__), "..", "pricing_v2", "references")
 
 # Sonnet pricing: $3/M input, $15/M output
