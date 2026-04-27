@@ -13,3 +13,7 @@ dist/
 build/
 node_modules/
 .claude/
+.pytest_cache/
+.playwright-mcp/
+.playwright-cli/
+docs/April 22 2026 - pricing sprint/
