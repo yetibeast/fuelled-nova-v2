@@ -17,7 +17,7 @@ Nova v2 runs on Railway with three services: PostgreSQL database, FastAPI backen
 | **Workspace** | yeti-lynch projects |
 | **Environment** | production |
 | **Source Repo** | github.com/yetibeast/fuelled-nova-v2 (branch: main) |
-| **Auto-deploy** | Yes — pushes to main trigger rebuild |
+| **Auto-deploy** | No — GitHub integration is not wired up. Pushes to `main` do NOT trigger a rebuild. Ship code with `railway up --service <svc> --detach` from the service's source dir. |
 
 ## Services
 
