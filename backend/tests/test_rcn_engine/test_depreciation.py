@@ -93,9 +93,44 @@ class TestComputeEffectiveAge:
 
     def test_different_categories_have_different_annual_hours(self):
         # Same hours, different categories → different implied age
-        heavy = compute_effective_age(5, 3000, "GOOD", "heavy_equip")  # 1500 annual → 2yr
-        comp = compute_effective_age(5, 3000, "GOOD", "compressor")   # 6000 annual → 0.5yr
+        # Use hours that exceed expected utilization so the implied-age signal
+        # dominates (avoids the chronological floor introduced for the
+        # hours-inversion fix).
+        heavy = compute_effective_age(5, 30000, "GOOD", "heavy_equip")  # 1500 annual → 20yr
+        comp = compute_effective_age(5, 30000, "GOOD", "compressor")    # 6000 annual → 5yr
         assert heavy != comp
+
+    # ── Regression: "hours-inversion" bug (Shawn Krienke, 2026-04-28) ────
+    # Adding reported hours to an old unit must never make it appear younger
+    # or worth more than the same unit with no hours data. The previous
+    # formula blended hour-implied age with chronological age, so a 24-year
+    # compressor with 61,000 hours got a *lower* effective age than the
+    # same compressor with no hours, doubling its valuation.
+
+    def test_hours_never_reduce_effective_age_below_chronological(self):
+        # Shawn's listing: 24yr compressor, 61,000 hours
+        eff_no_hours = compute_effective_age(24, None, "GOOD", "compressor")
+        eff_with_hours = compute_effective_age(24, 61_000, "GOOD", "compressor")
+        assert eff_with_hours >= eff_no_hours, (
+            f"Adding 61,000 hours to a 24yr compressor must not make it appear younger. "
+            f"Got: no_hours={eff_no_hours:.2f}yr, with_hours={eff_with_hours:.2f}yr"
+        )
+
+    def test_age_factor_monotonic_in_hours_at_fixed_chronological_age(self):
+        """For a given chronological age, more hours must never increase value."""
+        from app.pricing_v2.rcn_engine.depreciation import get_age_factor
+        chrono = 24
+        prev_factor = get_age_factor(
+            compute_effective_age(chrono, None, "GOOD", "compressor"), "compressor"
+        )
+        for hours in (5_000, 15_000, 30_000, 50_000, 61_000, 100_000, 150_000):
+            eff = compute_effective_age(chrono, hours, "GOOD", "compressor")
+            factor = get_age_factor(eff, "compressor")
+            assert factor <= prev_factor + 1e-9, (
+                f"Adding hours increased age_factor at age={chrono}, hours={hours}: "
+                f"prev={prev_factor:.4f}, new={factor:.4f}"
+            )
+            prev_factor = factor
 
 
 # ── Age factor (depreciation curve interpolation) ─────────────────────
