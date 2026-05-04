@@ -151,10 +151,16 @@ def compute_effective_age(
         hour_implied_age = float(hours) / annual
         divergence = abs(hour_implied_age - chrono) / max(chrono, 1.0)
         if divergence > 0.5:
-            effective = (0.7 * hour_implied_age) + (0.3 * chrono)
+            blended = (0.7 * hour_implied_age) + (0.3 * chrono)
         else:
-            effective = (0.5 * hour_implied_age) + (0.5 * chrono)
-        return max(0.0, effective)
+            blended = (0.5 * hour_implied_age) + (0.5 * chrono)
+        # Hours can age a unit beyond its chronological age (heavy use), but
+        # must never make it appear younger. Reported by Shawn Krienke
+        # 2026-04-28: a 24yr compressor with 61K hrs was valued 2.2× higher
+        # than the same compressor with no hours. The "low-hours bonus" for
+        # young equipment is removed pending a methodology revision that
+        # accounts for absolute-hour overhaul thresholds.
+        return max(float(chrono), blended)
 
     if condition_tier and condition_tier in CONDITION_AGE_FACTOR:
         return max(0.0, chrono * CONDITION_AGE_FACTOR[condition_tier])
