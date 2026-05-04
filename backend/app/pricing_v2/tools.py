@@ -1,6 +1,10 @@
 from __future__ import annotations
+import json
 import logging
+import os
 import re as _re
+from datetime import datetime, timezone
+
 import aiohttp
 from sqlalchemy import text
 from app.db.session import get_session
@@ -9,6 +13,32 @@ from app.pricing_v2.equipment.parsing import parse_compound_description
 from app.pricing_v2.equipment.aliases import normalize_manufacturer, normalize_model
 
 log = logging.getLogger(__name__)
+
+# Methodology version surfaced in calculate_fmv output. Bump when factor formulas change.
+METHODOLOGY_VERSION = "v2.1 (hours-floor, 2026-05-03)"
+
+
+def _log_engine_fallback(category: str, equipment_class: str, age_years: int,
+                         hours: int | None, condition: str, exc: Exception) -> None:
+    """Append a structured event when rcn_engine raises and we fall back to _simple_fmv.
+    Best-effort — never raises, never blocks the pricing call."""
+    try:
+        from app.config import LOG_DIR
+        os.makedirs(LOG_DIR, exist_ok=True)
+        record = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "category": category,
+            "equipment_class": equipment_class,
+            "age_years": age_years,
+            "hours": hours,
+            "condition": condition,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc)[:500],
+        }
+        with open(os.path.join(LOG_DIR, "engine_fallback.jsonl"), "a") as f:
+            f.write(json.dumps(record) + "\n")
+    except Exception as inner:  # noqa: BLE001 — telemetry must never break pricing
+        log.warning("failed to write engine_fallback.jsonl: %s", inner)
 
 
 def _is_safe_url(url: str) -> bool:
@@ -370,7 +400,7 @@ def calculate_fmv(rcn: float, equipment_class: str, age_years: int, condition: s
             factors_str += f" × Premiums={prem:.2f}"
 
         return (
-            f"FMV CALCULATION (rcn_engine v2):\n"
+            f"FMV CALCULATION (rcn_engine {METHODOLOGY_VERSION}):\n"
             f"  RCN: ${rcn:,.0f}\n"
             f"  Curve: {curve_used} (category: {fa['category_key']})\n"
             f"  Factors: {factors_str}\n"
@@ -384,6 +414,11 @@ def calculate_fmv(rcn: float, equipment_class: str, age_years: int, condition: s
         )
     except Exception as exc:
         log.warning("rcn_engine failed, using simple fallback: %s", exc)
+        _log_engine_fallback(
+            category=_CLASS_TO_CATEGORY.get(equipment_class, equipment_class),
+            equipment_class=equipment_class, age_years=age_years,
+            hours=hours, condition=condition, exc=exc,
+        )
         return _simple_fmv(rcn, equipment_class, age_years, condition, hours, service,
                            vfd_equipped, turnkey_package, nace_rated)
 

@@ -40,6 +40,15 @@ def test_shawn_block_appended():
     assert len(suffix.strip().splitlines()) <= 4, "Role block should be 2-3 short lines"
 
 
+def test_rcn_stability_instruction_present():
+    """Mitigates RCN-drift mid-conversation (PR-3 deferred follow-up). The prompt must
+    instruct the model not to recompute RCN when the user adds operating specs."""
+    prompt = build_system_prompt()
+    assert "RCN STABILITY" in prompt
+    assert "do NOT re-call lookup_rcn" in prompt
+    assert "FMV inputs, not RCN inputs" in prompt
+
+
 def test_email_match_is_case_insensitive():
     for variant in (SHREYA.upper(), " " + SHAWN + " "):
         personalized = build_system_prompt(email=variant)
