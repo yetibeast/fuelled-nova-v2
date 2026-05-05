@@ -600,6 +600,15 @@ class MockSession:
                 })
             return MockResult(result_rows)
 
+        # Supply-targets aggregate (must precede the generic GROUP BY source matcher).
+        # No seeded listings have seller_source_id, so the response is an empty list.
+        if "seller_source_id" in sql and "GROUP BY source, seller_source_id" in sql:
+            return MockResult([])
+
+        # Supply-targets drilldown — SELECT listing rows for one (source, seller_source_id)
+        if "FROM listings" in sql and "seller_source_id = :sid" in sql:
+            return MockResult([])
+
         # SELECT source, COUNT(*) ... FROM listings GROUP BY source (listing counts)
         if "FROM listings" in sql and "GROUP BY source" in sql and "asking_price" in sql:
             counts: dict[str, dict] = {}
@@ -922,6 +931,7 @@ def _patch_db():
          patch("app.api.conversations.get_session", _mock_get_session), \
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
+         patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
          patch("app.api.fuelled_coverage.get_session", _mock_get_session):
         yield
 
