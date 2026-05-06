@@ -57,10 +57,28 @@ async def _ensure_state_tables(session):
             condition TEXT,
             hours DOUBLE PRECISION,
             horsepower DOUBLE PRECISION,
+            seller_name TEXT,
+            seller_account_type TEXT,
+            event_contact_name TEXT,
+            event_contact_email TEXT,
+            event_contact_phone TEXT,
             created_at TEXT NOT NULL,
             updated_at TEXT NOT NULL
         )
     """))
+    # Idempotent ALTERs for existing tables created before the seller-contact
+    # columns landed (PR #8 added them on the listings side; this carries them
+    # through to the acquisition queue).
+    for col in (
+        "seller_name TEXT",
+        "seller_account_type TEXT",
+        "event_contact_name TEXT",
+        "event_contact_email TEXT",
+        "event_contact_phone TEXT",
+    ):
+        await session.execute(text(
+            f"ALTER TABLE competitive_acquisition_targets ADD COLUMN IF NOT EXISTS {col}"
+        ))
     await session.execute(text("""
         CREATE TABLE IF NOT EXISTS competitive_acquisition_events (
             id TEXT PRIMARY KEY,
@@ -173,12 +191,16 @@ async def promote_acquisition_target(body: dict = Body(...), authorization: str 
                 id, source_listing_id, source, title, category, asking_price, location, url,
                 first_seen, last_seen, days_listed, stale_threshold_days, peer_median, peer_count,
                 acquisition_score, promotable, status, assigned_to, notes, draft_payload,
-                make, model, year, condition, hours, horsepower, created_at, updated_at
+                make, model, year, condition, hours, horsepower,
+                seller_name, seller_account_type, event_contact_name, event_contact_email, event_contact_phone,
+                created_at, updated_at
             ) VALUES (
                 :id, :source_listing_id, :source, :title, :category, :asking_price, :location, :url,
                 :first_seen, :last_seen, :days_listed, :stale_threshold_days, :peer_median, :peer_count,
                 :acquisition_score, :promotable, :status, :assigned_to, :notes, :draft_payload,
-                :make, :model, :year, :condition, :hours, :horsepower, :created_at, :updated_at
+                :make, :model, :year, :condition, :hours, :horsepower,
+                :seller_name, :seller_account_type, :event_contact_name, :event_contact_email, :event_contact_phone,
+                :created_at, :updated_at
             )
         """), record)
         await _record_event(state_session, record["id"], "promoted", admin_id, body.get("note"))

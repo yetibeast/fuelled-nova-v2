@@ -14,10 +14,15 @@ AUCTION_SOURCES = {
     "energyauctions",
 }
 
+# Stale-listing thresholds tuned for industrial auction velocity.
+# Tightened 2026-05-06 from 180/270/365 once we had real scrape history (~75 days
+# at the time meant nothing surfaced). 60/90/120 reflects the realistic "this
+# isn't moving" signal Mark wants for supply-acquisition outreach.
 _CATEGORY_THRESHOLDS = [
-    (180, ("compressor", "engine", "generator", "vru", "pump jack")),
-    (270, ("separator", "treater", "dehydrator", "line heater", "scrubber")),
+    (60, ("compressor", "engine", "generator", "vru", "pump jack")),
+    (90, ("separator", "treater", "dehydrator", "line heater", "scrubber")),
 ]
+_DEFAULT_THRESHOLD_DAYS = 120
 
 
 def row_value(row: Any, key: str, default=None):
@@ -57,7 +62,7 @@ def stale_threshold_days(category: str) -> int:
     for days, keywords in _CATEGORY_THRESHOLDS:
         if any(keyword in normalized for keyword in keywords):
             return days
-    return 365
+    return _DEFAULT_THRESHOLD_DAYS
 
 
 def is_auction_source(source: str | None) -> bool:
@@ -176,23 +181,69 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
         "condition": row_value(listing, "condition"),
         "hours": row_value(listing, "hours"),
         "horsepower": row_value(listing, "horsepower"),
+        # Seller + contact (from supply-targets work — populated for AllSurplus today,
+        # ports cleanly to other marketplaces as we add per-source seller capture)
+        "seller_name": row_value(listing, "seller_name"),
+        "seller_account_type": row_value(listing, "seller_account_type"),
+        "event_contact_name": row_value(listing, "event_contact_name"),
+        "event_contact_email": row_value(listing, "event_contact_email"),
+        "event_contact_phone": row_value(listing, "event_contact_phone"),
     }
 
 
 def build_draft_payload(target: Any) -> dict[str, Any]:
+    seller_name = row_value(target, "seller_name")
+    contact_name = row_value(target, "event_contact_name")
+    contact_email = row_value(target, "event_contact_email")
+    contact_phone = row_value(target, "event_contact_phone")
+    days_listed = row_value(target, "days_listed")
+    competitor_source = row_value(target, "source")
+    title = row_value(target, "title") or "this asset"
+
+    # Outreach template Mark sketched in the 2026-04-07 thread, personalised
+    # using whatever seller/contact info we captured. Falls back gracefully
+    # when fields are missing.
+    salutation = f"Hi {contact_name.split()[0]}," if contact_name else "Hi there,"
+    seller_clause = (
+        f" representing {seller_name}" if seller_name and contact_name
+        else f" at {seller_name}" if seller_name
+        else ""
+    )
+    days_clause = f" — it's been listed {days_listed} days" if days_listed else ""
+
+    outreach_email = (
+        f"{salutation}\n\n"
+        f"I'm reaching out{seller_clause} about \"{title}\" currently on "
+        f"{competitor_source}{days_clause}. We've created a private listing for "
+        f"this asset on Fuelled and we believe we have strong demand from our "
+        f"buyer base.\n\n"
+        f"Would you be open to a short trial consignment so we can showcase our "
+        f"differentiated approach? No platform fee on a trial — we just want to "
+        f"prove the difference.\n\n"
+        f"Happy to walk through it on a quick call.\n\n"
+        f"Best,\nFuelled team"
+    )
+
     return {
-        "title": row_value(target, "title"),
+        "title": title,
         "category": row_value(target, "category"),
         "make": row_value(target, "make"),
         "model": row_value(target, "model"),
         "year": row_value(target, "year"),
         "condition": row_value(target, "condition") or "Used",
         "location": row_value(target, "location"),
-        "competitor_source": row_value(target, "source"),
+        "competitor_source": competitor_source,
         "competitor_url": row_value(target, "url"),
         "competitor_asking_price": row_value(target, "asking_price"),
         "peer_median": row_value(target, "peer_median"),
         "peer_count": row_value(target, "peer_count"),
+        "seller_name": seller_name,
+        "seller_account_type": row_value(target, "seller_account_type"),
+        "contact_name": contact_name,
+        "contact_email": contact_email,
+        "contact_phone": contact_phone,
+        "outreach_subject": f"Trial consignment for {title}",
+        "outreach_body": outreach_email,
         "listing_notes": "Auto-generated from stale competitor inventory. Pricing review still required.",
     }
 
@@ -228,6 +279,11 @@ def target_record_from_candidate(candidate: dict[str, Any], note: str | None = N
         "condition": candidate.get("condition"),
         "hours": candidate.get("hours"),
         "horsepower": candidate.get("horsepower"),
+        "seller_name": candidate.get("seller_name"),
+        "seller_account_type": candidate.get("seller_account_type"),
+        "event_contact_name": candidate.get("event_contact_name"),
+        "event_contact_email": candidate.get("event_contact_email"),
+        "event_contact_phone": candidate.get("event_contact_phone"),
     }
 
 

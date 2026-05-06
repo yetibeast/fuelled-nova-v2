@@ -657,7 +657,7 @@ class MockSession:
             )
             return MockResult([{0: count}])
 
-        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '365 days'" in sql and "asking_price > 0" in sql:
+        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '60 days'" in sql and "asking_price > 0" in sql:
             now = datetime.now(timezone.utc)
             exclude_fuelled = "LOWER(source) != 'fuelled'" in sql
             count = 0
@@ -668,7 +668,7 @@ class MockSession:
                     continue
                 if (l.get("asking_price") or 0) <= 0:
                     continue
-                if l["first_seen"] < now - timedelta(days=365) and l["last_seen"] > now - timedelta(days=30):
+                if l["first_seen"] < now - timedelta(days=60) and l["last_seen"] > now - timedelta(days=30):
                     count += 1
             return MockResult([{0: count}])
 
@@ -683,7 +683,7 @@ class MockSession:
                     continue
                 if (l.get("asking_price") or 0) <= 0:
                     continue
-                if l["first_seen"] >= now - timedelta(days=365):
+                if l["first_seen"] >= now - timedelta(days=60):
                     continue
                 if l["last_seen"] <= now - timedelta(days=30):
                     continue
