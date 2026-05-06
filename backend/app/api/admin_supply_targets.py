@@ -64,6 +64,7 @@ async def supply_targets(
                 seller_name,
                 seller_account_type,
                 seller_other_assets_url,
+                event_id, event_contact_name, event_contact_email, event_contact_phone,
                 asking_price, current_bid,
                 location, last_seen,
                 COALESCE(seller_name, 'anon:' || seller_source_id) AS seller_key
@@ -77,6 +78,10 @@ async def supply_targets(
             MAX(seller_name) AS seller_name,
             (ARRAY_AGG(seller_account_type) FILTER (WHERE seller_account_type IS NOT NULL))[1] AS account_type,
             (ARRAY_AGG(seller_other_assets_url) FILTER (WHERE seller_other_assets_url IS NOT NULL))[1] AS other_assets_url,
+            (ARRAY_AGG(event_contact_name) FILTER (WHERE event_contact_name IS NOT NULL))[1] AS contact_name,
+            (ARRAY_AGG(event_contact_email) FILTER (WHERE event_contact_email IS NOT NULL))[1] AS contact_email,
+            (ARRAY_AGG(event_contact_phone) FILTER (WHERE event_contact_phone IS NOT NULL))[1] AS contact_phone,
+            COUNT(DISTINCT event_id) AS event_count,
             COUNT(DISTINCT seller_source_id) AS consignment_count,
             COUNT(*) AS listing_count,
             COUNT(asking_price) FILTER (WHERE asking_price > 0) AS priced_count,
@@ -102,12 +107,16 @@ async def supply_targets(
             "seller_name": r[3],
             "account_type": r[4],
             "other_assets_url": r[5],
-            "consignment_count": int(r[6]),
-            "listing_count": int(r[7]),
-            "priced_count": int(r[8] or 0),
-            "total_asking": float(r[9]) if r[9] is not None else None,
-            "total_current_bid": float(r[10]) if r[10] is not None else None,
-            "last_seen": r[11].isoformat() if r[11] else None,
+            "contact_name": r[6],
+            "contact_email": r[7],
+            "contact_phone": r[8],
+            "event_count": int(r[9] or 0),
+            "consignment_count": int(r[10]),
+            "listing_count": int(r[11]),
+            "priced_count": int(r[12] or 0),
+            "total_asking": float(r[13]) if r[13] is not None else None,
+            "total_current_bid": float(r[14]) if r[14] is not None else None,
+            "last_seen": r[15].isoformat() if r[15] else None,
         }
         for r in rows
     ]
@@ -125,7 +134,8 @@ async def supply_target_listings(
     async with get_session() as session:
         result = await session.execute(text("""
             SELECT id, title, category, make, model, year, condition,
-                   asking_price, currency, location, url, last_seen
+                   asking_price, currency, location, url, last_seen,
+                   event_id, event_title, event_contact_name, event_contact_email, event_contact_phone
             FROM listings
             WHERE source = :source AND seller_source_id = :sid
             ORDER BY last_seen DESC NULLS LAST
@@ -147,6 +157,11 @@ async def supply_target_listings(
             "location": r[9],
             "url": r[10],
             "last_seen": r[11].isoformat() if r[11] else None,
+            "event_id": r[12],
+            "event_title": r[13],
+            "contact_name": r[14],
+            "contact_email": r[15],
+            "contact_phone": r[16],
         }
         for r in rows
     ]
