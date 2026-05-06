@@ -17,3 +17,9 @@ node_modules/
 .playwright-mcp/
 .playwright-cli/
 docs/April 22 2026 - pricing sprint/
+
+# Captured browser sessions for scrapers (cookies, never commit)
+backend/scripts/secrets/
+
+# Generated supply-target spreadsheet exports
+docs/supply-targets/
