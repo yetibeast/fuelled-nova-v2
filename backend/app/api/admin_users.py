@@ -174,6 +174,8 @@ async def admin_valuations(authorization: str = Header(None)):
             val = row.get("structured", {}).get("valuation", {})
             entries.append({
                 "timestamp": row.get("timestamp"),
+                "user_id": row.get("user_id"),
+                "user_email": row.get("user_email"),
                 "user_message": row.get("user_message", ""),
                 "tools_used": row.get("tools_used", []),
                 "confidence": row.get("confidence"),

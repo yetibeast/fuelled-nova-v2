@@ -217,6 +217,8 @@ async def run_pricing(
     os.makedirs(log_dir, exist_ok=True)
     entry = {
         "timestamp": datetime.datetime.utcnow().isoformat() + "Z",
+        "user_id": user_id,
+        "user_email": user_email,
         "user_message": user_message,
         "tools_used": tools_used,
         "confidence": confidence,
