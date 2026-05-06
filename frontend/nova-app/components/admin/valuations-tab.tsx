@@ -8,6 +8,8 @@ import { timeAgo, formatFmvRange } from "@/lib/utils";
 
 interface Valuation {
   timestamp: string;
+  user_id?: string | null;
+  user_email?: string | null;
   user_message: string;
   tools_used: string[];
   confidence: string;
@@ -34,11 +36,15 @@ export function ValuationsTab() {
     <DataTable
       title="Valuation Log"
       badge={`${entries.length} VALUATIONS`}
-      headers={["TIME", "QUERY", "FMV RANGE", "CONFIDENCE", "TOOLS"]}
+      headers={["TIME", "USER", "QUERY", "FMV RANGE", "CONFIDENCE", "TOOLS"]}
     >
       {entries.map((v, i) => {
         const isExpanded = expanded === i;
         const fmvRange = formatFmvRange(v.fmv_low, v.fmv_high);
+        // Show email's local-part by default; full email when expanded.
+        const userLabel = v.user_email
+          ? (isExpanded ? v.user_email : v.user_email.split("@")[0])
+          : null;
         return (
           <tr
             key={i}
@@ -46,6 +52,9 @@ export function ValuationsTab() {
             className="cursor-pointer hover:bg-white/[0.04] transition-colors"
           >
             <td className="px-6 py-3 text-on-surface/50">{v.timestamp ? timeAgo(v.timestamp) : "---"}</td>
+            <td className="px-6 py-3 text-on-surface/70">
+              {userLabel ?? <span className="text-on-surface/30">—</span>}
+            </td>
             <td className="px-6 py-3 text-on-surface font-medium">
               {isExpanded ? v.user_message : (v.user_message || "").slice(0, 50) + (v.user_message && v.user_message.length > 50 ? "..." : "")}
             </td>
