@@ -41,9 +41,11 @@ async def supply_targets(
     min_listings: int = Query(1, ge=1, description="Drop sellers with fewer than this many listings"),
     limit: int = Query(500, ge=1, le=5000),
 ):
-    """Per-seller aggregate. One row per (source, seller_source_id) — the seller_source_id
-    falls back to a synthetic 'anon-<n>' grouping when we couldn't extract one (rare;
-    most marketplaces embed the seller in the URL)."""
+    """Per-seller aggregate. Groups by `seller_name` when known, falls back to
+    `seller_source_id` for anonymous sellers. The first URL number on AllSurplus
+    is per-consignment, not per-organization, so name-based grouping is the
+    accurate signal — multiple consignments from the same seller (e.g. ANCO,
+    Assmang Khumani) collapse correctly."""
     _require_admin(authorization)
 
     where = ["seller_source_id IS NOT NULL"]
@@ -52,6 +54,8 @@ async def supply_targets(
         where.append("source = :source")
         params["source"] = source
 
+    # Aggregation key: seller_name when present, else 'anon:' + seller_source_id.
+    # `is_anonymous` lets the client distinguish real names from fallback ids.
     sql = f"""
         WITH seller_rows AS (
             SELECT
@@ -60,34 +64,27 @@ async def supply_targets(
                 seller_name,
                 seller_account_type,
                 seller_other_assets_url,
-                asking_price,
-                location,
-                last_seen
+                asking_price, current_bid,
+                location, last_seen,
+                COALESCE(seller_name, 'anon:' || seller_source_id) AS seller_key
             FROM listings
             WHERE {' AND '.join(where)}
         )
         SELECT
             source,
-            seller_source_id,
-            -- Take the most common non-null name we've seen for this seller
-            (SELECT seller_name FROM seller_rows s2
-             WHERE s2.source = s.source AND s2.seller_source_id = s.seller_source_id
-               AND seller_name IS NOT NULL
-             GROUP BY seller_name ORDER BY COUNT(*) DESC LIMIT 1) AS seller_name,
-            (SELECT seller_account_type FROM seller_rows s2
-             WHERE s2.source = s.source AND s2.seller_source_id = s.seller_source_id
-               AND seller_account_type IS NOT NULL
-             GROUP BY seller_account_type ORDER BY COUNT(*) DESC LIMIT 1) AS account_type,
-            (SELECT seller_other_assets_url FROM seller_rows s2
-             WHERE s2.source = s.source AND s2.seller_source_id = s.seller_source_id
-               AND seller_other_assets_url IS NOT NULL
-             LIMIT 1) AS other_assets_url,
+            seller_key,
+            (seller_name IS NULL) AS is_anonymous,
+            MAX(seller_name) AS seller_name,
+            (ARRAY_AGG(seller_account_type) FILTER (WHERE seller_account_type IS NOT NULL))[1] AS account_type,
+            (ARRAY_AGG(seller_other_assets_url) FILTER (WHERE seller_other_assets_url IS NOT NULL))[1] AS other_assets_url,
+            COUNT(DISTINCT seller_source_id) AS consignment_count,
             COUNT(*) AS listing_count,
             COUNT(asking_price) FILTER (WHERE asking_price > 0) AS priced_count,
             ROUND(SUM(asking_price) FILTER (WHERE asking_price > 0)::numeric, 0) AS total_asking,
+            ROUND(SUM(current_bid) FILTER (WHERE current_bid > 0)::numeric, 0) AS total_current_bid,
             MAX(last_seen) AS last_seen
-        FROM seller_rows s
-        GROUP BY source, seller_source_id
+        FROM seller_rows
+        GROUP BY source, seller_key, (seller_name IS NULL)
         HAVING COUNT(*) >= :min_listings
         ORDER BY listing_count DESC, total_asking DESC NULLS LAST
         LIMIT :limit
@@ -100,14 +97,17 @@ async def supply_targets(
     return [
         {
             "source": r[0],
-            "seller_source_id": r[1],
-            "seller_name": r[2],
-            "account_type": r[3],
-            "other_assets_url": r[4],
-            "listing_count": int(r[5]),
-            "priced_count": int(r[6] or 0),
-            "total_asking": float(r[7]) if r[7] is not None else None,
-            "last_seen": r[8].isoformat() if r[8] else None,
+            "seller_key": r[1],
+            "is_anonymous": bool(r[2]),
+            "seller_name": r[3],
+            "account_type": r[4],
+            "other_assets_url": r[5],
+            "consignment_count": int(r[6]),
+            "listing_count": int(r[7]),
+            "priced_count": int(r[8] or 0),
+            "total_asking": float(r[9]) if r[9] is not None else None,
+            "total_current_bid": float(r[10]) if r[10] is not None else None,
+            "last_seen": r[11].isoformat() if r[11] else None,
         }
         for r in rows
     ]

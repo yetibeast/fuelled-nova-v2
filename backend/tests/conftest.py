@@ -602,7 +602,7 @@ class MockSession:
 
         # Supply-targets aggregate (must precede the generic GROUP BY source matcher).
         # No seeded listings have seller_source_id, so the response is an empty list.
-        if "seller_source_id" in sql and "GROUP BY source, seller_source_id" in sql:
+        if "seller_key" in sql and "consignment_count" in sql:
             return MockResult([])
 
         # Supply-targets drilldown — SELECT listing rows for one (source, seller_source_id)
