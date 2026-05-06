@@ -84,7 +84,7 @@ async def supply_targets(
              LIMIT 1) AS other_assets_url,
             COUNT(*) AS listing_count,
             COUNT(asking_price) FILTER (WHERE asking_price > 0) AS priced_count,
-            ROUND(SUM(asking_price)::numeric, 0) FILTER (WHERE asking_price > 0) AS total_asking,
+            ROUND(SUM(asking_price) FILTER (WHERE asking_price > 0)::numeric, 0) AS total_asking,
             MAX(last_seen) AS last_seen
         FROM seller_rows s
         GROUP BY source, seller_source_id
