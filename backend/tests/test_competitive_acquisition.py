@@ -3,10 +3,13 @@
 
 class TestCompetitiveSummary:
     def test_stale_count_excludes_fuelled_rows(self, client, user_headers):
+        # Threshold is 60 days (loosened 2026-05-06 — see _CATEGORY_THRESHOLDS).
+        # 5 non-fuelled seeded listings have first_seen <= 60 days old with
+        # a recent last_seen and a price.
         resp = client.get("/api/competitive/summary", headers=user_headers)
         assert resp.status_code == 200
         data = resp.json()
-        assert data["stale_count"] == 2
+        assert data["stale_count"] == 5
 
 
 class TestCompetitiveStaleTargets:

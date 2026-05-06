@@ -27,7 +27,9 @@ async def _load_competitor_priced_rows(session):
     result = await session.execute(text(
         """SELECT id, title, source, asking_price, category_normalized, category,
                   make, model, year, condition, hours, horsepower,
-                  location, url, first_seen, last_seen
+                  location, url, first_seen, last_seen,
+                  seller_name, seller_account_type,
+                  event_contact_name, event_contact_email, event_contact_phone
            FROM listings
            WHERE LOWER(source) != 'fuelled'
            AND asking_price > 0
@@ -59,10 +61,13 @@ async def competitive_summary(authorization: str = Header(None)):
         ))
         new_this_week = r2.scalar() or 0
 
-        # Stale inventory: listed > 1 year, still active, with price
+        # Stale inventory headline count — approximates the per-category logic in
+        # build_stale_candidate. 60 days is the most-permissive category threshold
+        # (compressors/engines/generators); per-category filtering happens in
+        # /competitive/stale-targets which scores and ranks the actual candidates.
         r3 = await session.execute(text(
             """SELECT COUNT(*) FROM listings
-               WHERE first_seen < NOW() - INTERVAL '365 days'
+               WHERE first_seen < NOW() - INTERVAL '60 days'
                AND last_seen > NOW() - INTERVAL '30 days'
                AND LOWER(source) != 'fuelled'
                AND asking_price > 0"""
@@ -119,7 +124,7 @@ async def competitive_stale(authorization: str = Header(None)):
                       location, url, first_seen,
                       EXTRACT(DAY FROM NOW() - first_seen)::int as days_listed
                FROM listings
-               WHERE first_seen < NOW() - INTERVAL '365 days'
+               WHERE first_seen < NOW() - INTERVAL '60 days'
                AND last_seen > NOW() - INTERVAL '30 days'
                AND LOWER(source) != 'fuelled'
                AND asking_price > 0

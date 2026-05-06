@@ -15,6 +15,11 @@ export interface StaleTarget {
   url?: string;
   promotable: boolean;
   reason?: string;
+  seller_name?: string | null;
+  seller_account_type?: string | null;
+  event_contact_name?: string | null;
+  event_contact_email?: string | null;
+  event_contact_phone?: string | null;
 }
 
 interface StaleTargetsTableProps {
@@ -50,11 +55,10 @@ export function StaleTargetsTable({
           <thead className="text-on-surface/30 border-b border-white/[0.05]">
             <tr>
               <th className="px-6 py-3">EQUIPMENT</th>
-              <th className="px-6 py-3">CATEGORY</th>
+              <th className="px-6 py-3">SELLER</th>
+              <th className="px-6 py-3">CONTACT</th>
               <th className="px-6 py-3 text-right">ASKING</th>
               <th className="px-6 py-3 text-right">DAYS</th>
-              <th className="px-6 py-3 text-right">THRESHOLD</th>
-              <th className="px-6 py-3 text-right">PEER MEDIAN</th>
               <th className="px-6 py-3 text-right">SCORE</th>
               <th className="px-6 py-3">SOURCE</th>
               <th className="px-6 py-3 text-right">ACTION</th>
@@ -63,19 +67,19 @@ export function StaleTargetsTable({
           <tbody className="divide-y divide-white/[0.04]">
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-6 py-6 text-center text-on-surface/30">
+                <td colSpan={8} className="px-6 py-6 text-center text-on-surface/30">
                   Loading stale targets...
                 </td>
               </tr>
             ) : error ? (
               <tr>
-                <td colSpan={9} className="px-6 py-6 text-center text-on-surface/30">
+                <td colSpan={8} className="px-6 py-6 text-center text-on-surface/30">
                   Stale target feed not available
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-6 py-6 text-center text-on-surface/30">
+                <td colSpan={8} className="px-6 py-6 text-center text-on-surface/30">
                   No stale acquisition candidates found
                 </td>
               </tr>
@@ -91,15 +95,40 @@ export function StaleTargetsTable({
                   >
                     <td className="px-6 py-3 text-on-surface">
                       <div>{(item.title || "---").slice(0, 52)}</div>
-                      {item.reason && (
-                        <div className="text-[10px] text-on-surface/30 mt-1">{item.reason}</div>
+                      <div className="text-[10px] text-on-surface/30 mt-1">
+                        {catName(item.category || null)}
+                        {item.reason ? ` · ${item.reason}` : ""}
+                      </div>
+                    </td>
+                    <td className="px-6 py-3 text-on-surface/70">
+                      <div>{item.seller_name || <span className="text-on-surface/30">—</span>}</div>
+                      {item.seller_account_type && (
+                        <div className="text-[10px] text-on-surface/30 mt-1 uppercase tracking-widest">
+                          {item.seller_account_type}
+                        </div>
                       )}
                     </td>
-                    <td className="px-6 py-3 text-on-surface/50">{catName(item.category || null)}</td>
+                    <td className="px-6 py-3 text-on-surface/70">
+                      {item.event_contact_email ? (
+                        <>
+                          <div>{item.event_contact_name || "—"}</div>
+                          <a
+                            href={`mailto:${item.event_contact_email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[10px] text-primary/70 hover:text-primary mt-1 block truncate max-w-[180px]"
+                          >
+                            {item.event_contact_email}
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-on-surface/30">—</span>
+                      )}
+                    </td>
                     <td className="px-6 py-3 text-right text-secondary font-bold">{formatPrice(item.asking_price)}</td>
-                    <td className="px-6 py-3 text-right text-on-surface">{item.days_listed}</td>
-                    <td className="px-6 py-3 text-right text-on-surface/40">{item.stale_threshold_days}</td>
-                    <td className="px-6 py-3 text-right text-on-surface/50">{formatPrice(item.peer_median)}</td>
+                    <td className="px-6 py-3 text-right text-on-surface">
+                      <div>{item.days_listed}</div>
+                      <div className="text-[10px] text-on-surface/30 mt-1">/ {item.stale_threshold_days}</div>
+                    </td>
                     <td className="px-6 py-3 text-right">
                       <span className="text-primary font-bold">{item.acquisition_score}</span>
                     </td>
