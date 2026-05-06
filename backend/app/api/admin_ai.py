@@ -218,6 +218,53 @@ async def ai_cost_history(authorization: str = Header(None)):
     }
 
 
+@router.get("/ai/fallback")
+async def ai_fallback(authorization: str = Header(None)):
+    """Engine-fallback telemetry: how often rcn_engine raises and we use _simple_fmv.
+    Sized to match Shawn's PR-3 follow-up — gives visibility we previously lacked."""
+    _require_admin(authorization)
+    path = os.path.join(_LOG_DIR, "engine_fallback.jsonl")
+    entries: list[dict] = []
+    if os.path.exists(path):
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    entries.append(json.loads(line))
+                except json.JSONDecodeError:
+                    continue
+
+    now = datetime.now(timezone.utc)
+    week_ago = now - timedelta(days=7)
+    week_count = 0
+    by_category: Counter = Counter()
+    by_error: Counter = Counter()
+    for e in entries:
+        by_category[e.get("category", "unknown")] += 1
+        by_error[e.get("error_type", "Unknown")] += 1
+        try:
+            dt = datetime.fromisoformat(e.get("timestamp", "").rstrip("Z")).replace(tzinfo=timezone.utc)
+            if dt >= week_ago:
+                week_count += 1
+        except (ValueError, TypeError):
+            pass
+
+    pricing_total = len(_read_pricing_log()) or 1
+    recent = entries[-10:]
+    recent.reverse()
+
+    return {
+        "total_fallbacks": len(entries),
+        "fallbacks_this_week": week_count,
+        "fallback_rate_pct": round(len(entries) / pricing_total * 100, 2),
+        "by_category": dict(by_category.most_common()),
+        "by_error_type": dict(by_error.most_common()),
+        "recent": recent,
+    }
+
+
 @router.get("/ai/model-breakdown")
 async def ai_model_breakdown(authorization: str = Header(None)):
     """Queries and cost grouped by model, using real token costs."""
