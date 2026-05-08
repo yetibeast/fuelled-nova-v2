@@ -214,14 +214,14 @@ RESEARCH: dict[str, dict] = {
 
     # ---- Mystery / LS-managed codes ----
     "Seller 23609 - ANCO": {
-        "owner_class": "LS-managed code",
-        "industry": "Oilfield (likely)",
-        "location": "Unknown — assets staged in TX/OK based on AllSurplus oilfield concentration",
-        "parent": "Liquidity Services CAG (underlying client obscured)",
-        "disposition": "Same URL/numbering pattern as confirmed LS internal codes (ASFL, MGL, BPI, FUG, KSES, SBLLC, VOYMSLC, DERFDALL, TKEPTSSLC). 23 heterogeneous oilfield listings under a 5-letter acronym = LS asset-management signature, not single-operator surplus.",
-        "direct_contact": "Liquidity Services Energy team: liquidityservices.com/energy-surplus-asset-sales — same intake path as El Dorado Gas & Oil + Tiger Group bankruptcy auction precedent",
-        "confidence": "likely",
-        "notes": "NOT 'ANCO Engineers' (Boulder test/shake-table maker — coincidental name). Underlying client identity unverified. Bypass attempt: scrape per-lot location from AllSurplus to triangulate.",
+        "owner_class": "asset owner (CONFIRMED via lot-data triangulation)",
+        "industry": "Heavy-civil road construction (asphalt paving, aggregate, dump fleet)",
+        "location": "Lake City FL HQ; FL plants at Old Town, Quincy, Marianna, Sumterville; TX yards at Robstown, Weslaco, Corpus Christi (post-2022 Haas-Anderson acquisition), New Braunfels (Tejas Quarry, 2016); GA aggregate ops",
+        "parent": "Anderson Columbia Co., Inc. (ACCI) — privately held",
+        "disposition": "FLEET ROTATION, not bankruptcy. ACCI is an active operator running a multi-yard equipment-cycling program. The 'ANCO' 5-letter code maps directly to ANderson COlumbia. Asset mix (asphalt paver, asphalt distributor, asphalt-plant drag elevator, McLanahan screen, water trucks, dump trucks, rollers, broom) is a textbook ACCI heavy-civil fleet. ACCI is a documented McLanahan customer; one of the listings is a McLanahan 616TD screen.",
+        "direct_contact": "andersoncolumbia.com — Lake City FL HQ. Active operator; corporate procurement / equipment manager is the right route. Recurring dispo channel = relationship play, not one-time auction.",
+        "confidence": "confirmed",
+        "notes": "BIGGEST WIN of the unmasking pass. 23 listings, was the largest unidentified seller on AllSurplus. ACCI is a recurring fleet rotation, so ongoing buy-side relationship is feasible — not just chasing one auction.",
     },
     "Seller 26812 - ELGLRTNIC": {
         "owner_class": "LS-managed code",
@@ -345,7 +345,164 @@ RESEARCH: dict[str, dict] = {
         "confidence": "confirmed",
         "notes": "Pursue as channel — water trucks / dump trucks / construction gear regularly cross municipal fleet auctions.",
     },
+
+    # ---- Smaller named sellers worth pursuing (from triage of the 38 deferred) ----
+    "Columbus Fleet Management, OH": {
+        "owner_class": "direct agency (HIGH Fuelled relevance)",
+        "industry": "Municipal heavy fleet — excavators, scissor lifts, truck tractors, JLG/Genie aerial, Cat/International (confirmed via IronPlanet/GovPlanet listings)",
+        "location": "City of Columbus, OH",
+        "parent": "City of Columbus Fleet Management Division",
+        "disposition": "Ongoing municipal fleet rotation. Auctions consigned through Ritchie/IronPlanet + GovDeals.",
+        "direct_contact": "City of Columbus Fleet Management; ironplanet.com/city-of-columbus seller-info form. Ask AllSurplus rep for direct Fleet Management contact.",
+        "confidence": "confirmed",
+        "notes": "Standout in the smaller-seller triage. Wider catalog on IronPlanet shows excavators + aerial lifts — Fuelled wheelhouse. Worth direct outbound.",
+    },
+    "King County, WA": {
+        "owner_class": "direct agency (HIGH Fuelled relevance)",
+        "industry": "County heavy fleet — possibly construction/utility equipment alongside passenger fleet",
+        "location": "Seattle, WA — warehouse at 707 S. Orcas St.",
+        "parent": "King County Fleet Services (Department of Executive Services)",
+        "disposition": "Launched new online surplus auction Oct 2025 — early relationship window.",
+        "direct_contact": "Fleet Services warehouse 206-477-0889 | kingcounty.gov/en/dept/executive-services/transit-transportation-roads/fleet-services/surplus",
+        "confidence": "confirmed",
+        "notes": "New online auction launched Oct 2025 — early outbound timing.",
+    },
+    "Lake County, IL": {
+        "owner_class": "direct agency (HIGH Fuelled relevance)",
+        "industry": "Public-works fleet, landscape, municipal heavy equipment",
+        "location": "Lake County, IL (north of Chicago)",
+        "parent": "Lake County Purchasing Division",
+        "disposition": "Live spring/fall auctions via Obenauf + GovDeals year-round.",
+        "direct_contact": "Lake County Purchasing Division | lakecountyil.gov/5035/Surplus-Policy",
+        "confidence": "confirmed",
+        "notes": "",
+    },
+    "Clean Water Services, OR": {
+        "owner_class": "direct agency (MEDIUM Fuelled relevance)",
+        "industry": "Wastewater utility — pumps, blowers, motors, valves, service vehicles, possibly process equipment",
+        "location": "Washington County, OR",
+        "parent": "Clean Water Services (regional wastewater utility)",
+        "disposition": "Routine wastewater-treatment-plant equipment rotation.",
+        "direct_contact": "cleanwaterservices.org Procurement | bids/surplus on m.publicsurplus.com seller 'Clean Water Services'",
+        "confidence": "confirmed",
+        "notes": "Real wastewater utility, not parks dept. WWTPs dispose of pumps/blowers/motors over time. Worth a procurement-team intro.",
+    },
+    "North Baldwin Utilities, AL": {
+        "owner_class": "direct agency (MEDIUM Fuelled relevance)",
+        "industry": "Small municipal water/electric utility — possible transformers, line trucks, meters",
+        "location": "Bay Minette area, AL",
+        "parent": "North Baldwin Utilities",
+        "disposition": "Unknown — only 1 listing.",
+        "direct_contact": "northbaldwinutilities.com — General Manager / Operations",
+        "confidence": "likely",
+        "notes": "Only true utility on the smaller-seller list. Low volume but profile fits.",
+    },
 }
+
+
+# Named contacts at the top warm-lead organizations — feeds a separate sheet.
+# Each row is one person at one company. Confidence: verified / likely / pattern-derived.
+NAMED_CONTACTS = [
+    # CVRF / Grapevine Energy Holdings
+    {"company": "Central Valley Renewables (CVRF)", "name": "Mariah Mandt, PE", "title": "VP / GM, Bakersfield Renewable Fuels",
+     "linkedin": "https://www.linkedin.com/in/mariah-mandt-pe-22a33895/", "location": "Bakersfield CA",
+     "email": "mariah.mandt@bkrenewablefuels.com", "confidence": "likely",
+     "notes": "Site GM — owns physical asset decisions at the only operating Grapevine facility. Smallest org has no IR-specific role."},
+    {"company": "Central Valley Renewables (CVRF)", "name": "Saket Adhatrao", "title": "DCS Controls Specialist / Operations",
+     "linkedin": "https://www.linkedin.com/in/saket-adhatrao/", "location": "Bakersfield CA",
+     "email": "saket.adhatrao@bkrenewablefuels.com", "confidence": "likely",
+     "notes": "Active operations contact — useful warm node below GM level."},
+
+    # Assmang / Cato Ridge
+    {"company": "Assmang Cato Ridge Works", "name": "Devan Kannie", "title": "Manager, Production CRA & Laboratory (Alt Director, Cato Ridge Alloys Pty Ltd)",
+     "linkedin": "https://www.linkedin.com/in/devan-kannie-23452aa1/", "location": "Cato Ridge / Durban, KZN, SA",
+     "email": "devan.kannie@feralloys.co.za", "confidence": "verified",
+     "notes": "Sits inside the actual Cato Ridge Alloys JV being decommissioned. Domain feralloys.co.za is the working ops domain."},
+    {"company": "Assmang Cato Ridge Works", "name": "Bastiaan ('Tiaan') van Aswegen", "title": "Deputy CEO, Assore (Group Technical & Ops)",
+     "linkedin": "no public match", "location": "Johannesburg, SA",
+     "email": "tiaan.vanaswegen@assore.com", "confidence": "pattern-derived",
+     "notes": "Group ops head — owns the PropCo land/property transfer that includes equipment disposal."},
+    {"company": "Assmang Cato Ridge Works", "name": "Henk Gouws", "title": "Managing Director, Assore South Africa",
+     "linkedin": "no public match", "location": "Johannesburg, SA",
+     "email": "henk.gouws@assore.com", "confidence": "pattern-derived",
+     "notes": "Runs the SA operating subsidiary that owns PropCo."},
+
+    # ArcelorMittal SA
+    {"company": "ArcelorMittal South Africa  (AMSA)", "name": "Travesh Ramkhelawan", "title": "Head of Strategic Projects and Properties",
+     "linkedin": "https://www.linkedin.com/in/travesh-ramkhelawan-28195a57/", "location": "Vanderbijlpark, Gauteng",
+     "email": "travesh.ramkhelawan@arcelormittal.com", "confidence": "verified",
+     "notes": "Strongest IR-equivalent match. 'Strategic Projects and Properties' owns idle-site asset disposition at integrated steel mills."},
+    {"company": "ArcelorMittal South Africa  (AMSA)", "name": "Werner Venter", "title": "General Manager, AMSA",
+     "linkedin": "https://za.linkedin.com/in/werner-venter-00a56b76", "location": "Vanderbijlpark, Gauteng",
+     "email": "werner.venter@arcelormittal.com", "confidence": "likely",
+     "notes": "GM-level operations contact — practical decision authority on plant-level surplus during Long Steel wind-down."},
+
+    # Glencore SA
+    {"company": "Glencore Operations South Africa (Pty) Ltd", "name": "Japie Fullard", "title": "CEO, Glencore Alloys (Ferrochrome + Vanadium SA)",
+     "linkedin": "no clean LinkedIn (see theofficialboard.com)", "location": "Rustenburg / Johannesburg, SA",
+     "email": "japie.fullard@glencore.co.za", "confidence": "verified",
+     "notes": "Public face of the smelter S189 process. Ultimate disposition decisions on suspended ferrochrome assets sit with him."},
+    {"company": "Glencore Operations South Africa (Pty) Ltd", "name": "Christof Bester", "title": "GM, Rustenburg Smelter",
+     "linkedin": "https://www.linkedin.com/in/christof-bester-246705106/", "location": "Rustenburg, North West, SA",
+     "email": "christof.bester@glencore.co.za", "confidence": "likely",
+     "notes": "Site-level GM at the largest impacted smelter."},
+
+    # Valaris
+    {"company": "Valaris - US (SM)", "name": "Jorge Lebrija", "title": "VP, Global Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/jorgelebrija/", "location": "Houston TX",
+     "email": "jorge.lebrija@valaris.com", "confidence": "verified",
+     "notes": "13-year tenure (joined Ensco 2013). Owns global procurement + asset/spares lifecycle for the rig fleet rationalization."},
+    {"company": "Valaris - US (SM)", "name": "Chandler Breaux", "title": "Supply Chain / Materials, Valaris",
+     "linkedin": "https://www.linkedin.com/in/chandler-breaux-07a4b246/", "location": "Houston TX area",
+     "email": "chandler.breaux@valaris.com", "confidence": "likely",
+     "notes": "Working-level entry point into the same supply-chain org."},
+
+    # ConocoPhillips Permian
+    {"company": "ConocoPhillips – Permian", "name": "Bryan Morris", "title": "Sr. Supply Chain Coordinator",
+     "linkedin": "https://www.linkedin.com/in/bryan-morris-6a213021/", "location": "Midland TX",
+     "email": "bryan.morris@conocophillips.com", "confidence": "likely",
+     "notes": "Permian BU operational warm node — closest match to plant-side IR contact."},
+    {"company": "ConocoPhillips – Permian", "name": "Justin Nolen", "title": "Supply Chain Specialist",
+     "linkedin": "https://www.linkedin.com/in/justin-nolen-05660189/", "location": "Midland TX",
+     "email": "justin.nolen@conocophillips.com", "confidence": "likely",
+     "notes": "Second route into the Midland materials function."},
+
+    # Pemex Deer Park
+    {"company": "Pemex Deer Park", "name": "Joe Riley", "title": "Refinery Supply Chain Manager (also Maintenance Lead, DARP)",
+     "linkedin": "https://www.linkedin.com/in/joe-riley-965b3842", "location": "Deer Park TX",
+     "email": "joe.riley@deerparkrefining.com", "confidence": "verified",
+     "notes": "Owns end-to-end procurement, contracts, warehousing & distribution at Deer Park. Direct surplus-equipment decision maker."},
+    {"company": "Pemex Deer Park", "name": "Darren Anderson, C.P.M.", "title": "Procurement Manager — Data, Systems & Processes",
+     "linkedin": "https://www.linkedin.com/in/darren-anderson-c-p-m-63972242/", "location": "Katy TX",
+     "email": "darren.anderson@deerparkrefining.com", "confidence": "likely",
+     "notes": "30 yrs O&G procurement, certified purchasing manager."},
+
+    # ADM
+    {"company": "Archer Daniels Midland Company", "name": "André Alves", "title": "Source-to-Pay Director (Global Process Owner: Inventory & Investment Recovery)",
+     "linkedin": "https://www.linkedin.com/in/andr%C3%A9-alves-74935b25/", "location": "Decatur IL",
+     "email": "andre.alves@adm.com", "confidence": "verified",
+     "notes": "STRONGEST single target of all 10 warm leads. Explicit Investment Recovery mandate at corporate level. Owns Bushnell + Kershaw + Memphis closures."},
+    {"company": "Archer Daniels Midland Company", "name": "Lynn Lee", "title": "ADM employee at Kershaw SC site",
+     "linkedin": "https://www.linkedin.com/in/lynn-lee-38a2a49/", "location": "Kershaw SC",
+     "email": "lynn.lee@adm.com", "confidence": "pattern-derived",
+     "notes": "Local Kershaw site contact — only public LinkedIn hit at that closing facility."},
+
+    # Entergy
+    {"company": "Entergy Services, Inc.", "name": "Justin McCabe", "title": "Manager, Investment Recovery",
+     "linkedin": "https://theorg.com/org/entergy/org-chart/justin-mccabe", "location": "New Orleans / Jackson MS",
+     "email": "justin.mccabe@entergy.com", "confidence": "verified",
+     "notes": "DIRECT HIT — explicit Investment Recovery Program Manager. Tenure since May 2015. Owns Baxter Wilson decom assets."},
+    {"company": "Entergy Services, Inc.", "name": "Jason Rees", "title": "Director, Supply Chain Commercial Operations",
+     "linkedin": "no clean LinkedIn", "location": "New Orleans LA",
+     "email": "jason.rees@entergy.com", "confidence": "pattern-derived",
+     "notes": "McCabe's reporting line — escalation contact."},
+
+    # CenterPoint
+    {"company": "CenterPoint Energy", "name": "Michael Brown, MCA", "title": "Manager, Asset Recovery & Supply Chain Sustainability",
+     "linkedin": "https://www.linkedin.com/in/michael-brown-mca-2576578/", "location": "Katy / Houston TX",
+     "email": "michael.brown@centerpointenergy.com", "confidence": "verified",
+     "notes": "DIRECT HIT — exact title matches the function. MCA = Member Certified Appraiser (IR Association credential). Owns surplus.centerpointenergy.com."},
+]
 
 
 # Liquidity Services event managers (separate sheet — they're people, not sellers)
@@ -403,13 +560,22 @@ LS_MANAGERS = [
 
 # Top-line insight blocks for a 'Summary' sheet at the front
 SUMMARY_BLOCKS = [
-    ("LS-MANAGED MYSTERY CODES (5 of 7 mystery sellers)",
-     "ANCO, ELGLRTNIC, ASFL, RELLC, AWCTL are Liquidity Services internal program codes — not real companies. ASFL is "
-     "explicitly confirmed via the public AllSurplus T&C page ('Liquidity Services – ASFL'); the other four match the same "
-     "URL pattern + numbering range as 9 confirmed LS codes (MGL, BPI, FUG, KSES, SBLLC, VOYMSLC, DERFDALL, TKEPTSSLC). "
-     "These mask the actual end-clients. Two playbooks: (1) channel play — treat LS CAG as one BD relationship covering "
-     "all 5 + future LS-managed dispositions; (2) direct-owner play — scrape per-lot location from AllSurplus listings "
-     "(LS publishes asset city/state per lot), which often reveals the underlying operator."),
+    ("ANCO UNMASKED — Anderson Columbia Co., Inc. (CONFIRMED)",
+     "The biggest seller on AllSurplus by volume (23 listings) was previously masked as 'Seller 23609 - ANCO.' "
+     "Per-lot location triangulation confirms it as Anderson Columbia Co., Inc. (ACCI) — a privately-held heavy-civil road "
+     "construction contractor HQ in Lake City FL with plants at Old Town/Quincy/Marianna FL, TX yards at Robstown/Weslaco/"
+     "Corpus Christi (post-2022 Haas-Anderson acquisition) + New Braunfels (Tejas Quarry, 2016), and GA aggregate ops. "
+     "Every FL location maps to a known ACCI plant; the asset mix (asphalt paver, asphalt distributor, McLanahan screen, "
+     "asphalt-plant drag elevator, water trucks, dump trucks, rollers, broom) is textbook ACCI heavy-civil. ACCI is a "
+     "documented McLanahan customer. Critically: this is a FLEET ROTATION, not a bankruptcy — meaning ACCI is a "
+     "*recurring* dispo channel, suitable for an ongoing buy-side relationship rather than a one-time auction chase. "
+     "The other four LS codes (ASFL, ELGLRTNIC, RELLC, AWCTL) have insufficient public fingerprint to identify."),
+    ("LS-MANAGED CODES (4 still unidentified, 1 unmasked)",
+     "ASFL, ELGLRTNIC, RELLC, AWCTL remain Liquidity Services internal program codes that mask the underlying client. "
+     "ASFL is explicitly confirmed via the public AllSurplus T&C page ('Liquidity Services – ASFL'); the others match the "
+     "same URL pattern. Each has too thin a fingerprint (1–4 listings) to triangulate without paid registry data. "
+     "Playbook: treat LS CAG as a single channel relationship covering these + future LS-managed dispositions, OR wait "
+     "for additional listings to accrue more lot-data fingerprint."),
     ("HIGHEST-PRIORITY DIRECT-OWNER WARM LEADS",
      "Real ongoing disposition events with identifiable corporate procurement: ArcelorMittal SA (Long Steel wind-down, "
      "Jan 2025), Assmang/ARM/Assore (Cato Ridge full closure Aug 2025 + Beeshoek care & maintenance Nov 2025), "
@@ -431,6 +597,21 @@ SUMMARY_BLOCKS = [
     ("INVESTIGATE",
      "Solaire Kapuskasing Solar — 4 listings from a 6 MW operating solar park is unusual. Could be inverter swap (year ~12, "
      "common), repowering, or partial decom. Phone the Town of Kapuskasing — 705-335-2341 / general@kapuskasing.ca."),
+    ("NAMED CONTACTS NOW ON FILE (see 'Named Contacts (Direct)' tab)",
+     "Public-web research surfaced 18 named humans across the 10 top warm leads — direct procurement / Investment "
+     "Recovery / asset-disposition contacts that bypass Liquidity Services. STRONGEST hits (verified, exact-title match): "
+     "Justin McCabe (Manager, Investment Recovery, Entergy), Michael Brown MCA (Manager, Asset Recovery & Supply Chain "
+     "Sustainability, CenterPoint), André Alves (Source-to-Pay Director with explicit Investment Recovery mandate, ADM), "
+     "Joe Riley (Refinery Supply Chain Manager, Pemex Deer Park), Jorge Lebrija (VP Global Supply Chain, Valaris), "
+     "Devan Kannie (Production Manager at the Cato Ridge Alloys JV being decommissioned), Travesh Ramkhelawan (Head of "
+     "Strategic Projects and Properties at AMSA — owns idle-site disposition). Emails are pattern-derived from public "
+     "domain conventions; treat as untested but high-likelihood. These are the prioritized first calls."),
+    ("SMALLER SELLERS WORTH PURSUING (after triage of 38 deferred)",
+     "33 of 38 deferred sellers are SKIP (police/IT/schools/light fleet). 5 worth pursuing: Columbus Fleet Management OH "
+     "(HIGH — excavators + aerial lifts on IronPlanet, Fuelled wheelhouse), King County WA (HIGH — county heavy fleet, "
+     "new online auction launched Oct 2025), Lake County IL (HIGH — public-works fleet + landscape), Clean Water Services "
+     "OR (MEDIUM — wastewater utility, pumps/blowers/motors), North Baldwin Utilities AL (MEDIUM — small water/electric "
+     "utility, only true utility on the list)."),
 ]
 
 
@@ -501,6 +682,21 @@ def write_ls_managers_sheet(wb) -> None:
     autosize(ws, max_width=80)
 
 
+def write_named_contacts_sheet(wb) -> None:
+    ws = wb.create_sheet(title="Named Contacts (Direct)")
+    headers = [
+        "Company", "Name", "Title", "LinkedIn", "Location",
+        "Email (likely)", "Confidence", "Outreach Notes",
+    ]
+    write_header(ws, headers)
+    for c in NAMED_CONTACTS:
+        ws.append([
+            c["company"], c["name"], c["title"], c["linkedin"], c["location"],
+            c["email"], c["confidence"], c["notes"],
+        ])
+    autosize(ws, max_width=80)
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="inp", required=True, help="Input workbook path")
@@ -520,12 +716,14 @@ def main(argv: list[str]) -> int:
     matched, total = enrich_sellers_sheet(sellers_ws)
     write_summary_sheet(wb)
     write_ls_managers_sheet(wb)
+    write_named_contacts_sheet(wb)
 
     wb.save(out_path)
     print(f"\nWrote {out_path}")
     print(f"  Enriched: {matched} / {total} sellers")
     print(f"  Summary sheet: {len(SUMMARY_BLOCKS)} insight blocks")
     print(f"  LS Managers sheet: {len(LS_MANAGERS)} people")
+    print(f"  Named Contacts sheet: {len(NAMED_CONTACTS)} people")
     return 0
 
 
