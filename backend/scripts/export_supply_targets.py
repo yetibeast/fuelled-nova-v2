@@ -1,20 +1,24 @@
-"""Export the AllSurplus supply-targets list as a two-sheet Excel file.
+"""Export the supply-targets list as a multi-sheet Excel workbook.
 
-Sheet 1 (Sellers): one row per seller with listing count + total current bid.
+Sheet 1 (Sellers): one row per seller — listing count, totals, contact info.
 Sheet 2 (Listings): every individual listing with full seller attribution + URL.
+Sheet 3+ (per-source): one Listings sheet per requested source so Mark can
+filter by marketplace without learning Excel filters.
 
 Run from repo root:
-    python3 backend/scripts/export_supply_targets.py [--source allsurplus] [--out PATH]
+    python3 backend/scripts/export_supply_targets.py \\
+        --source allsurplus --source kijiji \\
+        [--api https://api.fuellednova.com] [--out PATH]
 
 Hits prod via the admin endpoint, so it picks up whatever the live DB has.
 """
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import sys
 import time
+from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
 
@@ -36,7 +40,7 @@ def fetch(api_base: str, token: str, path: str, **params) -> list[dict]:
     r = requests.get(
         f"{api_base.rstrip('/')}{path}",
         headers={"Authorization": f"Bearer {token}"},
-        params=params, timeout=60,
+        params=params, timeout=120,
     )
     r.raise_for_status()
     return r.json()
@@ -61,16 +65,97 @@ def write_header(ws, headers: list[str]) -> None:
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
         cell.alignment = Alignment(horizontal="left", vertical="center")
+    ws.freeze_panes = "A2"
+
+
+SELLERS_HEADERS = [
+    "Rank", "Source", "Seller", "Account Type", "Anonymous?",
+    "Listings", "Consignments", "Events", "Priced",
+    "Total Asking (USD)", "Total Current Bid (USD)",
+    "Contact Name", "Contact Email", "Contact Phone",
+    "Other Assets URL", "Last Seen", "Seller Key (internal)",
+]
+
+LISTINGS_HEADERS = [
+    "Source", "Seller", "Account Type",
+    "Title", "Category", "Make", "Model", "Year", "Condition",
+    "Asking Price", "Current Bid", "Currency", "Location",
+    "Event Title", "Contact Name", "Contact Email", "Contact Phone",
+    "URL", "Last Seen", "Listing ID",
+]
+
+
+def write_sellers_sheet(wb: Workbook, sellers: list[dict]) -> None:
+    ws = wb.active
+    ws.title = "Sellers"
+    write_header(ws, SELLERS_HEADERS)
+
+    ranked = sorted(sellers, key=lambda x: (-x["listing_count"], -(x.get("total_asking") or 0)))
+    for idx, s in enumerate(ranked, start=1):
+        ws.append([
+            idx,
+            s.get("source", "-"),
+            s.get("seller_name") or f"(anonymous: {s['seller_key']})",
+            s.get("account_type") or "-",
+            "yes" if s.get("is_anonymous") else "no",
+            s["listing_count"],
+            s.get("consignment_count", 1),
+            s.get("event_count", 0),
+            s.get("priced_count", 0),
+            s.get("total_asking"),
+            s.get("total_current_bid"),
+            s.get("contact_name") or "",
+            s.get("contact_email") or "",
+            s.get("contact_phone") or "",
+            s.get("other_assets_url") or "",
+            (s.get("last_seen") or "").split("T")[0],
+            s["seller_key"],
+        ])
+    autosize(ws)
+
+
+def write_listings_sheet(wb: Workbook, name: str, listings: list[dict]) -> None:
+    ws = wb.create_sheet(title=name)
+    write_header(ws, LISTINGS_HEADERS)
+    for L in listings:
+        ws.append([
+            L.get("source", "-"),
+            L.get("seller_name") or f"(anonymous: {L.get('seller_key')})",
+            L.get("seller_account_type") or "-",
+            L.get("title") or "",
+            L.get("category") or "",
+            L.get("make") or "",
+            L.get("model") or "",
+            L.get("year") or "",
+            L.get("condition") or "",
+            L.get("asking_price"),
+            L.get("current_bid"),
+            L.get("currency") or "",
+            L.get("location") or "",
+            L.get("event_title") or "",
+            L.get("contact_name") or "",
+            L.get("contact_email") or "",
+            L.get("contact_phone") or "",
+            L.get("url") or "",
+            (L.get("last_seen") or "").split("T")[0],
+            L.get("id") or "",
+        ])
+    autosize(ws)
 
 
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--source", default="allsurplus")
+    ap.add_argument("--source", action="append", default=[],
+                    help="Marketplace to include (repeat for multiple). Default: allsurplus + kijiji.")
     ap.add_argument("--api", default="https://api.fuellednova.com")
     ap.add_argument("--secret", default=os.environ.get("JWT_SECRET", ""),
                     help="JWT signing secret (or set JWT_SECRET env var)")
+    ap.add_argument("--min-listings", type=int, default=1,
+                    help="Drop sellers with fewer than this many listings")
     ap.add_argument("--out", default=None)
     args = ap.parse_args(argv)
+
+    sources = args.source or ["allsurplus", "kijiji"]
 
     if not args.secret:
         print("ERROR: provide --secret or set JWT_SECRET", file=sys.stderr)
@@ -78,71 +163,46 @@ def main(argv: list[str]) -> int:
 
     token = mint_admin_token(args.secret)
 
-    print(f"Fetching seller aggregate from {args.api} ...")
-    sellers = fetch(args.api, token, "/api/admin/supply-targets",
-                    source=args.source, min_listings=1, limit=5000)
-    print(f"  {len(sellers)} sellers")
+    all_sellers: list[dict] = []
+    listings_by_source: dict[str, list[dict]] = {}
 
-    # Pull listings per seller
-    print("Fetching per-seller listings ...")
-    all_listings: list[dict] = []
-    for s in sellers:
-        # The drilldown is keyed by seller_source_id, not seller_key. For named sellers
-        # we have multiple consignments, so iterate through all source_ids that map.
-        # Simpler: pull every AllSurplus listing with seller_source_id and join in-memory.
-        pass
+    for source in sources:
+        print(f"\n=== {source} ===")
+        print("Fetching seller aggregate ...")
+        sellers = fetch(args.api, token, "/api/admin/supply-targets",
+                        source=source, min_listings=args.min_listings, limit=5000)
+        print(f"  {len(sellers)} sellers")
+        all_sellers.extend(sellers)
 
-    # Single bulk pull is cheaper than N drilldowns — hit the bulk listings endpoint
-    # if we ever add one. For now, iterate.
-    seller_keys_seen: set[str] = set()
-    for s in sellers:
-        if s["seller_key"] in seller_keys_seen:
-            continue
-        seller_keys_seen.add(s["seller_key"])
-
-    # Drilldown: walk every seller_source_id we know about. Get them via a separate pass.
-    # The aggregate doesn't expose individual source_ids when grouped by name, so we
-    # need a second endpoint hit per seller_source_id. Workaround: we know listing_count
-    # per seller, and we can call /listings drilldown with the source_id. But which
-    # source_ids? Add a fallback: call drilldown for every seller using a wildcard isn't
-    # possible. Instead, fetch all listings via admin/listings endpoint if it exists,
-    # or accept that the spreadsheet shows only the seller summary.
-    # For now: dump just the summary sheet — that's the headline deliverable for Mark.
+        print("Fetching per-listing rows ...")
+        listings = fetch(args.api, token, "/api/admin/supply-targets/listings",
+                         source=source, limit=50000)
+        print(f"  {len(listings)} listings")
+        listings_by_source[source] = listings
 
     out_path = Path(args.out) if args.out else Path(
-        f"docs/supply-targets/{args.source}_supply_targets_{datetime.now().strftime('%Y-%m-%d_%H%M')}.xlsx"
+        f"docs/supply-targets/supply_targets_{'_'.join(sources)}_{datetime.now().strftime('%Y-%m-%d_%H%M')}.xlsx"
     )
     out_path.parent.mkdir(parents=True, exist_ok=True)
 
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Sellers"
-    headers = [
-        "Rank", "Seller", "Account Type", "Anonymous?",
-        "Listings", "Consignments", "Priced",
-        "Total Current Bid (USD)", "Total Asking (USD)",
-        "Last Seen", "Seller Key (internal)",
-    ]
-    write_header(ws, headers)
+    write_sellers_sheet(wb, all_sellers)
 
-    for idx, s in enumerate(sorted(sellers, key=lambda x: -x["listing_count"]), start=1):
-        ws.append([
-            idx,
-            s.get("seller_name") or f"(anonymous: {s['seller_key']})",
-            s.get("account_type") or "-",
-            "yes" if s.get("is_anonymous") else "no",
-            s["listing_count"],
-            s.get("consignment_count", 1),
-            s.get("priced_count", 0),
-            s.get("total_current_bid"),
-            s.get("total_asking"),
-            (s.get("last_seen") or "").split("T")[0],
-            s["seller_key"],
-        ])
+    # Combined listings sheet (everything in one place)
+    combined: list[dict] = []
+    for source in sources:
+        combined.extend(listings_by_source[source])
+    write_listings_sheet(wb, "Listings (all)", combined)
 
-    autosize(ws)
+    # Per-source sheets — only when more than one source was requested
+    if len(sources) > 1:
+        for source in sources:
+            write_listings_sheet(wb, f"Listings ({source})", listings_by_source[source])
+
     wb.save(out_path)
-    print(f"\nWrote {out_path}  ({len(sellers)} sellers)")
+    print(f"\nWrote {out_path}")
+    print(f"  Sellers:   {len(all_sellers)}")
+    print(f"  Listings:  {len(combined)}")
     return 0
 
 
