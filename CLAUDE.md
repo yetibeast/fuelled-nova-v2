@@ -64,3 +64,42 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 ---
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+## 5. Rev Notices — every feature gets documented + communicated
+
+**Every user-visible change ships with a rev notice. One feature batch = one notice. No silent rollouts.**
+
+The Fuelled team needs to know what changed, what it does, and how to use it — controlled and on a cadence we set, not buried in commit history.
+
+### When a rev notice is required
+
+- A new user-visible feature lands (new page, new tool, new endpoint they'll touch).
+- Behavior of an existing feature meaningfully changes (pricing math, ranking logic, what data shows up where).
+- New data starts being ingested that powers something they'll see (new scraper field, new source).
+
+Internal-only changes (refactors, infra, schema fixes invisible to users) do **not** require a rev notice. Mention them under an "internal" section in the next user-facing notice if they're worth knowing.
+
+### What goes in a rev notice
+
+File: `docs/release-notes/YYYY-MM-DD.md`. Use the existing notes in that folder as the template. Each notice covers:
+
+1. **What was asked for** — the user/customer ask in their own words where possible.
+2. **What we built** — concrete capabilities, not implementation details.
+3. **What's new this batch** — if it builds on an earlier rev, call out only the delta.
+4. **How to use it** — numbered steps, where to click, what to expect.
+5. **What's NOT in this rev** — explicitly list adjacent work that shipped separately so the team isn't left wondering.
+6. **What's next** — phase B/C, deferred items, known follow-ups.
+
+### One rev = one feature area
+
+Don't bundle unrelated features into a single notice. If pricing mitigations and a new competitive bot both shipped this week, that's two notices. Bundling defeats the "controlled communication" purpose — readers can't tell which ask each item answers.
+
+### Workflow: build → document → communicate
+
+When a feature is complete and merged:
+
+1. Draft the rev notice in `docs/release-notes/YYYY-MM-DD.md` following the structure above.
+2. Surface it to Curtis for review before it goes out.
+3. Curtis owns the actual send to the Fuelled team. Don't assume a notice is "out" just because the file exists.
+
+If you finish a feature and don't draft a notice, the work isn't done. Treat the rev notice as part of the feature's definition of done, the same as tests.
