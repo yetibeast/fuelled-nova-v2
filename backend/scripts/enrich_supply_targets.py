@@ -688,6 +688,319 @@ LS_MANAGERS = [
 ]
 
 
+# ============================================================================
+# BUYER RECRUITMENT — companies that BUY Fuelled-relevant equipment
+# Researched 2026-05-08 across US Upstream + US Refining/Midstream + Canadian O&G.
+# Each contact: pattern-derived emails unless otherwise noted; LinkedIn URLs verified.
+# ============================================================================
+
+BUYER_COMPANIES = [
+    # === US Upstream Oil & Gas ===
+    {"vertical": "US Upstream O&G", "name": "Diamondback Energy", "ticker": "FANG", "hq": "Midland TX",
+     "basin": "Permian (Midland + Delaware)", "scale": "13-14 rigs + 5 frac crews end-2025; ~890k boe/d post-Endeavor; ~$45B mkt cap",
+     "capex_driver": "Closed Endeavor mega-deal 2024. May 2026 flipped to green light, ramping capex from $3.75B → $3.9B with new rigs/frac spreads. Drilling 445-465 wells in 2025 — heavy compressor/separator/treater buying.",
+     "suppliers_page": "https://www.diamondbackenergy.com/about/overview"},
+    {"vertical": "US Upstream O&G", "name": "Permian Resources", "ticker": "PR", "hq": "Midland + Houston TX",
+     "basin": "Permian (Delaware Basin core)", "scale": "190.7 net wells in 2025; 2026 guide $1.75-1.95B; ~$10B mkt cap",
+     "capex_driver": "$608M Apache bolt-on + $471M property purchases in 2025. ~$400M of 2026 capex earmarked for facilities/infra/workover — direct relevance for compressor/separator/treater purchases.",
+     "suppliers_page": "https://permianres.com/contact/"},
+    {"vertical": "US Upstream O&G", "name": "Matador Resources", "ticker": "MTDR", "hq": "Dallas TX",
+     "basin": "Delaware Basin (Lea, Eddy NM)", "scale": "111 wells drilled 2025; D/C/E capex $1.53B; ~$6B mkt cap",
+     "capex_driver": "Major Ameredev bolt-on still being developed. Patterson-UTI runs >90% of drilling; Matador self-builds production facilities — heavy ongoing buyer of separators/treaters/compressors/tank batteries.",
+     "suppliers_page": "https://www.matadorresources.com/contact"},
+    {"vertical": "US Upstream O&G", "name": "Civitas/SM Energy (merged Jan 2026)", "ticker": "SM", "hq": "Houston TX (legacy Denver)",
+     "basin": "Permian + DJ + Uinta + Eagle Ford post-merger", "scale": "Combined ~13 rigs; ~$8B mkt cap",
+     "capex_driver": "$13B SM-Civitas merger closed Jan 2026. $190M+ in synergies — surplus equipment liquidation likely as fleets are rationalized; new development still active.",
+     "suppliers_page": "https://sm-energy.com/contact/"},
+    {"vertical": "US Upstream O&G", "name": "Coterra Energy", "ticker": "CTRA", "hq": "Houston TX",
+     "basin": "Permian + Marcellus + Anadarko", "scale": "9 Permian rigs + 3 frac crews; 2025 capex ~$2.0-2.3B; ~$20B mkt cap; merging with Devon",
+     "capex_driver": "Closed Permian bolt-ons (Franklin Mountain + Avant) early 2025. Restarted Marcellus Q2 2025. Production wedge ongoing.",
+     "suppliers_page": "https://www.coterra.com/contact-us/"},
+    {"vertical": "US Upstream O&G", "name": "Chord Energy", "ticker": "CHRD", "hq": "Houston TX (Bakken ops Williston ND)",
+     "basin": "Williston (Bakken + Three Forks)", "scale": "FY2026 capex ~$1.4B; largest pure-play Bakken; ~$8B mkt cap",
+     "capex_driver": "Closed $550M Williston acquisition from XTO Q4 2025. Continental halted Bakken Jan 2026 — Chord + Hess now dominant Williston buyers; equipment supply chains shifting in their favor.",
+     "suppliers_page": "https://www.chordenergy.com/about-us/"},
+    {"vertical": "US Upstream O&G", "name": "Crescent Energy", "ticker": "CRGY", "hq": "Houston TX (KKR-backed)",
+     "basin": "Eagle Ford + Uinta + Permian (post-Vital)", "scale": "6-7 rigs across portfolio; ~$3B mkt cap pre-merger",
+     "capex_driver": "$905M Central Eagle Ford bolt-on + $2.1B Vital Energy merger Dec 2025. Multi-basin acquirer with explicit ops-driven equipment strategy.",
+     "suppliers_page": "https://crescentenergyco.com/contact/"},
+    {"vertical": "US Upstream O&G", "name": "Riley Permian", "ticker": "REPX", "hq": "Oklahoma City OK",
+     "basin": "Permian (San Andres horizontal)", "scale": "2026 capex $190-210M; production 35-37 mboed; ~$650M mkt cap",
+     "capex_driver": "Closed $142M Silverback acquisition July 2025. Also expanding midstream — direct compressor/separator buyer. Small enough that a marketplace play is decisively useful.",
+     "suppliers_page": "https://www.rileypermian.com/about/contact/"},
+    {"vertical": "US Upstream O&G", "name": "Magnolia Oil & Gas", "ticker": "MGY", "hq": "Houston TX",
+     "basin": "Eagle Ford + Austin Chalk", "scale": "201-500 employees; ~$5B mkt cap; conservative FCF-focused",
+     "capex_driver": "Steady ~$450-500M/yr. Smaller scale = a marketplace channel for mid-life surplus is highly relevant to their cost-leadership posture.",
+     "suppliers_page": "https://www.magnoliaoilgas.com/about-us"},
+    {"vertical": "US Upstream O&G", "name": "Ovintiv", "ticker": "OVV", "hq": "Denver + Calgary",
+     "basin": "Permian + Anadarko (selling) + Montney; exited Bakken/Uinta 2025", "scale": "2025 capex ~$2.2B; ~$11B mkt cap",
+     "capex_driver": "Sold $1.9B Uinta to FourPoint Jan 2025; selling $3B Anadarko Q2 2026. BOTH a major surplus liquidator AND a heavy Permian/Montney buyer — uniquely two-sided fit for Fuelled.",
+     "suppliers_page": "https://www.ovintiv.com/suppliers/ (best-in-class formal portal)"},
+
+    # === US Refining + Midstream ===
+    {"vertical": "US Refining", "name": "HF Sinclair", "ticker": "DINO", "hq": "Dallas TX",
+     "basin": "7 refineries (~678 Mbpd) across TX/KS/WY/UT/NM/WA", "scale": "Lubricants + Petro-Canada base oils + Sinclair retail",
+     "capex_driver": "2025 capex $875M; 2026 $775M as heavy-maintenance cycle ends. Oct 2025: phased PADD 4/5 pipeline expansion (FID mid-2026).",
+     "suppliers_page": "https://www.hfsinclair.com/suppliers/HF/default.aspx"},
+    {"vertical": "US Refining", "name": "PBF Energy", "ticker": "PBF", "hq": "Parsippany NJ",
+     "basin": "6 refineries (~1.0 MMbpd)", "scale": "Logistics via PBFX",
+     "capex_driver": "2025 capex $750-775M ex-Martinez restoration. Q4 2025 turnarounds at Chalmette + Toledo. RBI program targeting >$200M annualized savings — strategic procurement is one of five pillars.",
+     "suppliers_page": "https://www.pbfenergy.com/"},
+    {"vertical": "US Refining", "name": "Par Pacific", "ticker": "PARR", "hq": "Houston TX",
+     "basin": "4 refineries: Kapolei HI, Newcastle WY, Tacoma WA, Billings MT", "scale": "ex-ExxonMobil Billings + Hawaii retail",
+     "capex_driver": "YTD 2025 accrued $204M. Wyoming 66-day idle drove unscheduled equipment replacement. Hawaii renewable fuels project underway.",
+     "suppliers_page": "https://www.parpacific.com/"},
+    {"vertical": "US Refining", "name": "Calumet Inc.", "ticker": "CLMT", "hq": "Indianapolis IN",
+     "basin": "Specialty refineries + Montana Renewables (RD/SAF)", "scale": "Multiple LA + PA + IL + TX sites",
+     "capex_driver": "MaxSAF expansion at Montana Renewables targeting +120-150M gal/yr SAF by Q2 2026 — major rotating-equipment, exchanger, vessel demand.",
+     "suppliers_page": "https://calumet.com/about/"},
+    {"vertical": "US Refining", "name": "Delek US", "ticker": "DK", "hq": "Brentwood TN",
+     "basin": "4 refineries (~302 Mbpd) — Tyler/Big Spring TX, El Dorado AR, Krotz Springs LA", "scale": "Delek Logistics (DKL)",
+     "capex_driver": "Big Spring selected by DOE Carbon Capture Pilot ($95M federal cost share, 70%) — drives rotating/exchanger/vessel demand for CCUS skids.",
+     "suppliers_page": "https://delekus.com/"},
+    {"vertical": "US Refining", "name": "CVR Energy", "ticker": "CVI", "hq": "Sugar Land TX",
+     "basin": "Coffeyville KS + Wynnewood OK refineries (206.5 Mbpd nameplate)", "scale": "Plus nitrogen fertilizer + pipelines",
+     "capex_driver": "2026 petroleum capex $130-145M including Wynnewood Alky Project. Reverted Wynnewood RD unit back to hydrocarbon — repurposing process equipment.",
+     "suppliers_page": "https://cvrenergy.com/Company/Careers"},
+    {"vertical": "US Midstream", "name": "ONEOK", "ticker": "OKE", "hq": "Tulsa OK",
+     "basin": "~50,000 mi NGL/gas pipelines + processing + frac (post-EnLink + Medallion)", "scale": "Permian/Mid-Con/Rockies/Williston/Gulf",
+     "capex_driver": "2026 capex $2.7-3.2B. Aug 2025: $365M Delaware processing plant (+300 MMcf/d). >500 MMcf/d new Permian processing through 2027. Eiger Express (Permian-Houston, 2 Bcf/d). >$8.3B in active/proposed projects.",
+     "suppliers_page": "https://www.oneok.com/"},
+    {"vertical": "US Midstream", "name": "Targa Resources", "ticker": "TRGP", "hq": "Houston TX",
+     "basin": "Permian + Bakken + SCOOP/STACK G&P; Mont Belvieu frac", "scale": "Galena Park export",
+     "capex_driver": "2025 net growth capex ~$3.3B. Yeti gas processing plant (275 MMcf/d, Delaware) joins 4 other Permian plants in flight totaling +1.4 Bcf/d. $1.6B Speedway NGL pipeline.",
+     "suppliers_page": "https://www.targaresources.com/customer-center/customer-center-overview"},
+    {"vertical": "US Midstream", "name": "Energy Transfer", "ticker": "ET", "hq": "Dallas TX",
+     "basin": "~130,000 mi pipeline; gas processing; NGL frac at Mont Belvieu; Lake Charles + Nederland export", "scale": "Sunoco LP GP",
+     "capex_driver": "2026 growth capex $5.5-5.9B. Major 2026 startups: Nederland Flexport NGL, Mustang Draw I+II Permian, Hugh Brinson Phase I, Gateway NGL. Desert Southwest pipe upsized to 48\".",
+     "suppliers_page": "https://apttus.energytransfer.com/"},
+    {"vertical": "US Midstream", "name": "Williams Companies", "ticker": "WMB", "hq": "Tulsa OK",
+     "basin": "Transco (largest US gas pipeline), NW Pipeline, Gulfstream; Marcellus/Haynesville/DJ G&P", "scale": "Plus storage + LNG investments",
+     "capex_driver": "2025 growth $3.95-4.25B; 2026 $6.1-6.7B. Southeast Supply Enhancement (1.6 Bcf/d). Northeast Supply Enhancement (400 Mdth/d Q4 2027). 14 transmission projects in execution.",
+     "suppliers_page": "https://www.williams.com/all-about-supplier-portal/ (Oracle Cloud)"},
+    {"vertical": "US Midstream", "name": "MPLX (Marathon Petroleum sister)", "ticker": "MPLX", "hq": "Findlay OH",
+     "basin": "Marcellus/Utica G&P, Permian G&P, NGL frac (Mont Belvieu via Hopedale)", "scale": "Refined products + marine",
+     "capex_driver": "2025 growth capex $2.4B (90% gas/NGL). Permian: Secretariat I (200 MMcf/d) Jan 2026 + Secretariat II (300 MMcf/d) H2 2028. Marcellus: Harmon Creek III (300 MMcf/d) Q3 2026.",
+     "suppliers_page": "Shared via Marathon Petroleum supplier portal"},
+    {"vertical": "US Midstream", "name": "Enterprise Products Partners", "ticker": "EPD", "hq": "Houston TX",
+     "basin": "Largest US NGL midstream — 50K+ mi pipelines, Mont Belvieu frac complex, Permian gas plants, NGL/ethane export", "scale": "Plus petrochemicals + crude",
+     "capex_driver": "2025 growth capex $4.0-4.5B. 4 new Permian gas plants. 550-mi Bahia NGL pipeline (600 Mbpd) entering service Nov 2025. NGL Frac 14 ramping mid-Oct 2025.",
+     "suppliers_page": "https://www.enterpriseproducts.com/"},
+
+    # === Canadian O&G + Industrial ===
+    {"vertical": "Canadian O&G", "name": "Whitecap Resources", "ticker": "TSX:WCP", "hq": "Calgary AB",
+     "basin": "Post-Veren: Duvernay (Kaybob) + Montney (NEBC/Lator) + legacy SK/AB", "scale": "~370,000 boe/d",
+     "capex_driver": "2026 capex $2.0-2.1B. 7-rig program (3 Duvernay, 4 Montney). Lator 04-13 facility startup with $180M committed in 2026. Compressors flagged as long-lead.",
+     "suppliers_page": "https://www.wcap.ca/operations/suppliers"},
+    {"vertical": "Canadian O&G", "name": "Tourmaline Oil", "ticker": "TSX:TOU", "hq": "Calgary AB",
+     "basin": "Canada's largest gas producer. Alberta Deep Basin, NEBC Montney, Peace River Charlie Lake", "scale": "~635,000 boe/d",
+     "capex_driver": "2026 EP capex C$2.55B. Aitken expansion (20 Mbbl/d condensate) Q4 2026 startup; Groundbirch deep-cut plant Q4 2027; sand transload Q2 2026; 3 new water recycling facilities.",
+     "suppliers_page": "https://www.tourmalineoil.com/contact-us"},
+    {"vertical": "Canadian O&G", "name": "ARC Resources", "ticker": "TSX:ARX", "hq": "Calgary AB",
+     "basin": "Pure-play Montney — Kakwa, Sunrise, Dawson, Ante Creek, Attachie BC", "scale": "~370,000 boe/d",
+     "capex_driver": "Attachie Phase I (40,000 boe/d facility) ~75% complete. Phase II long-lead spend continues into 2026 ($50M baseline) with 2028 first production. Lower Montney development added 2026.",
+     "suppliers_page": "https://www.arcresources.com/about-us/suppliers/"},
+    {"vertical": "Canadian O&G", "name": "Cenovus Energy", "ticker": "TSX:CVE", "hq": "Calgary AB",
+     "basin": "Integrated — oil sands (Foster Creek, Christina Lake, Sunrise, Lloydminster), refining + MEG/Christina Lake North post-2025", "scale": "Largest Canadian OFS spender",
+     "capex_driver": "2026 capital $5.0-5.3B. Oil sands $3.5-3.6B incl. $850M Christina Lake North expansion. Sustaining capital alone $3.5-3.6B drives massive recurring equipment demand.",
+     "suppliers_page": "https://www.cenovus.com/Suppliers + ALREADY RUNS surplusinventory.cenovus.com (monitor)"},
+    {"vertical": "Canadian O&G", "name": "Imperial Oil", "ticker": "TSX:IMO", "hq": "Calgary AB (ExxonMobil 69.6%)",
+     "basin": "Kearl mine, Cold Lake CSS, Syncrude (25%), Sarnia/Strathcona/Nanticoke refineries", "scale": "300 Mbbl/d Kearl target",
+     "capex_driver": "2026 capex $2.0-2.2B. Secondary bitumen recovery at Kearl, Mahihkan SA-SAGD + infill at Cold Lake (165 Mbbl/d target). Heavy infill = continuous artificial-lift, separator, treater demand.",
+     "suppliers_page": "https://www.imperialoil.ca/company/suppliers"},
+    {"vertical": "Canadian O&G", "name": "Strathcona Resources", "ticker": "TSX:SCR", "hq": "Calgary AB (Waterous-controlled)",
+     "basin": "Heavy oil pure-play — Cold Lake (Tucker, Lindbergh), Lloyd thermal (Meota, Vawn), Lloyd conventional", "scale": "Exit rate ~135 Mbbl/d",
+     "capex_driver": "2026 capex $1.0B. $360M Meota Central thermal brownfield ~91% complete. Lindbergh fuel-gas pipeline repair Q3 2026. Closed Vawn thermal acquisition.",
+     "suppliers_page": "https://www.strathconaresources.com/contact-us/"},
+    {"vertical": "Canadian Midstream", "name": "Pembina Pipeline", "ticker": "TSX:PPL", "hq": "Calgary AB",
+     "basin": "Conventional pipelines (Peace, NGL), Pembina Gas Infrastructure (PGI) — multiple Montney/Duvernay plants", "scale": "Cedar LNG (50/50 Haisla) + RFS IV + Prince Rupert",
+     "capex_driver": "2026 = 'largest single capital year' for Cedar LNG (FLNG vessel, marine substation, transmission line). Fox Creek-to-Namao Peace Expansion. Compressor stations heavily refreshed.",
+     "suppliers_page": "https://www.pembina.com/operations/suppliers (ISNetworld prequal mandatory)"},
+    {"vertical": "Canadian Midstream", "name": "Keyera Corp", "ticker": "TSX:KEY", "hq": "Calgary AB",
+     "basin": "G&P plants (Wapiti, Pipestone, Simonette, Strachan), KAPS NGL pipeline, KFS frac, Edmonton/Fort Sask storage", "scale": "Mid-cap midstream",
+     "capex_driver": "2026 growth capex $400-475M. Sanctioned KAPS Zone 4 ($220M net, mid-2027 ISD), KFS Frac III, KFS Frac II debottleneck. Pumps/compressors/vessels/heaters demand.",
+     "suppliers_page": "https://www.keyera.com/suppliers/"},
+    {"vertical": "Canadian Midstream", "name": "AltaGas", "ticker": "TSX:ALA", "hq": "Calgary AB",
+     "basin": "Midstream — Pipestone I+II, Townsend, Harmattan, Dimsdale storage; REEF LPG export", "scale": "Plus Utilities (WGL, SEMCO)",
+     "capex_driver": "2026 capex ~$1.6B (~27% Midstream). Pipestone II commercial ops Dec 2025. REEF: 80% costs incurred. $230M Dimsdale storage expansion underway.",
+     "suppliers_page": "https://www.altagas.ca/suppliers"},
+    {"vertical": "Canadian O&G", "name": "Vermilion Energy", "ticker": "TSX:VET", "hq": "Calgary AB",
+     "basin": "Post-Westbrick: Deep Basin + Montney WCSB flagship; SK; European gas; Australia", "scale": "Global gas portfolio",
+     "capex_driver": "2026 E&D capex $600-630M (85% global gas). $415M Deep Basin + Montney — 49 wells. Montney throughput targeted to 28,000 boe/d.",
+     "suppliers_page": "https://www.vermilionenergy.com/about-us/suppliers/"},
+    {"vertical": "Canadian O&G", "name": "Birchcliff Energy", "ticker": "TSX:BIR", "hq": "Calgary AB",
+     "basin": "100% owned Pouce Coupe Gas Plant (340 MMcf/d), Gordondale, Elmworth Montney emerging", "scale": "Mid-cap pure-play",
+     "capex_driver": "2026 F&D capex $325-375M. Pure Lower/Upper Montney development. Owns own infra → buys compression, treating, dehy, sweetening kit directly. NOTE email convention: first-initial+lastname (different from peers).",
+     "suppliers_page": "https://www.birchcliffenergy.com/suppliers"},
+    {"vertical": "Canadian O&G", "name": "Suncor Energy", "ticker": "TSX:SU", "hq": "Calgary AB",
+     "basin": "Base Mine, Firebag, MacKay River, Fort Hills (oil sands); Petro-Canada retail; Edmonton/Sarnia/Montreal refineries", "scale": "Major integrated",
+     "capex_driver": "Mine progression + in-situ optimization. Active surplus turnover via secondary markets.",
+     "suppliers_page": "https://www.suncor.com/en-ca/about-us/suppliers"},
+]
+
+
+# Buyer-side contacts — one row per person, joined to BUYER_COMPANIES by 'company'
+BUYER_CONTACTS = [
+    # === US Upstream ===
+    {"company": "Diamondback Energy", "name": "Gwendolyn ('Gwen') Smith", "title": "Senior Procurement Specialist",
+     "linkedin": "https://www.linkedin.com/in/gwendolyn-smith2/", "location": "Midland TX",
+     "email": "gwendolyn.smith@diamondbackenergy.com", "confidence": "likely",
+     "notes": "Senior procurement IC — likely owner of category buys for production equipment."},
+    {"company": "Diamondback Energy", "name": "Cody King", "title": "Materials Supervisor",
+     "linkedin": "https://www.linkedin.com/in/cody-king-977b2292/", "location": "Midland TX",
+     "email": "cody.king@diamondbackenergy.com", "confidence": "likely",
+     "notes": "Runs materials coordination supplier-to-wellsite — direct gatekeeper for inbound used/surplus offers."},
+    {"company": "Permian Resources", "name": "Steven Dodson", "title": "CISO (cross-functional escalation; pattern verifier)",
+     "linkedin": "https://www.linkedin.com/in/stevedod/", "location": "Dallas-Fort Worth TX",
+     "email": "steven.dodson@permianres.com", "confidence": "likely",
+     "notes": "ZoomInfo confirms @permianres.com email pattern."},
+    {"company": "Matador Resources", "name": "Chris Cavner", "title": "Engineering / Operations",
+     "linkedin": "https://www.linkedin.com/in/chris-cavner-a1b4631a/", "location": "Dallas TX",
+     "email": "chris.cavner@matadorresources.com", "confidence": "pattern-derived",
+     "notes": "Useful warm-channel given Matador's small procurement footprint."},
+    {"company": "Civitas/SM Energy (merged Jan 2026)", "name": "Tina Arneson", "title": "Manager, Corporate Facility Services",
+     "linkedin": "https://www.linkedin.com/in/tina-arneson-229a02126/", "location": "Denver CO",
+     "email": "tina.arneson@civitasresources.com", "confidence": "likely",
+     "notes": "Liaison between legal, supply chain, and stakeholders for ops/capital projects — real procurement crossover."},
+    {"company": "Chord Energy", "name": "Jason Stroud", "title": "Senior Staff Sourcing Specialist",
+     "linkedin": "https://www.zoominfo.com/p/Jason-Stroud/11514673131", "location": "Houston TX",
+     "email": "jason.stroud@chordenergy.com", "confidence": "verified (email pattern @chordenergy.com confirmed)",
+     "notes": "Ex-BHP global petroleum supply chain — sets sourcing policy. HIGHEST-LEVERAGE contact at Chord."},
+    {"company": "Chord Energy", "name": "Kent Specht", "title": "Supply Chain Supervisor",
+     "linkedin": "https://www.linkedin.com/in/kentspecht/", "location": "Williston ND",
+     "email": "kent.specht@chordenergy.com", "confidence": "likely",
+     "notes": "Field-side SC supervisor — direct buyer for Bakken wellsite equipment."},
+    {"company": "Chord Energy", "name": "Armando Almaguer", "title": "Senior Procurement Consultant/Analyst",
+     "linkedin": "https://www.linkedin.com/in/armandoalmaguer/", "location": "Pearland TX",
+     "email": "armando.almaguer@chordenergy.com", "confidence": "likely",
+     "notes": "Houston-side procurement analyst."},
+    {"company": "Magnolia Oil & Gas", "name": "Steven Kovacs", "title": "Lead, Supply Chain and Contracts Analyst",
+     "linkedin": "https://www.linkedin.com/in/steven-kovacs-7620a713/", "location": "Houston TX",
+     "email": "steven.kovacs@magnoliaoilgas.com", "confidence": "likely",
+     "notes": "Lead-level SC IC — owns category contracts. HIGHEST-leverage Magnolia contact."},
+    {"company": "Magnolia Oil & Gas", "name": "Sayuri Gonzalez", "title": "Supply Chain and Contract Coordinator",
+     "linkedin": "https://www.linkedin.com/in/sayuri-gonzalez-aba6a814a/", "location": "Houston TX",
+     "email": "sayuri.gonzalez@magnoliaoilgas.com", "confidence": "likely",
+     "notes": "Tactical day-to-day buyer / great inbound contact for surplus listings."},
+    {"company": "Ovintiv", "name": "Greg Givens", "title": "Supply Chain (per LinkedIn)",
+     "linkedin": "https://www.linkedin.com/in/greg-givens-8970354/", "location": "Denver CO",
+     "email": "greg.givens@ovintiv.com", "confidence": "pattern-derived",
+     "notes": "One of few publicly indexed Ovintiv SC LinkedIn profiles."},
+
+    # === US Refining ===
+    {"company": "HF Sinclair", "name": "Mike O'Neill", "title": "Director, Procurement Operations",
+     "linkedin": "https://www.linkedin.com/in/oneillms/", "location": "Dallas TX",
+     "email": "moneill@hfsinclair.com", "confidence": "pattern-derived (firstinitial+lastname)",
+     "notes": "Covers refining MRO + capital procurement."},
+    {"company": "PBF Energy", "name": "Kelsey Beans McKell", "title": "Procurement / Strategic Sourcing (Senior Category Leader)",
+     "linkedin": "https://www.linkedin.com/in/kelsey-beans-mckell-mba-263b5740/", "location": "Parsippany NJ",
+     "email": "kbeansmckell@pbfenergy.com", "confidence": "likely",
+     "notes": "Public posts reference hiring Senior Category Leaders for procurement."},
+    {"company": "Calumet Inc.", "name": "Kathy Yohe", "title": "Purchasing Coordinator",
+     "linkedin": "https://www.linkedin.com/in/kathy-yohe-4025604a/", "location": "Karns City PA",
+     "email": "kathy.yohe@calumet.com", "confidence": "likely",
+     "notes": "Confirmed purchasing role; tactical buyer level."},
+    {"company": "Calumet Inc.", "name": "Telesa Mitchell", "title": "Purchasing Agent",
+     "linkedin": "https://www.linkedin.com/in/telesa-mitchell-751025a3", "location": "Shreveport LA",
+     "email": "telesa.mitchell@calumet.com", "confidence": "likely",
+     "notes": "Shreveport-side purchasing — relevant for surplus rotating eq + vessels."},
+    {"company": "Delek US", "name": "Michael Elliott", "title": "VP Supply Chain / Head of Procurement",
+     "linkedin": "https://www.linkedin.com/in/mikeelliott2050/", "location": "Brentwood TN",
+     "email": "michael.elliott@delekus.com", "confidence": "likely",
+     "notes": "Primary procurement decision-maker."},
+    {"company": "CVR Energy", "name": "Lance Dietlein", "title": "Sr. Director of Procurement, Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/lance-dietlein-8599309/", "location": "Sugar Land TX",
+     "email": "lance.dietlein@cvrenergy.com", "confidence": "likely",
+     "notes": "Senior procurement leader."},
+    {"company": "ONEOK", "name": "Scott Schingen", "title": "SVP, Engineering & Operations — NGL/Gas Pipelines/Crude (capital projects + supply chain)",
+     "linkedin": "search 'Scott Schingen ONEOK'", "location": "Tulsa OK",
+     "email": "scott.schingen@oneok.com", "confidence": "verified (title)",
+     "notes": "Owns capital projects + SC capabilities for the NGL/gas footprint per ONEOK bio."},
+    {"company": "Targa Resources", "name": "Stephen Hester", "title": "Chief Supply Chain Officer (formerly CenterPoint — VERIFY current employer)",
+     "linkedin": "https://www.linkedin.com/in/stephenthester/", "location": "Houston TX",
+     "email": "shester@targaresources.com", "confidence": "likely (ROLE CONFLICT: also listed as CenterPoint CPO/CSCO; same LinkedIn URL — same person)",
+     "notes": "VERIFY which company he's at currently. Same LinkedIn URL as the CenterPoint Stephen Hester — he likely moved CenterPoint→Targa or vice versa. Don't double-count."},
+    {"company": "Targa Resources", "name": "Brian Kateb", "title": "Enterprise Procurement (20+ yr Targa)",
+     "linkedin": "https://www.linkedin.com/in/briankateb/", "location": "Houston TX",
+     "email": "bkateb@targaresources.com", "confidence": "likely",
+     "notes": "Long-tenured procurement owner."},
+    {"company": "Energy Transfer", "name": "Dallas Hicks", "title": "Senior Procurement Contracts Lead (energy midstream)",
+     "linkedin": "https://www.linkedin.com/in/dallas-hicks-9820359b/", "location": "Dallas TX",
+     "email": "dallas.hicks@energytransfer.com", "confidence": "pattern-derived",
+     "notes": "Verify employer current."},
+    {"company": "Enterprise Products Partners", "name": "Richard Jones", "title": "Projects Procurement Manager",
+     "linkedin": "https://www.linkedin.com/in/richard-jones-a094757/", "location": "Houston TX",
+     "email": "rjones@eprod.com", "confidence": "likely",
+     "notes": "Owns capital-project sourcing including international."},
+    {"company": "Enterprise Products Partners", "name": "Sandra Dobbs", "title": "Manager, Projects Procurement",
+     "linkedin": "https://www.linkedin.com/in/sandra-dobbs-b933468", "location": "Houston TX",
+     "email": "sdobbs@eprod.com", "confidence": "likely",
+     "notes": "Capital projects buyer; equipment-skid scope."},
+    {"company": "MPLX (Marathon Petroleum sister)", "name": "Eric Conley", "title": "Procurement (MPC)",
+     "linkedin": "https://www.linkedin.com/in/eaconley/", "location": "San Antonio TX",
+     "email": "econley@marathonpetroleum.com", "confidence": "pattern-derived",
+     "notes": "MPC convention firstinitial+lastname."},
+
+    # === Canadian O&G ===
+    {"company": "Whitecap Resources", "name": "Tracy Rosser", "title": "Chief Supply Chain Officer",
+     "linkedin": "search 'Tracy Rosser Whitecap'", "location": "Calgary AB",
+     "email": "tracy.rosser@wcap.ca", "confidence": "pattern-derived (title verified)",
+     "notes": "Top SC decision-maker; drives post-Veren integration of vendor base."},
+    {"company": "Tourmaline Oil", "name": "Alison Mosca", "title": "Supply Chain (APC-credentialed)",
+     "linkedin": "https://www.linkedin.com/in/alison-mosca-apc/", "location": "Calgary AB",
+     "email": "alison.mosca@tourmalineoil.com", "confidence": "likely",
+     "notes": "APC designation = senior contracting/procurement role."},
+    {"company": "Tourmaline Oil", "name": "Erik Lyneborg", "title": "Facility & Production Equipment Specialist",
+     "linkedin": "https://ca.linkedin.com/in/erik-lyneborg-66b91a32", "location": "Calgary AB",
+     "email": "erik.lyneborg@tourmalineoil.com", "confidence": "likely",
+     "notes": "27 yrs Alberta facilities experience — direct equipment-spec influencer."},
+    {"company": "ARC Resources", "name": "Becky Salmond", "title": "Team Lead, Procurement",
+     "linkedin": "https://ca.linkedin.com/in/beckysalmond", "location": "Calgary AB",
+     "email": "bsalmond@arcresources.com", "confidence": "pattern-derived (title verified)",
+     "notes": "Day-to-day procurement gatekeeper at ARC."},
+    {"company": "Cenovus Energy", "name": "Andrew Straile", "title": "VP, Supply Chain Management",
+     "linkedin": "search 'Andrew Straile Cenovus'", "location": "Calgary AB",
+     "email": "andrew.straile@cenovus.com", "confidence": "pattern-derived (title verified ZoomInfo)",
+     "notes": "Top SCM decision-maker. Came from facility engineering — equipment-literate."},
+    {"company": "Cenovus Energy", "name": "Adam Lawlor", "title": "Procurement Advisor",
+     "linkedin": "https://ca.linkedin.com/in/adam-lawlor-7737698a", "location": "Calgary AB",
+     "email": "adam.lawlor@cenovus.com", "confidence": "pattern-derived",
+     "notes": "Working-level procurement entry point."},
+    {"company": "Imperial Oil", "name": "Laralyn Klesken", "title": "VP Procurement, Canada",
+     "linkedin": "https://www.linkedin.com/in/laralyn-klesken-58521417/", "location": "Greater Calgary AB",
+     "email": "laralyn.klesken@imperialoil.ca", "confidence": "likely (title verified LinkedIn)",
+     "notes": "Top procurement contact in Canada. ExxonMobil global SCM rolls up through Hansen."},
+    {"company": "Strathcona Resources", "name": "Rob Rattie", "title": "Team Lead, Procurement / SC Consultant",
+     "linkedin": "https://www.linkedin.com/in/rob-rattie-88646430/", "location": "Greater Calgary AB",
+     "email": "rob.rattie@strathconaresources.com", "confidence": "likely (LinkedIn-confirmed)",
+     "notes": "Lead procurement for SC operations. Active hiring under his team."},
+    {"company": "Pembina Pipeline", "name": "Jeremy Campbell", "title": "Director of Operations and Director of Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/jeremy-campbell-248656235/", "location": "Calgary AB",
+     "email": "jeremy.campbell@pembina.com", "confidence": "likely (title verified)",
+     "notes": "Dual-hat ops + SCM — high-leverage contact."},
+    {"company": "Pembina Pipeline", "name": "Tapan Gupta", "title": "Supply Chain & Procurement (11 yrs)",
+     "linkedin": "https://www.linkedin.com/in/tapangupta711/", "location": "Calgary AB",
+     "email": "tapan.gupta@pembina.com", "confidence": "pattern-derived",
+     "notes": "Engineer + MBA — category management depth."},
+    {"company": "Keyera Corp", "name": "Josh Bangsund", "title": "General Manager – Supply Chain",
+     "linkedin": "https://ca.linkedin.com/in/josh-bangsund", "location": "Calgary AB",
+     "email": "josh.bangsund@keyera.com", "confidence": "likely (title verified LinkedIn)",
+     "notes": "Senior-most SCM contact at Keyera."},
+    {"company": "Keyera Corp", "name": "Peyton Cox", "title": "Contract & Procurement Analyst (Facilities SC)",
+     "linkedin": "https://www.linkedin.com/in/peyton-cox-1a07a621a/", "location": "Calgary AB",
+     "email": "peyton.cox@keyera.com", "confidence": "pattern-derived",
+     "notes": "Facilities-side procurement — directly aligned with Fuelled's catalogue."},
+    {"company": "Vermilion Energy", "name": "Daxesh Shah", "title": "Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/daxeshshah/", "location": "Calgary AB",
+     "email": "daxesh.shah@vermilionenergy.com", "confidence": "pattern-derived",
+     "notes": "LinkedIn-verified Vermilion SC person; first-call entry point."},
+    {"company": "Suncor Energy", "name": "Tiffany Thornton", "title": "Procurement Advisor",
+     "linkedin": "https://ca.linkedin.com/in/thorntontiffany", "location": "Calgary AB",
+     "email": "tiffany.thornton@suncor.com", "confidence": "pattern-derived",
+     "notes": "Working-level procurement contact."},
+]
+
+
 # Top-line insight blocks for a 'Summary' sheet at the front
 SUMMARY_BLOCKS = [
     ("ANCO UNMASKED — Anderson Columbia Co., Inc. (CONFIRMED)",
@@ -742,6 +1055,25 @@ SUMMARY_BLOCKS = [
      "new online auction launched Oct 2025), Lake County IL (HIGH — public-works fleet + landscape), Clean Water Services "
      "OR (MEDIUM — wastewater utility, pumps/blowers/motors), North Baldwin Utilities AL (MEDIUM — small water/electric "
      "utility, only true utility on the list)."),
+    ("BUYER RECRUITMENT LIST (39 companies, ~80 contacts) — see 'Buyer Targets' tabs",
+     "First-cut buyer-recruitment list across three verticals: 12 US Upstream operators (Diamondback, Permian Resources, "
+     "Matador, Civitas/SM, Coterra, Chord, Crescent, Riley Permian, Magnolia, Ovintiv); 12 US Refining + Midstream "
+     "(HF Sinclair, PBF, Par Pacific, Calumet, Delek, CVR, ONEOK, Targa, Energy Transfer, Williams, MPLX, EPD); 15 Canadian "
+     "O&G (Whitecap, Tourmaline, ARC, Cenovus, Imperial, Strathcona, Pembina, Keyera, AltaGas, Vermilion, Birchcliff, "
+     "Suncor, etc). Strongest verified contacts: Jason Stroud (Chord — sets sourcing policy, ex-BHP), Andrew Straile "
+     "(Cenovus VP SCM), Laralyn Klesken (Imperial VP Procurement Canada), Tracy Rosser (Whitecap CSCO), Michael Elliott "
+     "(Delek VP SC). NOTABLE: Cenovus already runs a public surplus inventory portal at surplusinventory.cenovus.com — "
+     "Fuelled should monitor as both buy-side signal AND competitive listing comparison. Two-sided fits (selling AND "
+     "buying simultaneously): Ovintiv, SM/Civitas, Crescent — pitch as 'list your divestiture surplus, source your new "
+     "development gear' in one channel."),
+    ("AUCTION-BIDDER TRACKING — DEAD END on equipment marketplaces",
+     "Probed all major auction marketplaces (AllSurplus, IronPlanet, GovDeals, Ritchie Bros, BidSpotter). Verdict: bidder "
+     "identity is anonymized BY DESIGN on every major equipment marketplace — that's their competitive moat. Ritchie Bros "
+     "even monetizes the data they hold by selling it to OEMs under contract. Only partial signal in adjacent data: "
+     "federal/state oil & gas LEASE sale results (EnergyNet, BLM, state land boards) DO publish named winning bidders. "
+     "That's land acquisition, not equipment — but it's a leading indicator. A company that just won 70 leases on the "
+     "NPR-A in March will need equipment in 6-24 months. Cheapest viable capture: weekly scrape of EnergyNet government-"
+     "results + BLM/state-land-board press releases → operators-about-to-need-equipment prospecting list."),
 ]
 
 
@@ -827,6 +1159,36 @@ def write_named_contacts_sheet(wb) -> None:
     autosize(ws, max_width=80)
 
 
+def write_buyer_companies_sheet(wb) -> None:
+    ws = wb.create_sheet(title="Buyer Targets (Companies)")
+    headers = [
+        "Vertical", "Company", "Ticker", "HQ", "Basin / Footprint",
+        "Scale", "Capex Driver / Why They Buy", "Suppliers Page",
+    ]
+    write_header(ws, headers)
+    for b in BUYER_COMPANIES:
+        ws.append([
+            b["vertical"], b["name"], b["ticker"], b["hq"], b["basin"],
+            b["scale"], b["capex_driver"], b["suppliers_page"],
+        ])
+    autosize(ws, max_width=80)
+
+
+def write_buyer_contacts_sheet(wb) -> None:
+    ws = wb.create_sheet(title="Buyer Contacts")
+    headers = [
+        "Company", "Name", "Title", "LinkedIn", "Location",
+        "Email (likely)", "Confidence", "Outreach Notes",
+    ]
+    write_header(ws, headers)
+    for c in BUYER_CONTACTS:
+        ws.append([
+            c["company"], c["name"], c["title"], c["linkedin"], c["location"],
+            c["email"], c["confidence"], c["notes"],
+        ])
+    autosize(ws, max_width=80)
+
+
 def main(argv: list[str]) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="inp", required=True, help="Input workbook path")
@@ -847,13 +1209,17 @@ def main(argv: list[str]) -> int:
     write_summary_sheet(wb)
     write_ls_managers_sheet(wb)
     write_named_contacts_sheet(wb)
+    write_buyer_companies_sheet(wb)
+    write_buyer_contacts_sheet(wb)
 
     wb.save(out_path)
     print(f"\nWrote {out_path}")
     print(f"  Enriched: {matched} / {total} sellers")
     print(f"  Summary sheet: {len(SUMMARY_BLOCKS)} insight blocks")
     print(f"  LS Managers sheet: {len(LS_MANAGERS)} people")
-    print(f"  Named Contacts sheet: {len(NAMED_CONTACTS)} people")
+    print(f"  Named Contacts (sellers) sheet: {len(NAMED_CONTACTS)} people")
+    print(f"  Buyer Targets (companies) sheet: {len(BUYER_COMPANIES)} companies")
+    print(f"  Buyer Contacts sheet: {len(BUYER_CONTACTS)} people")
     return 0
 
 
