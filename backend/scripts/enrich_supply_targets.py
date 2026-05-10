@@ -713,8 +713,8 @@ BUYER_COMPANIES = [
      "capex_driver": "$13B SM-Civitas merger closed Jan 2026. $190M+ in synergies — surplus equipment liquidation likely as fleets are rationalized; new development still active.",
      "suppliers_page": "https://sm-energy.com/contact/"},
     {"vertical": "US Upstream O&G", "name": "Coterra Energy", "ticker": "CTRA", "hq": "Houston TX",
-     "basin": "Permian + Marcellus + Anadarko", "scale": "9 Permian rigs + 3 frac crews; 2025 capex ~$2.0-2.3B; ~$20B mkt cap; merging with Devon",
-     "capex_driver": "Closed Permian bolt-ons (Franklin Mountain + Avant) early 2025. Restarted Marcellus Q2 2025. Production wedge ongoing.",
+     "basin": "Permian + Marcellus + Anadarko + (post-Devon) Eagle Ford / DJ / Rockies", "scale": "Coterra-Devon merger CLOSED 7 May 2026 — combined ~1.4 MMboed; ~$40B mkt cap post-deal",
+     "capex_driver": "Coterra+Devon close drives 2026-27 procurement reorg (legacy Cabot + Cimarex + Devon procurement orgs consolidating). Closed Permian bolt-ons (Franklin Mountain + Avant) early 2025. Restarted Marcellus Q2 2025. Integration = heavy supplier rationalization + surplus liquidation as duplicate fleets reconcile.",
      "suppliers_page": "https://www.coterra.com/contact-us/"},
     {"vertical": "US Upstream O&G", "name": "Chord Energy", "ticker": "CHRD", "hq": "Houston TX (Bakken ops Williston ND)",
      "basin": "Williston (Bakken + Three Forks)", "scale": "FY2026 capex ~$1.4B; largest pure-play Bakken; ~$8B mkt cap",
@@ -736,6 +736,14 @@ BUYER_COMPANIES = [
      "basin": "Permian + Anadarko (selling) + Montney; exited Bakken/Uinta 2025", "scale": "2025 capex ~$2.2B; ~$11B mkt cap",
      "capex_driver": "Sold $1.9B Uinta to FourPoint Jan 2025; selling $3B Anadarko Q2 2026. BOTH a major surplus liquidator AND a heavy Permian/Montney buyer — uniquely two-sided fit for Fuelled.",
      "suppliers_page": "https://www.ovintiv.com/suppliers/ (best-in-class formal portal)"},
+    {"vertical": "US Upstream O&G", "name": "Occidental Petroleum (Oxy)", "ticker": "OXY", "hq": "Houston TX",
+     "basin": "Permian (largest acreage post-CrownRock + Anadarko legacy) + DJ + Gulf of Mexico + OxyChem", "scale": "~1.4 MMboed; ~$45B mkt cap; deepest US Permian footprint",
+     "capex_driver": "Active Permian development program — Stephen Lowe runs a dedicated 'Sourcing - Compression' desk inside US Onshore Supply Chain, signalling continuous compressor/separator/treater procurement. CrownRock integration (closed 2024) drives ongoing fleet rationalization + surplus disposition AS WELL AS new-build buying. Two-sided fit similar to Ovintiv.",
+     "suppliers_page": "https://www.oxy.com/about/our-suppliers/"},
+    {"vertical": "US Upstream O&G", "name": "APA Corporation (Apache)", "ticker": "APA", "hq": "Houston TX",
+     "basin": "Permian (Midland + Delaware) + Egypt + Suriname (Block 58) + North Sea", "scale": "~436 Mboed; ~$8B mkt cap; redesigned org structure Jan 2026",
+     "capex_driver": "Jan 2026 reorg created an SVP role for 'EH&S, Supply Chain and Midstream & Marketing' (Jessica M. Jackson) — supply chain is now a strategic seat. Apache + APA Midstream actively procuring for Permian development; published Source-to-Pay Lead JD shows mature category structure.",
+     "suppliers_page": "https://apacorp.com/suppliers/"},
 
     # === US Refining + Midstream ===
     {"vertical": "US Refining", "name": "HF Sinclair", "ticker": "DINO", "hq": "Dallas TX",
@@ -862,6 +870,10 @@ BUYER_CONTACTS = [
      "linkedin": "https://www.linkedin.com/in/tina-arneson-229a02126/", "location": "Denver CO",
      "email": "tina.arneson@civitasresources.com", "confidence": "likely",
      "notes": "Liaison between legal, supply chain, and stakeholders for ops/capital projects — real procurement crossover."},
+    {"company": "Coterra Energy", "name": "Denise Chase", "title": "Procurement Analyst — Operations Optimization",
+     "linkedin": "https://www.linkedin.com/in/denise-chase-500b99154/", "location": "Houston TX",
+     "email": "denise.chase@coterra.com", "confidence": "pattern-derived (Coterra format is first.last@coterra.com per LeadIQ/ContactOut)",
+     "notes": "Sole publicly indexed Coterra procurement IC. Coterra-Devon merger CLOSED 7 May 2026 — expect procurement org reshuffle in H2 2026 as legacy Cabot + Cimarex + Devon teams reconcile."},
     {"company": "Chord Energy", "name": "Jason Stroud", "title": "Senior Staff Sourcing Specialist",
      "linkedin": "https://www.zoominfo.com/p/Jason-Stroud/11514673131", "location": "Houston TX",
      "email": "jason.stroud@chordenergy.com", "confidence": "verified (email pattern @chordenergy.com confirmed)",
@@ -882,10 +894,30 @@ BUYER_CONTACTS = [
      "linkedin": "https://www.linkedin.com/in/sayuri-gonzalez-aba6a814a/", "location": "Houston TX",
      "email": "sayuri.gonzalez@magnoliaoilgas.com", "confidence": "likely",
      "notes": "Tactical day-to-day buyer / great inbound contact for surplus listings."},
+    {"company": "Riley Permian", "name": "Jason Riley", "title": "Procurement Specialist — Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/jason-riley-7a169431/", "location": "Oklahoma City OK",
+     "email": "jason.riley@rileypermian.com", "confidence": "pattern-derived (Riley Permian SC org thin in public data)",
+     "notes": "Riley Permian is small enough that a marketplace channel matters disproportionately. Procurement specialist sits close to the Silverback integration + midstream-buildout decisions."},
     {"company": "Ovintiv", "name": "Greg Givens", "title": "Supply Chain (per LinkedIn)",
      "linkedin": "https://www.linkedin.com/in/greg-givens-8970354/", "location": "Denver CO",
      "email": "greg.givens@ovintiv.com", "confidence": "pattern-derived",
      "notes": "One of few publicly indexed Ovintiv SC LinkedIn profiles."},
+    {"company": "Occidental Petroleum (Oxy)", "name": "Jim Barker, P.Eng.", "title": "Senior Director, Supply Chain",
+     "linkedin": "search 'Jim Barker Oxy supply chain'", "location": "Houston TX",
+     "email": "jim_barker@oxy.com", "confidence": "pattern-derived (Oxy uses first_last@oxy.com)",
+     "notes": "20+ yrs at Oxy in SC roles, incl. VP Western Hemisphere SC (2014-15). Senior-most SC decision-maker. Top-of-funnel contact."},
+    {"company": "Occidental Petroleum (Oxy)", "name": "Jo Montee", "title": "Director, Supply Chain — NAO Permian Operations",
+     "linkedin": "https://www.linkedin.com/in/jo-montee-66b00a15/", "location": "Houston TX",
+     "email": "jo_montee@oxy.com", "confidence": "likely (title verified LinkedIn)",
+     "notes": "Permian-specific SC leader. Directly owns Permian field equipment buying — most operationally relevant Oxy contact for Fuelled."},
+    {"company": "Occidental Petroleum (Oxy)", "name": "Stephen Lowe", "title": "Sourcing Manager — Compression, US Onshore Supply Chain",
+     "linkedin": "https://www.linkedin.com/in/stephen-lowe-27757710/", "location": "Houston TX",
+     "email": "stephen_lowe@oxy.com", "confidence": "verified (title)",
+     "notes": "HIGHEST-LEVERAGE Oxy contact for Fuelled. Dedicated compression sourcing desk = continuous compressor / driver / package buyer. Pitch this person first."},
+    {"company": "APA Corporation (Apache)", "name": "Jessica M. Jackson", "title": "SVP — EH&S, Supply Chain and Midstream & Marketing",
+     "linkedin": "search 'Jessica Jackson APA Corporation supply chain'", "location": "Houston TX",
+     "email": "jessica.jackson@apacorp.com", "confidence": "verified (title — APA Jan 2026 reorg announcement)",
+     "notes": "Newly elevated to SVP Jan 2026. Supply chain is now an executive seat at APA. Approach as strategic-relationship pitch, not tactical procurement."},
 
     # === US Refining ===
     {"company": "HF Sinclair", "name": "Mike O'Neill", "title": "Director, Procurement Operations",
@@ -896,6 +928,14 @@ BUYER_CONTACTS = [
      "linkedin": "https://www.linkedin.com/in/kelsey-beans-mckell-mba-263b5740/", "location": "Parsippany NJ",
      "email": "kbeansmckell@pbfenergy.com", "confidence": "likely",
      "notes": "Public posts reference hiring Senior Category Leaders for procurement."},
+    {"company": "Par Pacific", "name": "Andrey Postrigan", "title": "Procurement and Supply Chain Leader",
+     "linkedin": "https://www.linkedin.com/in/andreypostrigan/", "location": "Greater Houston TX",
+     "email": "andrey.postrigan@parpacific.com", "confidence": "pattern-derived (Par Pacific uses first.last@parpacific.com per ZoomInfo)",
+     "notes": "Senior-most publicly indexed Par Pacific SC contact. Covers refining MRO + capital + retail."},
+    {"company": "Par Pacific", "name": "Brian Lehman-Lyng", "title": "Sourcing Manager, Contracts",
+     "linkedin": "search 'Brian Lehman-Lyng Par Pacific'", "location": "Houston TX",
+     "email": "brian.lehman-lyng@parpacific.com", "confidence": "likely (ZoomInfo confirms b***@parpacific.com)",
+     "notes": "Contracts-side sourcing — direct buyer for refinery MRO + capital. Companion contact to Postrigan."},
     {"company": "Calumet Inc.", "name": "Kathy Yohe", "title": "Purchasing Coordinator",
      "linkedin": "https://www.linkedin.com/in/kathy-yohe-4025604a/", "location": "Karns City PA",
      "email": "kathy.yohe@calumet.com", "confidence": "likely",
@@ -916,18 +956,22 @@ BUYER_CONTACTS = [
      "linkedin": "search 'Scott Schingen ONEOK'", "location": "Tulsa OK",
      "email": "scott.schingen@oneok.com", "confidence": "verified (title)",
      "notes": "Owns capital projects + SC capabilities for the NGL/gas footprint per ONEOK bio."},
-    {"company": "Targa Resources", "name": "Stephen Hester", "title": "Chief Supply Chain Officer (formerly CenterPoint — VERIFY current employer)",
-     "linkedin": "https://www.linkedin.com/in/stephenthester/", "location": "Houston TX",
-     "email": "shester@targaresources.com", "confidence": "likely (ROLE CONFLICT: also listed as CenterPoint CPO/CSCO; same LinkedIn URL — same person)",
-     "notes": "VERIFY which company he's at currently. Same LinkedIn URL as the CenterPoint Stephen Hester — he likely moved CenterPoint→Targa or vice versa. Don't double-count."},
+    {"company": "ONEOK", "name": "Mike Stump", "title": "Manager, Supply Chain Management",
+     "linkedin": "https://www.linkedin.com/in/mike-stump-12871624", "location": "Tulsa OK",
+     "email": "michael.stump@oneok.com", "confidence": "likely (ZoomInfo confirms @oneok.com)",
+     "notes": "In SC role at ONEOK since Jan 2007. Long-tenured day-to-day SC manager — direct inbound contact for surplus offers. Prior US Air Force Master Sergeant (SC)."},
+    # NOTE: Earlier draft had Stephen Hester at Targa Resources — that was wrong.
+    # Verified May 2026: LinkedIn /in/stephenthester/ shows CenterPoint Energy as current employer.
+    # Targa has no dedicated CSCO/CPO at the executive level — procurement rolls under
+    # operating leadership. Brian Kateb (below) remains the right Targa procurement contact.
     {"company": "Targa Resources", "name": "Brian Kateb", "title": "Enterprise Procurement (20+ yr Targa)",
      "linkedin": "https://www.linkedin.com/in/briankateb/", "location": "Houston TX",
      "email": "bkateb@targaresources.com", "confidence": "likely",
      "notes": "Long-tenured procurement owner."},
-    {"company": "Energy Transfer", "name": "Dallas Hicks", "title": "Senior Procurement Contracts Lead (energy midstream)",
-     "linkedin": "https://www.linkedin.com/in/dallas-hicks-9820359b/", "location": "Dallas TX",
-     "email": "dallas.hicks@energytransfer.com", "confidence": "pattern-derived",
-     "notes": "Verify employer current."},
+    # NOTE: Dallas Hicks moved from Energy Transfer to Equinor (verified May 2026 via LinkedIn).
+    # Energy Transfer entry below kept blank pending a re-discovery pass — public LinkedIn
+    # surfacing for ET's SC org is unusually thin. Recommended channel: ET careers portal +
+    # active Lead Specialist - Sourcing job posting (energytransfer.referrals.selectminds.com).
     {"company": "Enterprise Products Partners", "name": "Richard Jones", "title": "Projects Procurement Manager",
      "linkedin": "https://www.linkedin.com/in/richard-jones-a094757/", "location": "Houston TX",
      "email": "rjones@eprod.com", "confidence": "likely",
@@ -940,6 +984,21 @@ BUYER_CONTACTS = [
      "linkedin": "https://www.linkedin.com/in/eaconley/", "location": "San Antonio TX",
      "email": "econley@marathonpetroleum.com", "confidence": "pattern-derived",
      "notes": "MPC convention firstinitial+lastname."},
+    {"company": "MPLX (Marathon Petroleum sister)", "name": "Colleen Foley", "title": "Director, Supply Chain — Systems & Controls",
+     "linkedin": "https://www.linkedin.com/in/colleen-foley-94027713/", "location": "Findlay OH",
+     "email": "cfoley@marathonpetroleum.com", "confidence": "likely (ZoomInfo confirms c***@marathonpetroleum.com)",
+     "notes": "Director-level; owns SC systems + controls across MPC/MPLX. Strategic-level entry point if pitching a data integration angle (S2P, inventory, etc)."},
+    {"company": "MPLX (Marathon Petroleum sister)", "name": "Thomas Dillon", "title": "Director, Supply Chain",
+     "linkedin": "search 'Thomas Dillon Marathon Petroleum'", "location": "Findlay OH",
+     "email": "tdillon@marathonpetroleum.com", "confidence": "likely (ZoomInfo confirms t***@marathonpetroleum.com)",
+     "notes": "Director, Supply Chain — peer of Foley. Together with Conley + Foley, MPC/MPLX now has 3 named SC contacts spanning IC → director levels."},
+    {"company": "Williams Companies", "name": "Brian Hlavinka", "title": "VP — Procurement and Project Services",
+     "linkedin": "https://www.linkedin.com/in/brian-hlavinka-446a5732/", "location": "Tulsa OK",
+     "email": "brian.hlavinka@williams.com", "confidence": "verified (title per Williams investor page + LinkedIn)",
+     "notes": "Top procurement decision-maker at Williams (transitioned from heading New Energy Ventures). Texas A&M + UH executive MBA. Vice Chairman of the Clean Hydrogen Future Coalition — pitch with energy-transition framing alongside core midstream procurement."},
+    # NOTE: Energy Transfer has no publicly-indexed named SC director / VP — unusually thin
+    # public footprint for a $100B+ midstream. Channel: supplier portal at apttus.energytransfer.com
+    # + open Lead Specialist - Sourcing job posting (energytransfer.referrals.selectminds.com/jobs/lead-specialist-sourcing-16749).
 
     # === Canadian O&G ===
     {"company": "Whitecap Resources", "name": "Tracy Rosser", "title": "Chief Supply Chain Officer",
@@ -1055,17 +1114,29 @@ SUMMARY_BLOCKS = [
      "new online auction launched Oct 2025), Lake County IL (HIGH — public-works fleet + landscape), Clean Water Services "
      "OR (MEDIUM — wastewater utility, pumps/blowers/motors), North Baldwin Utilities AL (MEDIUM — small water/electric "
      "utility, only true utility on the list)."),
-    ("BUYER RECRUITMENT LIST (39 companies, ~80 contacts) — see 'Buyer Targets' tabs",
-     "First-cut buyer-recruitment list across three verticals: 12 US Upstream operators (Diamondback, Permian Resources, "
-     "Matador, Civitas/SM, Coterra, Chord, Crescent, Riley Permian, Magnolia, Ovintiv); 12 US Refining + Midstream "
-     "(HF Sinclair, PBF, Par Pacific, Calumet, Delek, CVR, ONEOK, Targa, Energy Transfer, Williams, MPLX, EPD); 15 Canadian "
-     "O&G (Whitecap, Tourmaline, ARC, Cenovus, Imperial, Strathcona, Pembina, Keyera, AltaGas, Vermilion, Birchcliff, "
-     "Suncor, etc). Strongest verified contacts: Jason Stroud (Chord — sets sourcing policy, ex-BHP), Andrew Straile "
-     "(Cenovus VP SCM), Laralyn Klesken (Imperial VP Procurement Canada), Tracy Rosser (Whitecap CSCO), Michael Elliott "
-     "(Delek VP SC). NOTABLE: Cenovus already runs a public surplus inventory portal at surplusinventory.cenovus.com — "
-     "Fuelled should monitor as both buy-side signal AND competitive listing comparison. Two-sided fits (selling AND "
-     "buying simultaneously): Ovintiv, SM/Civitas, Crescent — pitch as 'list your divestiture surplus, source your new "
-     "development gear' in one channel."),
+    ("BUYER RECRUITMENT LIST (36 companies, 48 named contacts) — see 'Buyer Targets' tabs",
+     "Buyer-recruitment list across three verticals (deep-pass refresh 2026-05-10): "
+     "12 US Upstream operators (Diamondback, Permian Resources, Matador, Civitas/SM, Coterra [post-Devon merger 7-May-2026], "
+     "Chord, Crescent, Riley Permian, Magnolia, Ovintiv, Occidental/Oxy, APA/Apache); "
+     "12 US Refining + Midstream (HF Sinclair, PBF, Par Pacific, Calumet, Delek, CVR, ONEOK, Targa, Energy Transfer, "
+     "Williams, MPLX, EPD); 12 Canadian O&G + Midstream (Whitecap, Tourmaline, ARC, Cenovus, Imperial, Strathcona, "
+     "Pembina, Keyera, AltaGas, Vermilion, Birchcliff, Suncor). "
+     "STRONGEST verified contacts: Stephen Lowe (Oxy — dedicated Compression sourcing desk, the single highest-leverage "
+     "buy-side contact in this entire list), Jessica M. Jackson (APA SVP EH&S/SC/Midstream, newly elevated Jan 2026), "
+     "Jim Barker (Oxy Sr Director SC), Jo Montee (Oxy Director SC Permian Ops), Jason Stroud (Chord — sets sourcing "
+     "policy, ex-BHP), Andrew Straile (Cenovus VP SCM), Laralyn Klesken (Imperial VP Procurement Canada), Tracy Rosser "
+     "(Whitecap CSCO), Michael Elliott (Delek VP SC), Brian Hlavinka (Williams VP Procurement + Project Services), "
+     "Colleen Foley + Thomas Dillon (MPC/MPLX Directors SC). "
+     "NOTABLE: Cenovus already runs a public surplus inventory portal at surplusinventory.cenovus.com — Fuelled should "
+     "monitor as both buy-side signal AND competitive listing comparison. "
+     "TWO-SIDED FITS (selling AND buying simultaneously): Ovintiv, SM/Civitas, Crescent, AND NEWLY Oxy (CrownRock fleet "
+     "rationalization + active Permian buy program) — pitch as 'list your divestiture surplus, source your new "
+     "development gear' in one channel. "
+     "CORRECTIONS this pass: Stephen Hester is at CenterPoint (not Targa — earlier draft had wrong attribution); "
+     "Dallas Hicks moved from Energy Transfer to Equinor. ET still lacks a publicly-indexed SC director — channel "
+     "via apttus.energytransfer.com supplier portal + active Lead Specialist - Sourcing posting. "
+     "GAPS: Crescent Energy has no publicly indexed named SC contact — use crescentenergyco.com/vendors for vendor "
+     "relations or +1 (713) 337-4600 for general inquiry."),
     ("AUCTION-BIDDER TRACKING — DEAD END on equipment marketplaces",
      "Probed all major auction marketplaces (AllSurplus, IronPlanet, GovDeals, Ritchie Bros, BidSpotter). Verdict: bidder "
      "identity is anonymized BY DESIGN on every major equipment marketplace — that's their competitive moat. Ritchie Bros "
