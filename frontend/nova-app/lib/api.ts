@@ -325,6 +325,21 @@ export async function fetchCompetitiveStaleTargets(promotableOnly = false) {
   return res.json();
 }
 
+export async function downloadCompetitiveStaleTargetsCsv() {
+  const res = await fetch("/api/competitive/stale-targets.csv?limit=500", {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  a.download = `stale_targets_${stamp}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function fetchAcquisitionSummary() {
   return adminGet("/api/admin/competitive/acquisition/summary");
 }
