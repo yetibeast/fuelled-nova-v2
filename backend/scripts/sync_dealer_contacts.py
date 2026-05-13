@@ -65,6 +65,11 @@ SOURCE_FALLBACKS: dict[str, dict[str, str]] = {
         "contact_email": "",
         "contact_phone": "+1 (800) 211-3983",
     },
+    "allsurplus": {
+        "contact_name":  "AllSurplus / Liquidity Services (platform — anonymous seller)",
+        "contact_email": "Sell@AllSurplus.com",
+        "contact_phone": "1-800-310-4604",
+    },
 }
 
 SOURCE_FALLBACK_SQL = text("""
