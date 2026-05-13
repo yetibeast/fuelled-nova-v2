@@ -78,7 +78,7 @@ async def ai_prompt(authorization: str = Header(None)):
         "prompt_text": prompt,
         "prompt_length": len(prompt),
         "reference_files": ref_files,
-        "model": "claude-sonnet-4-20250514",
+        "model": "claude-sonnet-4-6",
     }
 
 
@@ -273,7 +273,7 @@ async def ai_model_breakdown(authorization: str = Header(None)):
     model_data: dict[str, dict] = {}
 
     for e in entries:
-        model = e.get("model", "claude-sonnet-4-20250514")
+        model = e.get("model", "claude-sonnet-4-6")
         if model not in model_data:
             model_data[model] = {"queries": 0, "cost": 0.0}
         model_data[model]["queries"] += 1

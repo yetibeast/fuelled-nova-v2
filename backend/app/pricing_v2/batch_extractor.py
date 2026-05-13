@@ -21,7 +21,7 @@ from app.config import ANTHROPIC_API_KEY
 
 _log = logging.getLogger(__name__)
 _client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
-_MODEL = "claude-sonnet-4-20250514"
+_MODEL = "claude-sonnet-4-6"
 _MAX_CHARS = 180_000  # ~45k tokens of input; truncate beyond
 _MAX_ITEMS = 2000  # hard safety cap on extracted items
 _MAX_OUTPUT_TOKENS = 64_000  # Sonnet 4 ceiling; enough for ~1500 compact items

@@ -19,7 +19,7 @@ _log = logging.getLogger(__name__)
 
 _client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
 
-_MODEL = "claude-sonnet-4-20250514"
+_MODEL = "claude-sonnet-4-6"
 
 
 def _extract_json(text: str) -> dict | None:

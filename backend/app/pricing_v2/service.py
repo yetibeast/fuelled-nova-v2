@@ -82,7 +82,7 @@ async def run_pricing(
     conversation_id: str | None = None,
 ) -> dict:
     system_prompt = build_system_prompt(email=user_email)
-    _model = "claude-sonnet-4-20250514"
+    _model = "claude-sonnet-4-6"
 
     # Build messages
     messages = []
