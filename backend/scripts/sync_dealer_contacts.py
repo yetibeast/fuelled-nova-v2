@@ -36,6 +36,48 @@ SYNC_SQL = text("""
     RETURNING l.id, l.source, l.seller_name
 """)
 
+
+# Source-platform fallbacks. Used for listings where we have not yet captured
+# a seller name (equipmenttrader, machinio, reflowx, ironplanet — scrapers do
+# not extract dealer info from those sources today). Surfaces the platform's
+# main support line so the row is not blank, and the contact_name explicitly
+# flags that no individual seller was captured. Sourced via web research
+# 2026-05-13. Will be replaced by per-source dealer capture as those scrapers
+# get the same treatment we did on AllSurplus and Kijiji.
+SOURCE_FALLBACKS: dict[str, dict[str, str]] = {
+    "equipmenttrader": {
+        "contact_name":  "Equipment Trader (platform — no individual seller captured)",
+        "contact_email": "Ads@Traderonline.com",
+        "contact_phone": "(877) 920-5442",
+    },
+    "machinio": {
+        "contact_name":  "Machinio (platform — no individual seller captured)",
+        "contact_email": "",
+        "contact_phone": "1-877-329-2775",
+    },
+    "reflowx": {
+        "contact_name":  "ReflowX (platform — no individual seller captured)",
+        "contact_email": "info@reflowx.com",
+        "contact_phone": "+971 55 763 4099",
+    },
+    "ironplanet": {
+        "contact_name":  "IronPlanet / Ritchie Bros (platform — no individual seller captured)",
+        "contact_email": "",
+        "contact_phone": "+1 (800) 211-3983",
+    },
+}
+
+SOURCE_FALLBACK_SQL = text("""
+    UPDATE listings
+    SET event_contact_name  = COALESCE(NULLIF(:contact_name,  ''), event_contact_name),
+        event_contact_email = COALESCE(NULLIF(:contact_email, ''), event_contact_email),
+        event_contact_phone = COALESCE(NULLIF(:contact_phone, ''), event_contact_phone)
+    WHERE source = :source
+      AND seller_name IS NULL
+      AND event_contact_name IS NULL
+    RETURNING id
+""")
+
 PREVIEW_SQL = text("""
     SELECT d.seller_name, d.source,
            d.contact_name, d.contact_email, d.contact_phone,
@@ -60,7 +102,13 @@ async def main() -> int:
 
     url = args.db_url.replace("postgresql://", "postgresql+asyncpg://", 1)
     engine = create_async_engine(url)
+    try:
+        return await _run(engine, args)
+    finally:
+        await engine.dispose()
 
+
+async def _run(engine, args) -> int:
     async with engine.connect() as conn:
         preview = (await conn.execute(PREVIEW_SQL)).fetchall()
         print(f"{'seller':<48} {'source':<12} {'matched':>8}  contact")
@@ -73,7 +121,6 @@ async def main() -> int:
             return 0
 
         updated = (await conn.execute(SYNC_SQL)).fetchall()
-        await conn.commit()
 
         print(f"\nUpdated {len(updated)} listings rows from dealer_contacts.")
         by_source = {}
@@ -81,8 +128,18 @@ async def main() -> int:
             by_source[row[1]] = by_source.get(row[1], 0) + 1
         for src, n in sorted(by_source.items(), key=lambda x: -x[1]):
             print(f"  {src:<14} {n}")
+
+        # Source-platform fallbacks (no individual seller captured yet)
+        print("\nApplying source-platform fallbacks...")
+        for src, contact in SOURCE_FALLBACKS.items():
+            res = (await conn.execute(SOURCE_FALLBACK_SQL, {"source": src, **contact})).fetchall()
+            if res:
+                print(f"  {src:<18} {len(res):>5} rows")
+
+        await conn.commit()
     return 0
 
 
 if __name__ == "__main__":
     sys.exit(asyncio.run(main()))
+
