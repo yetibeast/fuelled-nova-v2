@@ -165,3 +165,71 @@ async def supply_target_listings(
         }
         for r in rows
     ]
+
+
+@router.get("/supply-targets/listings")
+async def supply_target_listings_bulk(
+    authorization: str = Header(None),
+    source: Optional[str] = Query(None, description="Filter to a single marketplace, e.g. 'allsurplus'"),
+    limit: int = Query(10000, ge=1, le=50000),
+):
+    """Bulk export: every listing with seller attribution, optionally scoped to one source.
+
+    Powers the Excel export — pulling per-seller drilldowns N times is unnecessary
+    when the spreadsheet wants the full per-listing sheet anyway. The result is keyed
+    by the same `seller_key` (seller_name || 'anon:' + seller_source_id) used by the
+    aggregate so the two sheets join cleanly client-side."""
+    _require_admin(authorization)
+
+    where = ["seller_source_id IS NOT NULL"]
+    params: dict = {"limit": limit}
+    if source:
+        where.append("source = :source")
+        params["source"] = source
+
+    sql = f"""
+        SELECT id, source, seller_source_id, seller_name, seller_account_type,
+               seller_other_assets_url,
+               COALESCE(seller_name, 'anon:' || seller_source_id) AS seller_key,
+               title, category, make, model, year, condition,
+               asking_price, current_bid, currency, location, url, last_seen,
+               event_id, event_title, event_contact_name, event_contact_email, event_contact_phone
+        FROM listings
+        WHERE {' AND '.join(where)}
+        ORDER BY source, seller_key, last_seen DESC NULLS LAST
+        LIMIT :limit
+    """
+
+    async with get_session() as session:
+        result = await session.execute(text(sql), params)
+        rows = result.fetchall()
+
+    return [
+        {
+            "id": str(r[0]),
+            "source": r[1],
+            "seller_source_id": r[2],
+            "seller_name": r[3],
+            "seller_account_type": r[4],
+            "seller_other_assets_url": r[5],
+            "seller_key": r[6],
+            "title": r[7],
+            "category": r[8],
+            "make": r[9],
+            "model": r[10],
+            "year": r[11],
+            "condition": r[12],
+            "asking_price": float(r[13]) if r[13] is not None else None,
+            "current_bid": float(r[14]) if r[14] is not None else None,
+            "currency": r[15],
+            "location": r[16],
+            "url": r[17],
+            "last_seen": r[18].isoformat() if r[18] else None,
+            "event_id": r[19],
+            "event_title": r[20],
+            "contact_name": r[21],
+            "contact_email": r[22],
+            "contact_phone": r[23],
+        }
+        for r in rows
+    ]
