@@ -100,7 +100,8 @@ async def generate(body: dict, authorization: str = Header(None)):
                 for r in results
             ),
         }
-        # For single-item reports, generate rich content via Claude report pass
+        # Generate rich Claude content. Single-item gets the per-item template;
+        # multi-item gets the portfolio (PwC 143x) shape.
         sections = None
         if len(results) == 1:
             r = results[0]
@@ -109,6 +110,10 @@ async def generate(body: dict, authorization: str = Header(None)):
             user_msg = r.get("user_message", r.get("title", "Equipment"))
             from app.pricing_v2.report_content import generate_report_content
             sections = await generate_report_content(structured, response_text, user_msg, client, tier=2)
+        elif len(results) > 1:
+            from app.pricing_v2.report_content import generate_multi_report_content
+            buyer_offer = body.get("buyer_offer")
+            sections = await generate_multi_report_content(results, summary, client, buyer_offer)
         docx_bytes = generate_support_report(results, summary, client, sections=sections)
         filename = "Fuelled_Support_Report.docx"
         items = len(results)

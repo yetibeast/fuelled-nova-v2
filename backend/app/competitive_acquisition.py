@@ -144,10 +144,15 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
     liquidity_score = min(20, peer_count * 4)
     quality_score = data_quality_score(listing)
     source_score = 0 if is_auction_source(source) else 10
+    # Bias the rank toward rows we can actually act on. Without this, the top
+    # of the list fills with high-volume marketplaces (equipmenttrader,
+    # machinio) that we don't yet capture sellers from, so Mark's CONTACT
+    # column stays empty even when other rows DO have seller data.
+    seller_score = 15 if row_value(listing, "seller_name") else 0
 
     acquisition_score = min(
         100,
-        age_score + negotiability_score + liquidity_score + quality_score + source_score,
+        age_score + negotiability_score + liquidity_score + quality_score + source_score + seller_score,
     )
     promotable = (not is_auction_source(source)) and peer_count >= 3
 
@@ -185,6 +190,7 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
         # ports cleanly to other marketplaces as we add per-source seller capture)
         "seller_name": row_value(listing, "seller_name"),
         "seller_account_type": row_value(listing, "seller_account_type"),
+        "seller_other_assets_url": row_value(listing, "seller_other_assets_url"),
         "event_contact_name": row_value(listing, "event_contact_name"),
         "event_contact_email": row_value(listing, "event_contact_email"),
         "event_contact_phone": row_value(listing, "event_contact_phone"),

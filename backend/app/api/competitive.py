@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import csv
+import io
+from datetime import datetime, timezone
+
 import jwt
 from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import text
 
 from app.competitive_acquisition import build_stale_candidate, row_dict
@@ -28,7 +33,7 @@ async def _load_competitor_priced_rows(session):
         """SELECT id, title, source, asking_price, category_normalized, category,
                   make, model, year, condition, hours, horsepower,
                   location, url, first_seen, last_seen,
-                  seller_name, seller_account_type,
+                  seller_name, seller_account_type, seller_other_assets_url,
                   event_contact_name, event_contact_email, event_contact_phone
            FROM listings
            WHERE LOWER(source) != 'fuelled'
@@ -172,3 +177,93 @@ async def competitive_stale_targets(
 
     candidates.sort(key=lambda row: (-row["acquisition_score"], -row["days_listed"]))
     return candidates[:limit]
+
+
+# ---------------------------------------------------------------------------
+# 4b. GET /competitive/stale-targets.csv — same compute, CSV download
+# ---------------------------------------------------------------------------
+#
+# Mark asked (2026-05-11) whether the stale-targets list could be exported so
+# his team can work it offline. Mirrors the JSON endpoint's compute exactly;
+# column set matches the on-screen table plus the fields outreach needs
+# (contact email/phone, seller-other-assets URL).
+
+_CSV_COLUMNS = [
+    "rank",
+    "title",
+    "category",
+    "source",
+    "seller_name",
+    "seller_account_type",
+    "seller_other_assets_url",
+    "contact_name",
+    "contact_email",
+    "contact_phone",
+    "asking_price",
+    "days_listed",
+    "stale_threshold_days",
+    "acquisition_score",
+    "peer_median",
+    "peer_count",
+    "reason",
+    "url",
+]
+
+
+@router.get("/competitive/stale-targets.csv")
+async def competitive_stale_targets_csv(
+    authorization: str = Header(None),
+    promotable_only: bool = Query(False),
+    min_score: int = Query(0, ge=0, le=100),
+    limit: int = Query(500, ge=1, le=5000),
+):
+    _require_auth(authorization)
+    async with get_session() as session:
+        rows = await _load_competitor_priced_rows(session)
+
+    candidates = []
+    for row in rows:
+        candidate = build_stale_candidate(row, rows)
+        if candidate is None:
+            continue
+        if promotable_only and not candidate["promotable"]:
+            continue
+        if candidate["acquisition_score"] < min_score:
+            continue
+        candidates.append(candidate)
+
+    candidates.sort(key=lambda row: (-row["acquisition_score"], -row["days_listed"]))
+    candidates = candidates[:limit]
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_CSV_COLUMNS)
+    for idx, c in enumerate(candidates, start=1):
+        writer.writerow([
+            idx,
+            c.get("title") or "",
+            c.get("category") or "",
+            c.get("source") or "",
+            c.get("seller_name") or "",
+            c.get("seller_account_type") or "",
+            c.get("seller_other_assets_url") or "",
+            c.get("event_contact_name") or "",
+            c.get("event_contact_email") or "",
+            c.get("event_contact_phone") or "",
+            c.get("asking_price") or "",
+            c.get("days_listed") or "",
+            c.get("stale_threshold_days") or "",
+            c.get("acquisition_score") or "",
+            c.get("peer_median") or "",
+            c.get("peer_count") or "",
+            c.get("reason") or "",
+            c.get("url") or "",
+        ])
+    buf.seek(0)
+
+    filename = f"stale_targets_{datetime.now(timezone.utc).strftime('%Y%m%d')}.csv"
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

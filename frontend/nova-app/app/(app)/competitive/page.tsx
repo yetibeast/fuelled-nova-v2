@@ -9,6 +9,7 @@ import { OpportunitiesTable } from "@/components/competitive/opportunities";
 import { RepricingTable } from "@/components/competitive/repricing";
 import { StaleTargetsTable, type StaleTarget } from "@/components/competitive/stale-targets";
 import {
+  downloadCompetitiveStaleTargetsCsv,
   fetchAcquisitionSummary,
   fetchAcquisitionTargets,
   fetchCompetitiveSummary,
@@ -50,6 +51,7 @@ export default function CompetitivePage() {
   const [queueLoading, setQueueLoading] = useState(false);
   const [queueError, setQueueError] = useState(false);
   const [promotingId, setPromotingId] = useState<string | null>(null);
+  const [csvDownloading, setCsvDownloading] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [draftingId, setDraftingId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
@@ -119,6 +121,17 @@ export default function CompetitivePage() {
         setLoading(false);
         setLoaded(true);
       });
+  }
+
+  async function handleDownloadStaleCsv() {
+    setCsvDownloading(true);
+    try {
+      await downloadCompetitiveStaleTargetsCsv();
+    } catch {
+      /* user will see the missing download; keep UI silent rather than blocking */
+    } finally {
+      setCsvDownloading(false);
+    }
   }
 
   async function handlePromote(sourceListingId: string) {
@@ -192,6 +205,8 @@ export default function CompetitivePage() {
         promotedIds={promotedIds}
         promotingId={promotingId}
         onPromote={handlePromote}
+        onDownloadCsv={handleDownloadStaleCsv}
+        csvDownloading={csvDownloading}
       />
 
       {isAdmin && (

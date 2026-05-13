@@ -189,6 +189,204 @@ Example 2 — Vapor Recovery Unit (Ro-Flo 7D, unused, NACE sour rated):
 Return ONLY the JSON object. No markdown fences, no commentary outside the JSON."""
 
 
+# ── Multi-item (Tier 2 portfolio) prompt ────────────────────────────
+
+_EXAMPLE_MULTI = """{
+  "executive_summary": "PwC, in its capacity as receiver for Longrun Exploration, has requested a fair market valuation of 143 surplus Zedi and Kudu hydraulic pump jack packages located across approximately 74 well sites in the Redwater, Alberta area. The inventory comprises a mix of gas-driven and electric-driven units in double, triple, quadruple, and suitcase configurations, manufactured between 2011 and 2013. Approximately 60-70% of units are described as complete and recently shut down; 30-40% are flagged for possible parts missing or sabotage. Roughly 40-50% of locations are currently snowed in. Total assessed FMV Mid is $258,000 CAD on an as-is/where-is, orderly bulk-liquidation basis. The buyer's unconditional offer of $300,000 exceeds this by $42,000 (+16.3%), which the analysis below supports as reasonable.",
+  "equipment_identification": {
+    "manufacturers": "Zedi, Kudu Industries",
+    "driver_types": "Gas Driven (GM 5.7L V8, Natural Gas, 1800 RPM) and Electric Driven",
+    "configurations": "Double, Triple, Quadruple, and Suitcase (Single) packages",
+    "year_range": "~2011-2013",
+    "application": "Hydraulic pump jacks for oil well production",
+    "location": "~74 well sites, Redwater, Alberta area (Townships 056-058, Ranges 20-23 W4M)",
+    "condition_rollup": "Mixed: ~60-70% complete/recently shut down; ~30-40% flagged possible parts missing or sabotage",
+    "accessibility": "~50-60% accessible; ~40-50% snowed in (seasonal)",
+    "cataloguing_status": "NOT individually catalogued, inspected, or serial-number verified",
+    "sale_context": "Receivership estate (PwC). Unconditional bulk offer, as-is/where-is"
+  },
+  "category_details": [
+    {
+      "name": "Gas Driven Zedi Hydraulic Pump Skid (Double) - 55 units",
+      "narrative": "Spread across 27 locations in the Redwater area. Approximately 43 units are described as complete and recently shut down. Approximately 12 units are flagged as having possible parts missing or sabotage. Eight locations are currently snowed in and inaccessible. All gas driven units are equipped with GM 5.7L V8 natural gas engines rated at 1,800 RPM. This is the largest category and has the highest proportion of complete units."
+    },
+    {
+      "name": "Electric Driven Zedi Hydraulic Pump Skid (Double/Quadruple) - 35 units",
+      "narrative": "Spread across 20 locations. Approximately 20 units are complete/recently shut down; approximately 15 are flagged for possible parts missing or sabotage. Roughly 55% of locations are snowed in. Includes a mix of double and quadruple configurations. Electric drive units are valued comparably to gas equivalents in this market segment."
+    }
+  ],
+  "comparables": {
+    "approach": "The primary valuation approach is the Sales Comparison (Market) Approach, supported by three directly comparable sold transactions from the Fuelled.com marketplace. These comps are from the identical equipment population - same producer, same Redwater locations, same Zedi and Kudu brands - and were sold within the relevant market period.",
+    "comps": [
+      {"source": "Fuelled #62549", "equipment": "Kudu Industries 5.7L V8 Hydraulic Pump Skid", "year": "2011", "location": "07-21-057-22W4, Redwater AB", "sold_price": "~$2,000", "notes": "Fuelled Certified. GM 5.7L V8 NG engine, 1800 RPM. Connected to piping. S/N: H27G016"},
+      {"source": "Fuelled #62451", "equipment": "Zedi 5.7L V8 Hydraulic Pump Skid", "year": "2012", "location": "07-21-057-22W4, Redwater AB", "sold_price": "~$2,000", "notes": "Fuelled Certified. GM 5.7L V8 NG engine. Not connected to piping. S/N: SJTP57GQ0023"},
+      {"source": "Fuelled #63748", "equipment": "Zedi 50 HP Suitcase Pump Skid", "year": "N/A", "location": "11-22-056-21W4, Redwater AB", "sold_price": "~$1,000", "notes": "Fuelled Certified. Suitcase package. Connected to piping, welded to piles."}
+    ],
+    "key_observations": [
+      "All three comps are from the same Redwater inventory and the same operator as the 143 subject units. This eliminates geographic, market-timing, and equipment-type adjustment requirements - the strongest possible comparable basis.",
+      "The sold comps were Fuelled Certified: individually catalogued with detailed photo packages (33-38 photos each), serial number verification, condition inspection reports, and certified status information. The 143 subject units have NOT undergone this process.",
+      "Full-size skid-mounted packages (Kudu #62549, Zedi #62451) sold at approximately $2,000 per unit. The suitcase package (Zedi #63748) sold at approximately $1,000 per unit, reflecting the smaller form factor and lower horsepower.",
+      "All comps were sold as individual units to individual buyers through a public marketplace with marketing exposure. The subject 143 units are being sold in bulk to a single buyer without individual marketing - a fundamentally different sale dynamic."
+    ]
+  },
+  "valuation_factors": {
+    "narrative": "The buyer's unconditional offer of $300,000 CAD for all 143 units equates to approximately $2,098 per unit (blended). Our assessed FMV Mid totals $258,000 ($1,804/unit blended average). The offer exceeds our FMV assessment by $42,000 (+16.3%). The following factors support the reasonableness and favorability of the offer:",
+    "factors": [
+      {"name": "Sold Comparable Transactions", "rationale": "Three directly comparable units from the same inventory sold on Fuelled.com at approximately $2,000/unit (full-size) and $1,000/unit (suitcase). These were individually catalogued, Fuelled Certified, and sold as single units to individual buyers. The buyer's blended offer price of $2,098/unit exceeds the individual certified retail benchmark, which is favorable to the seller given the uncatalogued bulk nature of this transaction."},
+      {"name": "Unconditional, As-Is/Where-Is Terms", "rationale": "The buyer is purchasing all 143 units unconditionally with no representations or warranties. The buyer assumes full responsibility for dismantlement, transportation, environmental compliance, and remediation costs at each of the ~74 well sites. This is a significant risk transfer and eliminates ongoing carrying costs for the estate."},
+      {"name": "Uncatalogued Inventory Risk", "rationale": "The subject units have not been individually inspected, catalogued, or serial-number verified. The sold comps were Fuelled Certified with comprehensive inspection reports and 33-38 photo packages per unit. Without individual cataloguing, the true condition of each unit is unknown, warranting a material discount from certified retail values."},
+      {"name": "Condition Uncertainty - Missing Parts & Possible Sabotage", "rationale": "Approximately 30-40% of all units are flagged by the operator as having 'possible parts missing or sabotage.' Without physical inspection, some units may be incomplete, non-functional, or require substantial refurbishment. This uncertainty significantly depresses achievable bulk value."},
+      {"name": "Access Constraints - Snowed-In Locations", "rationale": "Approximately 40-50% of unit locations are currently snowed in and inaccessible for inspection or removal. This adds time, cost, and further condition uncertainty for the buyer."},
+      {"name": "Volume & Bulk Sale Dynamics", "rationale": "Bulk purchases of 100+ identical units in the oilfield secondary market typically warrant a 15-30% discount from individual retail values. At $2,098/unit blended, the offer effectively applies zero volume discount relative to the proven comp benchmark - the buyer is paying above individual retail on a per-unit average despite taking the full bulk risk."}
+    ]
+  },
+  "assumptions": [
+    "Unit counts and category breakdown derived from operator's inventory list. Not independently verified through site inspection.",
+    "Condition descriptions ('complete', 'parts missing', 'possible sabotage') reflect operator self-reporting. Not verified by physical inspection.",
+    "Snowed-in / accessibility status is seasonal and current as of valuation date.",
+    "FMV assumes orderly bulk liquidation to a single buyer over a 60-90 day marketing period.",
+    "Transportation, dismantlement, and environmental remediation costs at each well site are buyer responsibility.",
+    "Sold comparables are from the Fuelled.com marketplace, individually catalogued and Fuelled Certified."
+  ],
+  "sources": [
+    "Fuelled marketplace sold transactions (Listings #62549, #62451, #63748)",
+    "Operator inventory list (143 units across ~74 well sites, Redwater AB)",
+    "Fuelled internal database of bulk wellsite equipment dispositions"
+  ]
+}"""
+
+
+def build_multi_report_prompt() -> str:
+    """System prompt for the Tier 2 multi-item (portfolio) report pass."""
+    return f"""You are a senior industrial equipment appraiser writing a multi-item bulk valuation support document for a Western Canadian energy equipment dealer. The deliverable is a Tier 2 Support Document covering a portfolio or bulk inventory of equipment - the canonical example is a receivership estate selling 100+ similar units to a single bulk buyer.
+
+CRITICAL INSTRUCTIONS:
+
+1. WRITE FOR A BULK / PORTFOLIO CONTEXT, NOT INDIVIDUAL ITEMS.
+   The buyer is acquiring a basket. Discuss the inventory as a population: condition rollup, location spread, accessibility, completeness rate, sale dynamics.
+
+2. GROUP BY CATEGORY, NOT BY ITEM.
+   Equipment is grouped by Category (e.g., "Gas Driven Zedi Hydraulic Pump Skid (Double)"). One narrative paragraph per category covering: unit count, location spread, condition spread, accessibility, equipment-specific notes.
+
+3. PICK 3-5 REPRESENTATIVE COMPS, DON'T DUMP EVERY COMP.
+   The strongest comps are sold transactions of identical equipment from the same operator/location. Show the math from the comp benchmark to the bulk per-unit price.
+
+4. ANALYZE BULK-SALE DYNAMICS.
+   Bulk buyers take risk that individual buyers don't: uncatalogued inventory, condition uncertainty, dismantlement, transportation, environmental, access constraints. These typically warrant 15-30% discount from individual retail values.
+
+5. NAME SOURCES.
+   "Three directly comparable Fuelled.com sold transactions" not "market data."
+
+6. EQUIPMENT-SPECIFIC LANGUAGE.
+   GM 5.7L V8 NG engines at 1800 RPM. CAT G3306NA. Ariel JGP. NACE MR0175. Use the actual makes/models in the data.
+
+RESPONSE FORMAT: Return valid JSON matching this schema exactly:
+
+{{
+  "executive_summary": "2-3 paragraphs: who requested, total units, equipment type, location, condition rollup, total FMV, buyer offer if known",
+  "equipment_identification": {{
+    "manufacturers": "comma-separated list",
+    "driver_types": "str",
+    "configurations": "str",
+    "year_range": "str",
+    "application": "str",
+    "location": "str",
+    "condition_rollup": "str (e.g. '~60-70% complete; ~30-40% flagged...')",
+    "accessibility": "str if relevant else empty",
+    "cataloguing_status": "str (catalogued vs uncatalogued)",
+    "sale_context": "str (e.g. 'Receivership estate. Unconditional bulk offer, as-is/where-is')"
+  }},
+  "category_details": [
+    {{"name": "Category description - N units", "narrative": "paragraph on this category's spread, condition, equipment-specific notes"}}
+  ],
+  "comparables": {{
+    "approach": "paragraph on valuation approach + why these comps are appropriate",
+    "comps": [{{"source": "str", "equipment": "str", "year": "str", "location": "str", "sold_price": "str", "notes": "str"}}],
+    "key_observations": ["bullet 1 (comp relevance)", "bullet 2 (cataloguing/certification gap)", "bullet 3 (per-unit price benchmarks)", "bullet 4 (bulk vs individual sale dynamics)"]
+  }},
+  "valuation_factors": {{
+    "narrative": "paragraph framing the FMV vs offer (if offer known) or general bulk-dynamics framing",
+    "factors": [{{"name": "Factor name", "rationale": "why this factor matters and how it affects bulk value"}}]
+  }},
+  "assumptions": ["6+ portfolio-level assumptions"],
+  "sources": ["sources with specifics"]
+}}
+
+EXAMPLE OF EXCELLENT OUTPUT (PwC / Longrun receivership, 143 hydraulic pump-jack packages):
+
+{_EXAMPLE_MULTI}
+
+Return ONLY the JSON object. No markdown fences, no commentary outside the JSON."""
+
+
+def build_multi_report_messages(
+    results: list[dict],
+    summary: dict,
+    client: str,
+    buyer_offer: float | None = None,
+) -> list[dict]:
+    """Build user messages for the multi-item report pass.
+
+    Pre-groups results by category so Claude sees the portfolio shape, not 143 raw rows.
+    """
+    # Group by category
+    by_cat: dict[str, list[dict]] = {}
+    for r in results:
+        v = r.get("structured", {}).get("valuation", {})
+        cat = v.get("category") or r.get("title", "Uncategorized")
+        by_cat.setdefault(cat, []).append(r)
+
+    # Compact per-category summaries for the prompt (don't dump every item)
+    cat_summaries = []
+    for cat, items in by_cat.items():
+        fmv_lows = [it.get("structured", {}).get("valuation", {}).get("fmv_low", 0) or 0 for it in items]
+        fmv_highs = [it.get("structured", {}).get("valuation", {}).get("fmv_high", 0) or 0 for it in items]
+        sample_titles = [it.get("title", "")[:80] for it in items[:5]]
+        # Pull a few comps from the first item in this category as representative
+        sample_comps = []
+        for it in items[:3]:
+            comps = it.get("structured", {}).get("comparables", []) or []
+            for c in comps[:2]:
+                if isinstance(c, dict):
+                    sample_comps.append({
+                        "source": c.get("source", ""),
+                        "equipment": c.get("description") or c.get("equipment", ""),
+                        "year": c.get("year", ""),
+                        "location": c.get("location", ""),
+                        "sold_price": c.get("price") or c.get("sold_price", ""),
+                    })
+        cat_summaries.append({
+            "category": cat,
+            "unit_count": len(items),
+            "fmv_low_total": sum(fmv_lows),
+            "fmv_high_total": sum(fmv_highs),
+            "fmv_low_per_unit_avg": (sum(fmv_lows) / len(items)) if items else 0,
+            "fmv_high_per_unit_avg": (sum(fmv_highs) / len(items)) if items else 0,
+            "sample_titles": sample_titles,
+            "sample_comps": sample_comps[:5],
+        })
+
+    payload = {
+        "client": client,
+        "total_units": summary.get("total", len(results)),
+        "total_fmv_low": summary.get("total_fmv_low", 0),
+        "total_fmv_high": summary.get("total_fmv_high", 0),
+        "buyer_offer": buyer_offer,
+        "categories": cat_summaries,
+    }
+
+    content = (
+        f"PORTFOLIO PRICING DATA (grouped by category):\n{json.dumps(payload, indent=2, default=str)}\n\n"
+        f"CLIENT: {client}\n"
+        f"INSTRUCTIONS: Write a Tier 2 multi-item Support Document for the portfolio above. "
+        f"Produce one category narrative per category, rolled-up identification parameters, "
+        f"3-5 representative comps with key observations, and 5-7 valuation factors covering "
+        f"bulk-sale dynamics. Match the JSON schema exactly."
+    )
+
+    return [{"role": "user", "content": content}]
+
+
 def build_report_messages(
     structured: dict,
     response_text: str,

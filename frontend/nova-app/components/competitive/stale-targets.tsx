@@ -17,6 +17,7 @@ export interface StaleTarget {
   reason?: string;
   seller_name?: string | null;
   seller_account_type?: string | null;
+  seller_other_assets_url?: string | null;
   event_contact_name?: string | null;
   event_contact_email?: string | null;
   event_contact_phone?: string | null;
@@ -30,6 +31,8 @@ interface StaleTargetsTableProps {
   promotedIds: Set<string>;
   promotingId: string | null;
   onPromote: (sourceListingId: string) => void;
+  onDownloadCsv?: () => void;
+  csvDownloading?: boolean;
 }
 
 export function StaleTargetsTable({
@@ -40,14 +43,27 @@ export function StaleTargetsTable({
   promotedIds,
   promotingId,
   onPromote,
+  onDownloadCsv,
+  csvDownloading,
 }: StaleTargetsTableProps) {
   return (
     <div className="glass-card rounded-xl overflow-hidden mb-6">
-      <div className="px-6 py-4 border-b border-white/[0.06]">
-        <h3 className="font-headline font-bold text-sm tracking-tight">Stale Acquisition Candidates</h3>
-        <p className="text-[10px] font-mono text-on-surface/30 mt-1">
-          Ranked competitor listings that look old enough to chase as buy-side opportunities
-        </p>
+      <div className="px-6 py-4 border-b border-white/[0.06] flex justify-between items-start gap-4">
+        <div>
+          <h3 className="font-headline font-bold text-sm tracking-tight">Stale Acquisition Candidates</h3>
+          <p className="text-[10px] font-mono text-on-surface/30 mt-1">
+            Ranked competitor listings that look old enough to chase as buy-side opportunities
+          </p>
+        </div>
+        {onDownloadCsv && (
+          <button
+            onClick={onDownloadCsv}
+            disabled={csvDownloading}
+            className="px-3 py-1.5 rounded-md border border-primary/20 bg-primary/10 text-[10px] font-mono uppercase tracking-widest text-primary hover:bg-primary/20 transition-all disabled:opacity-50"
+          >
+            {csvDownloading ? "Exporting..." : "Download CSV"}
+          </button>
+        )}
       </div>
 
       <div className="overflow-x-auto">
@@ -101,7 +117,25 @@ export function StaleTargetsTable({
                       </div>
                     </td>
                     <td className="px-6 py-3 text-on-surface/70">
-                      <div>{item.seller_name || <span className="text-on-surface/30">—</span>}</div>
+                      <div>
+                        {item.seller_name ? (
+                          item.seller_other_assets_url ? (
+                            <a
+                              href={item.seller_other_assets_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-primary/80 hover:text-primary"
+                            >
+                              {item.seller_name}
+                            </a>
+                          ) : (
+                            item.seller_name
+                          )
+                        ) : (
+                          <span className="text-on-surface/30">—</span>
+                        )}
+                      </div>
                       {item.seller_account_type && (
                         <div className="text-[10px] text-on-surface/30 mt-1 uppercase tracking-widest">
                           {item.seller_account_type}

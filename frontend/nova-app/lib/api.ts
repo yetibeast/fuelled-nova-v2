@@ -325,6 +325,21 @@ export async function fetchCompetitiveStaleTargets(promotableOnly = false) {
   return res.json();
 }
 
+export async function downloadCompetitiveStaleTargetsCsv() {
+  const res = await fetch("/api/competitive/stale-targets.csv?limit=500", {
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  const stamp = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+  a.download = `stale_targets_${stamp}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export function fetchAcquisitionSummary() {
   return adminGet("/api/admin/competitive/acquisition/summary");
 }
@@ -398,11 +413,21 @@ export async function exportBatchSpreadsheet(results: unknown[]) {
   return res.blob();
 }
 
-export async function exportBatchReport(results: unknown[], summary?: Record<string, unknown>) {
+export async function exportBatchReport(
+  results: unknown[],
+  summary?: Record<string, unknown>,
+  client?: string,
+  buyerOffer?: number | null,
+) {
   const res = await fetch("/api/price/batch/report", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ results, summary: summary || {} }),
+    body: JSON.stringify({
+      results,
+      summary: summary || {},
+      client: client || "",
+      buyer_offer: buyerOffer ?? null,
+    }),
   });
   if (!res.ok) throw new Error("Report generation failed");
   return res.blob();
