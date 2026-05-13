@@ -11,8 +11,7 @@ reasoning trail, factor weights — beyond the Tier 1 portfolio bands.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal
+from dataclasses import dataclass
 
 
 # ── REQUIRED COLUMNS (in order, frozen) ────────────────────────────
@@ -75,7 +74,7 @@ TIER2_COLUMNS: tuple[str, ...] = (
 
 
 # ── COLUMN TYPE CONTRACTS ──────────────────────────────────────────
-COLUMN_TYPES: dict[str, type] = {
+COLUMN_TYPES: dict[str, type | tuple[type, ...]] = {
     "Listing ID": str, "Record ID": str, "Listing Name": str, "Category": str,
     "Family": str, "Supplier Company": str, "URL": str,
     "Size / Basis": str, "Age Assumed (yr)": (int, float), "Condition Assumed": str,
@@ -114,9 +113,23 @@ VALID_CONF_CLASSES: frozenset[str] = frozenset({"automated", "hitl_review", "man
 
 @dataclass(frozen=True)
 class Tier2Row:
-    """A priced Tier 2 row. Use `.to_dict()` to render to workbook output."""
+    """A priced Tier 2 row. Use `.to_dict()` to render to workbook output.
+
+    Note: `data` is a mutable dict by reference — `frozen=True` prevents
+    reassigning the field but does not prevent in-place mutation of the
+    contained dict. Build a row immediately before rendering; do not
+    retain instances long-term.
+    """
     data: dict
 
     def to_dict(self) -> dict:
-        """Return ordered dict matching TIER2_COLUMNS order exactly."""
-        return {col: self.data.get(col) for col in TIER2_COLUMNS}
+        """Return ordered dict matching TIER2_COLUMNS order exactly.
+
+        Raises ValueError if any required column is missing from `self.data`.
+        Strict-by-design: surfaces family-ruleset bugs at row construction
+        rather than deferring to the contract validator at end-of-batch.
+        """
+        missing = [c for c in TIER2_COLUMNS if c not in self.data]
+        if missing:
+            raise ValueError(f"Tier2Row missing required columns: {missing}")
+        return {col: self.data[col] for col in TIER2_COLUMNS}
