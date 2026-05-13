@@ -413,11 +413,21 @@ export async function exportBatchSpreadsheet(results: unknown[]) {
   return res.blob();
 }
 
-export async function exportBatchReport(results: unknown[], summary?: Record<string, unknown>) {
+export async function exportBatchReport(
+  results: unknown[],
+  summary?: Record<string, unknown>,
+  client?: string,
+  buyerOffer?: number | null,
+) {
   const res = await fetch("/api/price/batch/report", {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ results, summary: summary || {} }),
+    body: JSON.stringify({
+      results,
+      summary: summary || {},
+      client: client || "",
+      buyer_offer: buyerOffer ?? null,
+    }),
   });
   if (!res.ok) throw new Error("Report generation failed");
   return res.blob();

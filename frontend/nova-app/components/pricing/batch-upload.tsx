@@ -22,6 +22,9 @@ export function BatchUpload({ onBatchResults }: BatchUploadProps) {
   const [result, setResult] = useState<BatchResult | null>(null);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [clientName, setClientName] = useState("");
+  const [buyerOffer, setBuyerOffer] = useState("");
+  const [showErrors, setShowErrors] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -129,11 +132,20 @@ export function BatchUpload({ onBatchResults }: BatchUploadProps) {
 
   async function downloadReport() {
     if (!result) return;
-    const blob = await exportBatchReport(result.results, result.summary);
+    const offerNum = buyerOffer ? Number(buyerOffer) : null;
+    const blob = await exportBatchReport(
+      result.results,
+      result.summary,
+      clientName.trim() || undefined,
+      Number.isFinite(offerNum) ? offerNum : null,
+    );
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "Fuelled_Portfolio_Report.docx";
+    const safeClient = clientName.trim().replace(/[^a-zA-Z0-9]+/g, "_");
+    a.download = safeClient
+      ? `Fuelled_Portfolio_Report_${safeClient}.docx`
+      : "Fuelled_Portfolio_Report.docx";
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -190,9 +202,43 @@ export function BatchUpload({ onBatchResults }: BatchUploadProps) {
             </div>
           </div>
           {result.summary.failed > 0 && (
-            <div className="text-[10px] font-mono text-red-400">{result.summary.failed} item(s) failed</div>
+            <div className="space-y-1">
+              <button
+                onClick={() => setShowErrors((s) => !s)}
+                className="text-[10px] font-mono text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+              >
+                <MaterialIcon icon={showErrors ? "expand_less" : "expand_more"} className="text-xs" />
+                {result.summary.failed} item(s) failed — {showErrors ? "hide" : "show"} details
+              </button>
+              {showErrors && result.errors.length > 0 && (
+                <div className="rounded-md bg-red-500/[0.05] border border-red-500/20 p-2 space-y-1 max-h-40 overflow-y-auto">
+                  {result.errors.map((e, i) => (
+                    <div key={i} className="text-[10px] font-mono text-red-300/90">
+                      <span className="text-red-200 font-semibold">{e.title}:</span> {e.error}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
-          <div className="flex gap-2 pt-2">
+          {/* Report metadata inputs */}
+          <div className="grid grid-cols-2 gap-2 pt-1">
+            <input
+              type="text"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Client name (optional)"
+              className="px-3 py-1.5 rounded-md bg-white/[0.04] border border-white/10 text-xs text-on-surface placeholder:text-on-surface/30 focus:outline-none focus:border-primary/40 transition-colors"
+            />
+            <input
+              type="number"
+              value={buyerOffer}
+              onChange={(e) => setBuyerOffer(e.target.value)}
+              placeholder="Buyer offer ($, optional)"
+              className="px-3 py-1.5 rounded-md bg-white/[0.04] border border-white/10 text-xs text-on-surface placeholder:text-on-surface/30 focus:outline-none focus:border-primary/40 transition-colors"
+            />
+          </div>
+          <div className="flex gap-2 pt-1">
             <button onClick={downloadXlsx} className="flex-1 py-2 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-xs font-medium text-on-surface/80 flex items-center justify-center gap-1.5 transition-colors">
               <MaterialIcon icon="table_chart" className="text-sm" /> Export XLSX
             </button>

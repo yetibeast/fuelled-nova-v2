@@ -19,6 +19,23 @@ from app.pricing_v2.service import run_pricing
 router = APIRouter(prefix="/price", tags=["batch"])
 
 
+def _describe_error(exc: Exception) -> str:
+    """Convert an exception into a user-actionable error string with class + hint."""
+    cls = type(exc).__name__
+    msg = str(exc) or "(no message)"
+    # Anthropic errors
+    if cls in ("APIStatusError", "BadRequestError", "RateLimitError",
+               "APIConnectionError", "APITimeoutError", "OverloadedError"):
+        return f"Anthropic API error ({cls}): {msg}. Retry or reduce batch size."
+    if cls == "JSONDecodeError":
+        return f"Malformed Claude response: {msg}. Item description may be ambiguous."
+    if cls in ("ProgrammingError", "DataError", "OperationalError", "InterfaceError"):
+        return f"Database error ({cls}): {msg}. Check DB connectivity and schema."
+    if cls in ("ValueError", "KeyError", "TypeError"):
+        return f"Data error ({cls}): {msg}. Likely missing or malformed input field."
+    return f"{cls}: {msg}"
+
+
 # ── Auth helper ───────────────────────────────────────────────
 def _require_auth(authorization: str | None):
     if not authorization or not authorization.startswith("Bearer "):
@@ -65,9 +82,9 @@ async def _price_batch(items: list[BatchItem]) -> dict:
                 "tools_used": out.get("tools_used", []),
             })
         except asyncio.TimeoutError:
-            errors.append({"title": item.title, "error": "Timed out after 60s"})
+            errors.append({"title": item.title, "error": "Timed out after 60s — item may be too complex or comps lookup slow"})
         except Exception as e:
-            errors.append({"title": item.title, "error": str(e)})
+            errors.append({"title": item.title, "error": _describe_error(e)})
 
     summary = {
         "total": len(items),
@@ -125,9 +142,9 @@ async def _price_batch_async(job_id: str, items: list[BatchItem]):
                 "tools_used": out.get("tools_used", []),
             })
         except asyncio.TimeoutError:
-            job["errors"].append({"title": item.title, "error": "Timed out after 60s"})
+            job["errors"].append({"title": item.title, "error": "Timed out after 60s — item may be too complex or comps lookup slow"})
         except Exception as e:
-            job["errors"].append({"title": item.title, "error": str(e)})
+            job["errors"].append({"title": item.title, "error": _describe_error(e)})
         job["completed"] = i + 1
 
     job["status"] = "completed"
@@ -407,12 +424,18 @@ async def batch_export(body: ExportRequest, authorization: str = Header(None)):
 class ReportRequest(BaseModel):
     results: list[dict]
     summary: dict = {}
+    client: str = ""
+    buyer_offer: float | None = None
 
 
 @router.post("/batch/report")
 async def batch_report(body: ReportRequest, authorization: str = Header(None)):
     _require_auth(authorization)
-    from app.pricing_v2.portfolio_report import generate_portfolio_report
+    from app.pricing_v2.report_support import generate_support_report
+    from app.pricing_v2.report_content import (
+        generate_report_content,
+        generate_multi_report_content,
+    )
 
     summary = body.summary or {
         "total": len(body.results),
@@ -427,7 +450,25 @@ async def batch_report(body: ReportRequest, authorization: str = Header(None)):
             for r in body.results
         ),
     }
-    docx_bytes = generate_portfolio_report(body.results, summary)
+
+    # Generate rich Claude content matching item count.
+    sections = None
+    if len(body.results) == 1:
+        r = body.results[0]
+        structured = r.get("structured", {})
+        response_text = r.get("response", "")
+        user_msg = r.get("user_message", r.get("title", "Equipment"))
+        sections = await generate_report_content(
+            structured, response_text, user_msg, body.client, tier=2
+        )
+    elif len(body.results) > 1:
+        sections = await generate_multi_report_content(
+            body.results, summary, body.client, body.buyer_offer
+        )
+
+    docx_bytes = generate_support_report(
+        body.results, summary, body.client, sections=sections
+    )
     return Response(
         content=docx_bytes,
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",

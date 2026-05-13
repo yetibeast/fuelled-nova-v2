@@ -154,17 +154,41 @@ def generate_support_report(
 
     # ── Section 1: Equipment Identification ──
     _heading(doc, "Section 1: Equipment Identification")
-    # Build parameter table from first result (portfolio-level)
-    equip_names = ", ".join(r.get("title", "") for r in results[:5])
-    if len(results) > 5:
-        equip_names += f" (+{len(results) - 5} more)"
-    id_rows = [
-        ("Equipment", equip_names),
-        ("Total Items", str(summary.get("total", len(results)))),
-        ("Valuation Date", today),
-        ("Reference", ref),
-    ]
-    _table(doc, ["Parameter", "Details"], id_rows)
+    eid = (sections or {}).get("equipment_identification") or {}
+    if eid:
+        # Multi-item: render rolled-up parameter table (PwC 143x shape)
+        id_rows = []
+        param_order = [
+            ("Equipment", f"{summary.get('total', len(results))}x " + (eid.get("application") or "Equipment Packages")),
+            ("Manufacturers", eid.get("manufacturers", "")),
+            ("Driver Types", eid.get("driver_types", "")),
+            ("Configurations", eid.get("configurations", "")),
+            ("Year of Manufacture", eid.get("year_range", "")),
+            ("Application", eid.get("application", "")),
+            ("Location", eid.get("location", "")),
+            ("Condition", eid.get("condition_rollup", "")),
+            ("Accessibility", eid.get("accessibility", "")),
+            ("Cataloguing Status", eid.get("cataloguing_status", "")),
+            ("Sale Context", eid.get("sale_context", "")),
+            ("Valuation Date", today),
+            ("Reference", ref),
+        ]
+        for label, val in param_order:
+            if val:
+                id_rows.append((label, val))
+        _table(doc, ["Parameter", "Details"], id_rows)
+    else:
+        # Single-item / fallback: bare identification table
+        equip_names = ", ".join(r.get("title", "") for r in results[:5])
+        if len(results) > 5:
+            equip_names += f" (+{len(results) - 5} more)"
+        id_rows = [
+            ("Equipment", equip_names),
+            ("Total Items", str(summary.get("total", len(results)))),
+            ("Valuation Date", today),
+            ("Reference", ref),
+        ]
+        _table(doc, ["Parameter", "Details"], id_rows)
     doc.add_paragraph()
 
     # ── Executive Summary (Claude-enriched) ──
@@ -176,9 +200,21 @@ def generate_support_report(
                 _para(doc, para_text, size=10)
         doc.add_paragraph()
 
-    # ── Section 2: Equipment Description ──
-    _heading(doc, "Section 2: Equipment Description")
-    if sections and sections.get("equipment_description"):
+    # ── Section 2: Equipment Categories (multi-item) or Description (single) ──
+    cat_details = (sections or {}).get("category_details")
+    if cat_details:
+        _heading(doc, "Section 2: Equipment Categories & Condition Detail")
+        for cd in cat_details:
+            name = cd.get("name", "")
+            narrative = cd.get("narrative", "")
+            if name:
+                p = doc.add_paragraph()
+                font(p.add_run(name), size=11, bold=True, color=BLUE)
+            if narrative:
+                _para(doc, narrative, size=10)
+            doc.add_paragraph()
+    elif sections and sections.get("equipment_description"):
+        _heading(doc, "Section 2: Equipment Description")
         ed = sections["equipment_description"]
         # Overview paragraph
         if ed.get("overview"):
@@ -257,7 +293,31 @@ def generate_support_report(
     # ── Section 3: Comparable Sales Evidence ──
     _heading(doc, "Section 3: Comparable Sales Evidence")
 
-    if sections and sections.get("market_comparables"):
+    multi_comps = (sections or {}).get("comparables") or {}
+    if multi_comps and isinstance(multi_comps, dict) and multi_comps.get("comps"):
+        # Multi-item: PwC-style comp table + key observations
+        if multi_comps.get("approach"):
+            _para(doc, multi_comps["approach"], size=10)
+            doc.add_paragraph()
+        comp_rows = [
+            (
+                c.get("source", ""),
+                c.get("equipment", c.get("description", "")),
+                str(c.get("year", "")),
+                c.get("location", ""),
+                c.get("sold_price", c.get("price", "")),
+                c.get("notes", ""),
+            )
+            for c in multi_comps["comps"]
+        ]
+        _table(doc, ["Source / Listing", "Equipment", "Year", "Location", "Sold Price", "Notes"], comp_rows)
+        if multi_comps.get("key_observations"):
+            doc.add_paragraph()
+            p = doc.add_paragraph()
+            font(p.add_run("Key Comparable Observations"), size=11, bold=True, color=NAVY)
+            for obs in multi_comps["key_observations"]:
+                _para(doc, f"• {obs}", size=9)
+    elif sections and sections.get("market_comparables"):
         mc = sections["market_comparables"]
         # Overview paragraph
         if mc.get("overview"):
@@ -319,8 +379,23 @@ def generate_support_report(
                 _para(doc, f"\u2022 {d}", size=9)
     doc.add_page_break()
 
-    # ── Section 4: Offer Analysis & Key Valuation Factors (conditional) ──
-    if synthesis and synthesis.get("offer_amount"):
+    # ── Section 4: Offer Analysis & Key Valuation Factors ──
+    vf = (sections or {}).get("valuation_factors") or {}
+    if vf and vf.get("factors"):
+        # Multi-item: PwC-style narrative + numbered factors with rationale
+        _heading(doc, "Section 4: Offer Analysis & Key Valuation Factors")
+        if vf.get("narrative"):
+            _para(doc, vf["narrative"], size=10)
+            doc.add_paragraph()
+        for i, fac in enumerate(vf["factors"], 1):
+            name = fac.get("name", "")
+            rationale = fac.get("rationale", "")
+            p = doc.add_paragraph()
+            font(p.add_run(f"{i}. "), size=10, bold=True)
+            font(p.add_run(f"{name}: "), size=10, bold=True)
+            font(p.add_run(rationale), size=10)
+        doc.add_paragraph()
+    elif synthesis and synthesis.get("offer_amount"):
         _heading(doc, "Section 4: Offer Analysis & Key Valuation Factors")
         factors = synthesis.get("key_factors", [])
         for i, f_ in enumerate(factors, 1):

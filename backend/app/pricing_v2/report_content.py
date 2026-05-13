@@ -8,7 +8,12 @@ import re
 import anthropic
 
 from app.config import ANTHROPIC_API_KEY
-from app.pricing_v2.report_prompt import build_report_prompt, build_report_messages
+from app.pricing_v2.report_prompt import (
+    build_report_prompt,
+    build_report_messages,
+    build_multi_report_prompt,
+    build_multi_report_messages,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -83,4 +88,46 @@ async def generate_report_content(
 
     except Exception:
         _log.warning("Report content generation failed", exc_info=True)
+        return None
+
+
+async def generate_multi_report_content(
+    results: list[dict],
+    summary: dict,
+    client: str,
+    buyer_offer: float | None = None,
+) -> dict | None:
+    """Tier 2 multi-item portfolio narrative — PwC 143x shape.
+
+    Returns parsed JSON dict on success, None on failure.
+    """
+    try:
+        system_prompt = build_multi_report_prompt()
+        messages = build_multi_report_messages(results, summary, client, buyer_offer)
+
+        response = await _client.messages.create(
+            model=_MODEL,
+            system=system_prompt,
+            messages=messages,
+            max_tokens=8192,
+            temperature=0.3,
+        )
+
+        full_text = "".join(b.text for b in response.content if hasattr(b, "text"))
+        sections = _extract_json(full_text)
+        if sections is None:
+            _log.warning("Multi-item report content: failed to parse JSON")
+            return None
+
+        _log.info(
+            "Multi-item report content generated: items=%d, keys=%s, tokens=%d/%d",
+            len(results),
+            list(sections.keys()),
+            getattr(response.usage, "input_tokens", 0),
+            getattr(response.usage, "output_tokens", 0),
+        )
+        return sections
+
+    except Exception:
+        _log.warning("Multi-item report content generation failed", exc_info=True)
         return None
