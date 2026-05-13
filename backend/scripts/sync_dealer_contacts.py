@@ -70,6 +70,41 @@ SOURCE_FALLBACKS: dict[str, dict[str, str]] = {
         "contact_email": "Sell@AllSurplus.com",
         "contact_phone": "1-800-310-4604",
     },
+    "kijiji": {
+        "contact_name":  "Kijiji (platform — anonymous private seller)",
+        "contact_email": "support@kijiji.ca",
+        "contact_phone": "1-866-545-4546",
+    },
+    "bidspotter": {
+        "contact_name":  "BidSpotter (auction platform — see listing for auctioneer)",
+        "contact_email": "support@bidspotter.com",
+        "contact_phone": "1-866-597-2437",
+    },
+    "govdeals": {
+        "contact_name":  "GovDeals (platform — government surplus, see listing for entity)",
+        "contact_email": "customerservice@govdeals.com",
+        "contact_phone": "1-855-587-8810",
+    },
+    "ritchiebros": {
+        "contact_name":  "Ritchie Bros (auction platform — see listing for consignor)",
+        "contact_email": "customercare@ritchiebros.com",
+        "contact_phone": "1-800-211-3983",
+    },
+    "surplusrecord": {
+        "contact_name":  "Surplus Record (directory — see listing for dealer)",
+        "contact_email": "surplus@surplusrecord.com",
+        "contact_phone": "+1 312 372 9077",
+    },
+    "ironhub": {
+        "contact_name":  "IronHub (platform — see iron-hub.com/contact)",
+        "contact_email": "",
+        "contact_phone": "",
+    },
+    "energyauctions": {
+        "contact_name":  "EnergyAuctions (platform — see energyauctions.org/contact-us)",
+        "contact_email": "",
+        "contact_phone": "",
+    },
 }
 
 SOURCE_FALLBACK_SQL = text("""
