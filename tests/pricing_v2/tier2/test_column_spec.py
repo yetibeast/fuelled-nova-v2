@@ -51,7 +51,9 @@ def assert_row_satisfies_spec(row: Tier2Row) -> None:
     )
 
     # 4. Confidence class is valid
-    assert out["Conf Class"] in VALID_CONF_CLASSES
+    assert out["Conf Class"] in VALID_CONF_CLASSES, (
+        f"Conf Class '{out['Conf Class']}' not in VALID_CONF_CLASSES"
+    )
 
     # 5. Price target ordering
     assert (
