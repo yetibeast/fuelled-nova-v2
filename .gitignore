@@ -23,3 +23,6 @@ backend/scripts/secrets/
 
 # Generated supply-target spreadsheet exports
 docs/supply-targets/
+
+# HubSpot CRM exports — customer data, never commit
+seeds/hubspot/
