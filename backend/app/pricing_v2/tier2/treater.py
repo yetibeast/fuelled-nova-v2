@@ -11,9 +11,59 @@ Calibration locked 2026-05-26:
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Literal
 
 TreaterVariant = Literal["heater_treater", "electrostatic", "generic"]
+
+
+@dataclass(frozen=True)
+class RcnBand:
+    """Three-point RCN bracket (low/mid/high) — values in CAD."""
+    low: int
+    mid: int
+    high: int
+
+
+# ── RCN BRACKETS — 2026 NEWBUILD CAD ─────────────────────────────
+# Anchored 2026-05-26 by Curt against HubSpot 96" sour sold corpus:
+#   96" sour heater-treater newbuild RCN = $750k CAD mid
+#   → Large bracket × 1.15× sour = $598k–$1.09M sour mid ≈ matches the
+#   $80-150k sold range at 11-16yr with the (replaced, flatter)
+#   treater depreciation curve below.
+#
+# Brackets sized by contactor diameter (inches). RCN here is NEWBUILD
+# at 2026 spec; the depreciation curve does the heavy lifting to land
+# FMV against the heavily-aged Fuelled inventory.
+_TREATER_BRACKETS: dict[str, RcnBand] = {
+    "small":  RcnBand(    50_000,    100_000,    150_000),  # < 60"
+    "medium": RcnBand(   200_000,    350_000,    500_000),  # 60–84"
+    "large":  RcnBand(   520_000,    750_000,    950_000),  # 84–108"  (96" sour anchor)
+    "mega":   RcnBand( 1_400_000,  1_800_000,  2_500_000),  # ≥ 108"   (electrostatic / 120"+)
+}
+
+
+def _bracket_for_diameter(diameter_in: float) -> str:
+    if diameter_in < 60:
+        return "small"
+    if diameter_in < 84:
+        return "medium"
+    if diameter_in < 108:
+        return "large"
+    return "mega"
+
+
+def treater_rcn(*, variant: TreaterVariant, diameter_in: float) -> RcnBand:
+    """Return RCN bracket (low/mid/high CAD) for a treater of given diameter.
+
+    Electrostatic variant routes to the Mega bracket regardless of
+    diameter — Fuelled corpus electrostatic units sit at 120"+ scale,
+    and forcing Mega prevents under-pricing if the diameter parser
+    misses on a low/missing value.
+    """
+    if variant == "electrostatic":
+        return _TREATER_BRACKETS["mega"]
+    return _TREATER_BRACKETS[_bracket_for_diameter(diameter_in)]
 
 TREATER_MATCH_TERMS = (
     "treater",
