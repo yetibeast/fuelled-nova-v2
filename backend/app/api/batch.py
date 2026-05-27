@@ -68,7 +68,7 @@ async def _price_batch(items: list[BatchItem]) -> dict:
         specs_text = ", ".join(f"{k}: {v}" for k, v in item.specs.items()) if item.specs else ""
         user_msg = f"{item.title}. Category: {item.category}. {specs_text}".strip()
         try:
-            out = await asyncio.wait_for(run_pricing(user_msg), timeout=60)
+            out = await asyncio.wait_for(run_pricing(user_msg), timeout=120)
             v = out.get("structured", {}).get("valuation", {})
             fmv_lo = v.get("fmv_low", 0) or 0
             fmv_hi = v.get("fmv_high", 0) or 0
@@ -82,7 +82,7 @@ async def _price_batch(items: list[BatchItem]) -> dict:
                 "tools_used": out.get("tools_used", []),
             })
         except asyncio.TimeoutError:
-            errors.append({"title": item.title, "error": "Timed out after 60s — item may be too complex or comps lookup slow"})
+            errors.append({"title": item.title, "error": "Timed out after 120s — item may be too complex or comps lookup slow"})
         except Exception as e:
             errors.append({"title": item.title, "error": _describe_error(e)})
 
@@ -128,7 +128,7 @@ async def _price_batch_async(job_id: str, items: list[BatchItem]):
         specs_text = ", ".join(f"{k}: {v}" for k, v in item.specs.items()) if item.specs else ""
         user_msg = f"{item.title}. Category: {item.category}. {specs_text}".strip()
         try:
-            out = await asyncio.wait_for(run_pricing(user_msg), timeout=60)
+            out = await asyncio.wait_for(run_pricing(user_msg), timeout=120)
             v = out.get("structured", {}).get("valuation", {})
             fmv_lo = v.get("fmv_low", 0) or 0
             fmv_hi = v.get("fmv_high", 0) or 0
@@ -142,7 +142,7 @@ async def _price_batch_async(job_id: str, items: list[BatchItem]):
                 "tools_used": out.get("tools_used", []),
             })
         except asyncio.TimeoutError:
-            job["errors"].append({"title": item.title, "error": "Timed out after 60s — item may be too complex or comps lookup slow"})
+            job["errors"].append({"title": item.title, "error": "Timed out after 120s — item may be too complex or comps lookup slow"})
         except Exception as e:
             job["errors"].append({"title": item.title, "error": _describe_error(e)})
         job["completed"] = i + 1
