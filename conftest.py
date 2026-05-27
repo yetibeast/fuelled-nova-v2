@@ -10,6 +10,14 @@ resolve in both pytest and ad-hoc `python -c` invocations.
 Note: backend/tests/ has its own __init__.py and resolves via
 `backend/` on sys.path; those tests use `from app.X import ...` and
 are unaffected by this conftest.
+
+Also: cross-imports between tier2 tests (e.g. importing
+`assert_row_satisfies_spec` from `test_column_spec.py`) MUST use
+relative form (`from .test_column_spec import ...`). The absolute
+`from tests.pricing_v2.tier2.test_column_spec import ...` collides
+with `backend/tests/__init__.py` (a regular package), which wins over
+the worktree-root `tests/` namespace-package candidate during full
+suite collection.
 """
 from __future__ import annotations
 

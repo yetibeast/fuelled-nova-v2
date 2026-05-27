@@ -6,8 +6,8 @@ Public API:
     normalize_category(category) -> str
 """
 
-from app.pricing_v2.rcn_engine.calculator import RCNResult, calculate_rcn
-from app.pricing_v2.rcn_engine.rcn_tables import (
+from .calculator import RCNResult, calculate_rcn
+from .rcn_tables import (
     RCNInput,
     compute_base_rcn,
     normalize_category,

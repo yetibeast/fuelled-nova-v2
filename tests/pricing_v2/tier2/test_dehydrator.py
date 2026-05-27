@@ -9,7 +9,7 @@ from backend.app.pricing_v2.tier2.dehydrator import (
     dehydrator_rcn,
     price_dehydrator,
 )
-from tests.pricing_v2.tier2.test_column_spec import assert_row_satisfies_spec
+from .test_column_spec import assert_row_satisfies_spec
 
 
 def test_classify_dehydrator_teg():
@@ -48,3 +48,15 @@ def test_dehydrator_rcn_mole_sieve_premium():
     teg = dehydrator_rcn(variant="teg", mmscfd=10.0)
     mole = dehydrator_rcn(variant="mole_sieve", mmscfd=10.0)
     assert mole.mid > teg.mid  # mole sieve carries premium
+
+
+# ── Task 2.3: dedicated dehydrator depreciation curve ───────────────
+# Existing API is get_age_factor(effective_age, category); plan
+# snippet's age_factor() name does not exist in the engine. Adapted
+# to call the real primitive — keeps rcn_engine surface unchanged.
+
+def test_dehydrator_age_factor_curve():
+    from backend.app.pricing_v2.rcn_engine.depreciation import get_age_factor
+    assert get_age_factor(0, "dehydrator") == pytest.approx(1.00, rel=0.01)
+    assert get_age_factor(10, "dehydrator") == pytest.approx(0.60, rel=0.05)
+    assert get_age_factor(20, "dehydrator") == pytest.approx(0.35, rel=0.05)
