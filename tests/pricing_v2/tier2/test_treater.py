@@ -9,9 +9,11 @@ import pytest
 from backend.app.pricing_v2.tier2.treater import (
     TREATER_MATCH_TERMS,
     classify_treater,
+    price_treater,
     treater_rcn,
     treater_service_factor,
 )
+from .test_column_spec import assert_row_satisfies_spec
 
 
 # ── Task 5.1a: variant classification ──────────────────────────────
@@ -128,3 +130,63 @@ def test_treater_age_factor_flatter_than_old_curve_at_15yr():
     assert get_age_factor(10, "treater") >= 0.54
     # 20yr is where the flattening continues: was 0.20, now 0.22
     assert get_age_factor(20, "treater") >= 0.20
+
+
+# ── Task 5.4: end-to-end pricing produces spec-compliant row ──────
+
+def test_treater_end_to_end_96in_sour():
+    fx = json.loads(
+        (Path(__file__).parent / "fixtures" / "treater_96in_sour.json").read_text()
+    )
+    row = price_treater(fx)
+    # 1. Spec contract holds
+    assert_row_satisfies_spec(row)
+    d = row.to_dict()
+    # 2. Family routed correctly (flat — not kebab)
+    assert d["Family"] == "treater"
+    # 3. Methodology path traceable
+    assert "heater_treater" in d["Methodology Path"].lower()
+    assert "diameter" in d["Methodology Path"].lower()
+    # 4. Reasoning trail is multi-line
+    assert d["Reasoning Trail"].count("\n") >= 3
+    # 5. Sold anchor not used (standalone run)
+    assert d["Sold Anchor Used"] is False
+    # 6. Confidence is composite-classified consistently
+    composite = d["Conf Composite"]
+    cls = d["Conf Class"]
+    if composite >= 0.75:
+        assert cls == "automated"
+    elif composite >= 0.40:
+        assert cls == "hitl_review"
+    else:
+        assert cls == "manual"
+    # 7. Price targets bracket the FMV mid
+    fmv_mid = d["RCN New Mid"] * d["Factor Combined"]
+    assert d["Price Target LOW"] < fmv_mid < d["Price Target HIGH"]
+    # 8. 96" → Large bracket
+    assert d["RCN New Mid"] == 750_000
+    # 9. Sour service applied (heater_treater variant, "sour" in text)
+    assert d["Factor Service"] == 1.15
+    # 10. Treater curve in use
+    assert d["Depreciation Curve"] == "treater"
+
+
+def test_treater_end_to_end_electrostatic_bypasses_sour():
+    """Electrostatic 120" listing — should route to Mega bracket AND
+    bypass the sour multiplier (Factor Service == 1.00) even when
+    'sour' appears in the description."""
+    listing = {
+        "listing_id": "FX-TRTR-002",
+        "record_id": "fixture-trtr-2",
+        "listing_name": "120\" Electrostatic Treater (sour service)",
+        "category": "treater",
+        "description": "120\" electrostatic treater unit, 2018, condition B.",
+        "year": 2018,
+        "condition": "B",
+    }
+    row = price_treater(listing)
+    assert_row_satisfies_spec(row)
+    d = row.to_dict()
+    assert d["RCN New Mid"] == 1_800_000   # Mega bracket
+    assert d["Factor Service"] == 1.00     # sour bypass
+    assert "electrostatic" in d["Methodology Path"].lower()
