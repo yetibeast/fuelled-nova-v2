@@ -47,6 +47,18 @@ class TestGetCurveName:
         assert get_curve_name("") == "heavy_equip"
         assert get_curve_name(None) == "heavy_equip"
 
+    def test_meter_run_aliases_to_treater(self):
+        """Tier 2.5: meter runs age like static utility equipment (treater curve).
+
+        Anchored on the scoping report (2026-05-27): no corpus signal to
+        calibrate a meter-specific curve, so we alias to treater — same
+        pressure-tested static-equipment service life profile.
+        """
+        assert get_curve_name("meter_run") == "treater"
+        assert get_curve_name("meter run") == "treater"
+        assert get_curve_name("metering") == "treater"
+        assert get_curve_name("metering equipment") == "treater"
+
 
 # ── Effective age computation ─────────────────────────────────────────
 
