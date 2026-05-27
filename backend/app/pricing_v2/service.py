@@ -6,8 +6,10 @@ import logging
 import os
 import re
 import anthropic
+from fastapi import HTTPException
 from app.config import (
     ANTHROPIC_API_KEY,
+    ANTHROPIC_API_KEY_FALLBACK,
     LANGFUSE_PUBLIC_KEY,
     LANGFUSE_SECRET_KEY,
     LANGFUSE_HOST,
@@ -19,7 +21,115 @@ from app.pricing_v2.normalize import normalize_structured
 
 _log = logging.getLogger(__name__)
 
-_client = anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)
+# Build the client chain. Primary first (Fuelled's account, tier 1 today).
+# Fallback is optional — typically Curt's Arcanos org key at a higher tier
+# so that user-facing pricing calls keep working when the primary 429s.
+_clients = [
+    ("primary", anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY)),
+]
+if ANTHROPIC_API_KEY_FALLBACK:
+    _clients.append(("fallback", anthropic.AsyncAnthropic(api_key=ANTHROPIC_API_KEY_FALLBACK)))
+    _log.info("Anthropic fallback key configured (%d clients in chain)", len(_clients))
+
+# Primary client (legacy single-client references in this module still use _client)
+_client = _clients[0][1]
+
+
+async def _call_anthropic(**kwargs):
+    """Wrap messages.create with structured error responses + key fallback.
+
+    Iterates through the configured client chain on RateLimitError, so when the
+    primary key is exhausted the request falls through to the fallback key
+    transparently. The user sees a successful response instead of a 429.
+
+    Non-rate-limit errors fail fast (a bad request or model misconfig won't be
+    fixed by a different key).
+
+    Anthropic errors that exhaust the chain become HTTPException with structured
+    detail = {code, message, ...} so the frontend can map error class → actionable
+    user message instead of showing generic "Something went wrong."
+    """
+    last_429 = None
+    for label, client in _clients:
+        try:
+            response = await client.messages.create(**kwargs)
+            if label != "primary":
+                _log.info("Anthropic %s key served request after primary 429", label)
+            return response
+        except anthropic.RateLimitError as e:
+            last_429 = e
+            _log.warning("Anthropic %s key rate-limited, trying next in chain", label)
+            continue
+        except anthropic.NotFoundError as e:
+            _log.error("Anthropic model not found: %s", e)
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "code": "model_not_found",
+                    "message": (
+                        "The pricing model is misconfigured (likely a retired model ID). "
+                        "Engineering has been notified — please try a different listing in a few minutes."
+                    ),
+                },
+            ) from e
+        except anthropic.APITimeoutError as e:
+            _log.warning("Anthropic timeout: %s", e)
+            raise HTTPException(
+                status_code=504,
+                detail={
+                    "code": "anthropic_timeout",
+                    "message": (
+                        "The pricing call took longer than expected. "
+                        "Try a shorter file, or split the question into two requests."
+                    ),
+                },
+            ) from e
+        except anthropic.BadRequestError as e:
+            _log.warning("Anthropic bad request: %s", e)
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "code": "anthropic_bad_request",
+                    "message": (
+                        "Anthropic rejected the request. "
+                        "Most often this means the file format isn't supported, or the input is too large."
+                    ),
+                    "raw": str(e)[:300],
+                },
+            ) from e
+        except anthropic.APIError as e:
+            _log.error("Anthropic API error: %s", e)
+            raise HTTPException(
+                status_code=502,
+                detail={
+                    "code": "anthropic_error",
+                    "message": "Anthropic returned an error. Try again in a moment.",
+                    "raw": str(e)[:300],
+                },
+            ) from e
+
+    # All clients in the chain rate-limited. Surface the structured 429.
+    retry_after = 60
+    try:
+        retry_after = int(last_429.response.headers.get("retry-after", 60))
+    except Exception:
+        pass
+    _log.warning("All Anthropic keys rate-limited (%d in chain): %s", len(_clients), last_429)
+    raise HTTPException(
+        status_code=429,
+        detail={
+            "code": "rate_limit_error",
+            "message": (
+                f"Both Anthropic keys are rate-limited (chain length: {len(_clients)}). "
+                f"Try again in ~{retry_after} seconds. Curt is working on raising the cap."
+                if len(_clients) > 1 else
+                "Anthropic API is rate-limited (Fuelled's quota). "
+                f"Try again in ~{retry_after} seconds. Curt is working on raising the limit."
+            ),
+            "retry_after_seconds": retry_after,
+        },
+    ) from last_429
+
 
 # ── Langfuse (optional — graceful no-op when keys are missing) ──────────
 _langfuse_ok = False
@@ -111,7 +221,7 @@ async def run_pricing(
     total_output_tokens = 0
 
     # Initial API call
-    response = await _client.messages.create(
+    response = await _call_anthropic(
         model=_model,
         system=system_prompt,
         tools=TOOLS,
@@ -145,7 +255,7 @@ async def run_pricing(
         messages.append({"role": "user", "content": tool_results})
 
         # Call Claude again
-        response = await _client.messages.create(
+        response = await _call_anthropic(
             model=_model,
             system=system_prompt,
             tools=TOOLS,
