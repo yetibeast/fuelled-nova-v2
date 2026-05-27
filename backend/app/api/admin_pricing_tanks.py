@@ -51,13 +51,39 @@ _TANK_CATEGORY_EXCLUDES = ("%tanker-trailer%", "%tanker_trailer%")
 
 # Listings that match the category pattern but clearly aren't production
 # pressure vessels — portable poly fuel skids, plastic sewer / water /
-# camp tanks, trailer-mounted asphalt units, etc. Caught from the 2026-05-27
-# limit=10 graduated run.
+# camp tanks, trailer-mounted asphalt units, fiber-glass storage tanks,
+# Transport Canada highway tanker classifications (TC306/406/407), etc.
+# Caught + widened over the 2026-05-27 limit=10 and limit=100 graduated runs.
 _NON_PRODUCTION_TITLE_PATTERN = re.compile(
-    r"\b(poly|plastic|sewer|water|water\s+canon|portable|tow\s+behind|trailer\s+mounted|"
+    r"\b(poly|plastic|sewer|water|water\s+canon|portable|tow\s+behind|"
+    r"trailer\s+mounted|trailer|"   # bare 'trailer' catches highway tanker units
+    r"tc-?[34]0[67]|"               # Transport Canada tanker codes TC306/TC406/TC407
+    r"fiber\s*glass|fibreglass|"    # FRP tanks priced differently from steel
     r"camp|overhead|fuel\s+tank|diesel\s+tank|chemical|wash\s+tank|septic)\b",
     re.IGNORECASE,
 )
+
+# Year extraction from title/description when the structured `year` column
+# is NULL. Looks for a 4-digit year 1980-2024; preferring the earliest match
+# (most listings cite the build year before any other year context).
+_YEAR_IN_TEXT = re.compile(r"\b(19[8-9]\d|20[0-2]\d)\b")
+
+
+def _extract_year_from_text(*texts: str) -> int | None:
+    """Pull a build year from listing title/description when the structured
+    year column is NULL. Returns None if no plausible year is found.
+    """
+    years: list[int] = []
+    for t in texts:
+        if not t:
+            continue
+        years.extend(int(y) for y in _YEAR_IN_TEXT.findall(t))
+    if not years:
+        return None
+    plausible = [y for y in years if 1980 <= y <= 2024]
+    if not plausible:
+        return None
+    return min(plausible)  # earliest = most likely the build year
 
 # Production tanks below this size are typically skid / pickup-truck mounted
 # and not in the pressure-vessel-class the bracket ladder is calibrated for.
@@ -113,6 +139,11 @@ def _price_one_tank(row: dict[str, Any]) -> dict[str, Any]:
     volume_bbl = extract_tank_volume_bbl(title) or extract_tank_volume_bbl(description)
 
     year = row.get("year")
+    if year is None:
+        # Try title/description first — "2014 Hutchinson", "2024 Refurbished",
+        # "1000 bbl tank 2000" all encode a build year in free text.
+        # Only fall back to the source-aware default when no year is parseable.
+        year = _extract_year_from_text(title, description)
     if year is None:
         year = _default_year_for_source(row.get("source"))
 
