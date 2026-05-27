@@ -53,6 +53,23 @@ def _bracket_for_diameter(diameter_in: float) -> str:
     return "mega"
 
 
+def treater_service_factor(service_description: str, *, variant: TreaterVariant) -> float:
+    """Sour gas service carries a premium on RCN — heavier metallurgy +
+    NACE compliance + monitoring. Sweet gas is the baseline (1.00).
+
+    Electrostatic units bypass the sour multiplier entirely:
+    electrostatic internals break emulsions and aren't sour-rated the
+    same way as heater-treaters (typically lower-pressure separator
+    metallurgy).
+    """
+    if variant == "electrostatic":
+        return 1.00
+    t = service_description.lower()
+    if "sour" in t or "h2s" in t or "h₂s" in t:
+        return 1.15
+    return 1.00
+
+
 def treater_rcn(*, variant: TreaterVariant, diameter_in: float) -> RcnBand:
     """Return RCN bracket (low/mid/high CAD) for a treater of given diameter.
 

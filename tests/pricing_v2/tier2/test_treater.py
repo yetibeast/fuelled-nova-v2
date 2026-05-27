@@ -10,6 +10,7 @@ from backend.app.pricing_v2.tier2.treater import (
     TREATER_MATCH_TERMS,
     classify_treater,
     treater_rcn,
+    treater_service_factor,
 )
 
 
@@ -97,6 +98,24 @@ def test_treater_age_factor_curve():
     assert get_age_factor(15, "treater") == pytest.approx(0.35, rel=0.05)
     assert get_age_factor(20, "treater") == pytest.approx(0.22, rel=0.05)
     assert get_age_factor(30, "treater") == pytest.approx(0.10, rel=0.05)
+
+
+# ── Task 5.3: service factor (sweet vs sour vs electrostatic) ──────
+
+def test_treater_service_factor_sweet():
+    assert treater_service_factor("sweet gas heater treater", variant="heater_treater") == 1.00
+
+
+def test_treater_service_factor_sour():
+    assert treater_service_factor("sour gas H2S 2%", variant="heater_treater") == 1.15
+
+
+def test_treater_service_factor_electrostatic_bypasses_sour():
+    """Electrostatic units typically aren't sour-rated the same way
+    (emulsion-breaking internals, not NACE metallurgy). Even if 'sour'
+    appears in the listing text, electrostatic variant bypasses the
+    sour multiplier."""
+    assert treater_service_factor("sour electrostatic treater", variant="electrostatic") == 1.00
 
 
 def test_treater_age_factor_flatter_than_old_curve_at_15yr():
