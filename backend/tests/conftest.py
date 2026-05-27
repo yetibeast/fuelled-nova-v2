@@ -202,6 +202,31 @@ def _seed_competitor_listings() -> list[dict]:
             "is_active": True,
         },
         {
+            # AllSurplus-style auction row: no asking_price, only current_bid.
+            # Before the COALESCE(asking_price, current_bid) fix this row was
+            # silently dropped despite having a seller_name we'd want to surface.
+            "id": "cmp-stale-bid-only",
+            "source": "allsurplus",
+            "title": "2016 Ariel JGK/4 Compressor (Auction)",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "make": "Ariel",
+            "model": "JGK/4",
+            "year": 2016,
+            "condition": "Good",
+            "hours": 13500,
+            "horsepower": 540,
+            "asking_price": None,
+            "current_bid": 285000,
+            "location": "Texas",
+            "url": "https://allsurplus.example/listing/9",
+            "first_seen": stale_400,
+            "last_seen": now,
+            "seller_name": "Bid-Only Test Seller",
+            "seller_account_type": "Commercial",
+            "is_active": True,
+        },
+        {
             "id": "fu-stale-ignored",
             "source": "fuelled",
             "title": "2014 Fuelled Legacy Compressor",
@@ -657,7 +682,7 @@ class MockSession:
             )
             return MockResult([{0: count}])
 
-        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '60 days'" in sql and "asking_price > 0" in sql:
+        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '60 days'" in sql and "COALESCE(asking_price, current_bid" in sql:
             now = datetime.now(timezone.utc)
             exclude_fuelled = "LOWER(source) != 'fuelled'" in sql
             count = 0
@@ -666,7 +691,7 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 if l["first_seen"] < now - timedelta(days=60) and l["last_seen"] > now - timedelta(days=30):
                     count += 1
@@ -681,7 +706,7 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 if l["first_seen"] >= now - timedelta(days=60):
                     continue
@@ -690,7 +715,7 @@ class MockSession:
                 rows.append({
                     0: l.get("title"),
                     1: l.get("source"),
-                    2: l.get("asking_price"),
+                    2: l.get("asking_price") or l.get("current_bid"),
                     3: l.get("category_normalized") or l.get("category"),
                     4: l.get("location"),
                     5: l.get("url"),
@@ -700,7 +725,7 @@ class MockSession:
             rows.sort(key=lambda row: row[6])
             return MockResult(rows[:25])
 
-        if "FROM listings" in sql and "LOWER(source) != 'fuelled'" in sql and "asking_price > 0" in sql and "last_seen" in sql and "first_seen" in sql and "GROUP BY" not in sql and "COUNT(*)" not in sql:
+        if "FROM listings" in sql and "LOWER(source) != 'fuelled'" in sql and "COALESCE(asking_price, current_bid" in sql and "last_seen" in sql and "first_seen" in sql and "GROUP BY" not in sql and "COUNT(*)" not in sql:
             now = datetime.now(timezone.utc)
             rows = []
             for l in self._db.listings:
@@ -708,13 +733,14 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 rows.append({
                     "id": l.get("id"),
                     "title": l.get("title"),
                     "source": l.get("source"),
                     "asking_price": l.get("asking_price"),
+                    "current_bid": l.get("current_bid"),
                     "category": l.get("category"),
                     "category_normalized": l.get("category_normalized") or l.get("category"),
                     "make": l.get("make"),
@@ -727,6 +753,12 @@ class MockSession:
                     "url": l.get("url"),
                     "first_seen": l.get("first_seen"),
                     "last_seen": l.get("last_seen"),
+                    "seller_name": l.get("seller_name"),
+                    "seller_account_type": l.get("seller_account_type"),
+                    "seller_other_assets_url": l.get("seller_other_assets_url"),
+                    "event_contact_name": l.get("event_contact_name"),
+                    "event_contact_email": l.get("event_contact_email"),
+                    "event_contact_phone": l.get("event_contact_phone"),
                     "days_listed": (now - l["first_seen"]).days,
                 })
             return MockResult(rows)
@@ -791,59 +823,9 @@ class MockSession:
 
         # ── Fuelled Coverage ────────────────────────────────────────
 
-        # INSERT INTO fuelled_valuations — no-op (record on _db for tank runner tests)
+        # INSERT INTO fuelled_valuations — no-op
         if "INSERT INTO fuelled_valuations" in sql:
-            if not hasattr(self._db, "fuelled_valuations"):
-                self._db.fuelled_valuations = []
-            self._db.fuelled_valuations.append(dict(params))
             return MockResult(rowcount=1)
-
-        # ── pricing_runs (Tier 2.5 tank bulk-runner) ───────────────────
-        if "INSERT INTO pricing_runs" in sql:
-            if not hasattr(self._db, "pricing_runs"):
-                self._db.pricing_runs = {}
-            row = dict(params)
-            self._db.pricing_runs[row.get("run_id", "")] = row
-            return MockResult(rowcount=1)
-        if "UPDATE pricing_runs" in sql:
-            if not hasattr(self._db, "pricing_runs"):
-                self._db.pricing_runs = {}
-            run_id = params.get("run_id", "")
-            row = self._db.pricing_runs.get(run_id, {})
-            row.update(params)
-            self._db.pricing_runs[run_id] = row
-            return MockResult(rowcount=1)
-
-        # Tank bulk runner candidate SELECT.
-        if (
-            "FROM listings" in sql
-            and "fair_value IS NULL" in sql
-            and "ILIKE ANY" in sql
-        ):
-            patterns = params.get("patterns") or []
-            def _match(cat: str | None) -> bool:
-                if not cat:
-                    return False
-                c = cat.lower()
-                for p in patterns:
-                    p2 = p.replace("%", "").lower()
-                    if p2 in c:
-                        return True
-                return False
-            rows = []
-            for l in self._db.listings:
-                if (l.get("fair_value") or 0) > 0:
-                    continue
-                if not _match(l.get("category")):
-                    continue
-                rows.append({
-                    0: l.get("id"), 1: l.get("title"), 2: l.get("description"),
-                    3: l.get("category"), 4: l.get("make"), 5: l.get("model"),
-                    6: l.get("year"), 7: l.get("horsepower"), 8: l.get("hours"),
-                    9: l.get("weight_lbs"), 10: l.get("condition"),
-                    11: l.get("location"), 12: l.get("source"),
-                })
-            return MockResult(rows)
 
         # UPDATE listings SET fair_value — apply in-memory
         if "UPDATE listings SET fair_value" in sql:
@@ -982,7 +964,6 @@ def _patch_db():
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
          patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
-         patch("app.api.admin_pricing_tanks.get_session", _mock_get_session), \
          patch("app.api.fuelled_coverage.get_session", _mock_get_session):
         yield
 
