@@ -7,6 +7,8 @@ Source: V1 rcn_v2/calculator.py (table and lookup portions).
 """
 from __future__ import annotations
 
+import os
+import threading
 from dataclasses import dataclass
 from typing import Any
 
@@ -131,6 +133,114 @@ class RCNInput:
     comparable_cv: float | None = None
     data_age_days: int | None = None
     spec_modifiers: dict[str, float] | list[float] | float | None = None
+    # Tier 2.5: tank volume in BBL for $/BBL seed-bracket lookup. Populated
+    # by the bulk runner via regex extraction from title/description.
+    volume_bbl: float | None = None
+
+
+# ── TANK $/BBL SEED LADDER (lazy-loaded from xlsx, cached at module scope) ─
+
+_TANK_SEED_LOCK = threading.Lock()
+_TANK_SEED_CACHE: list[tuple[float, float]] | None = None  # [(bbl, mid_rcn), ...] sorted ascending.
+
+_TANK_SEED_PATH_DEFAULT = os.path.join(
+    os.path.dirname(__file__), "..", "..", "..", "..", "seeds", "rcn_price_reference_seed_v2.xlsx"
+)
+
+
+def _load_tank_seed_brackets() -> list[tuple[float, float]]:
+    """Read the Static Equipment sheet's tank rows: returns sorted [(bbl, mid_rcn)] tuples.
+
+    The seed lives in `seeds/rcn_price_reference_seed_v2.xlsx::Static Equipment`.
+    Rows look like:
+        ('tank:prod:100bbl:std', 'prod_tank', 'Various', 'Production Tank',
+         'standard', '100 BBL', '100 BBL', 'BBL', 8000, 12000, 16000, '$/BBL', ...)
+    Index 0 = id, 5 = spec_low, 8/9/10 = rcn low/mid/high.
+
+    Returns an empty list on any read failure — caller falls back to flat $50k.
+    """
+    seed_path = os.environ.get("RCN_SEED_PATH", _TANK_SEED_PATH_DEFAULT)
+    try:
+        import openpyxl  # local import — keeps engine import cheap if seed never queried
+        wb = openpyxl.load_workbook(seed_path, read_only=True, data_only=True)
+        if "Static Equipment" not in wb.sheetnames:
+            return []
+        ws = wb["Static Equipment"]
+        brackets: list[tuple[float, float]] = []
+        for row in ws.iter_rows(values_only=True):
+            if not row or not row[0]:
+                continue
+            key = str(row[0]).strip().lower()
+            if not key.startswith("tank:prod:"):
+                continue
+            # Spec column 5 = "100 BBL" / "200 BBL" / etc.
+            spec = str(row[5] or "").strip()
+            mid_rcn = row[9]
+            if not spec or mid_rcn is None:
+                continue
+            # Extract numeric BBL from spec text.
+            digits = "".join(c for c in spec if c.isdigit() or c == ".")
+            if not digits:
+                continue
+            try:
+                bbl = float(digits)
+                mid = float(mid_rcn)
+            except (TypeError, ValueError):
+                continue
+            brackets.append((bbl, mid))
+        wb.close()
+        brackets.sort(key=lambda t: t[0])
+        return brackets
+    except Exception:
+        # Any I/O / parsing failure → empty ladder → engine falls back to flat $50k.
+        return []
+
+
+def _get_tank_seed_brackets() -> list[tuple[float, float]]:
+    """Thread-safe lazy accessor for the tank $/BBL ladder."""
+    global _TANK_SEED_CACHE
+    if _TANK_SEED_CACHE is not None:
+        return _TANK_SEED_CACHE
+    with _TANK_SEED_LOCK:
+        if _TANK_SEED_CACHE is None:
+            _TANK_SEED_CACHE = _load_tank_seed_brackets()
+    return _TANK_SEED_CACHE
+
+
+def _reset_tank_seed_cache_for_tests() -> None:
+    """Test hook — clear the cache so a test can override RCN_SEED_PATH."""
+    global _TANK_SEED_CACHE
+    with _TANK_SEED_LOCK:
+        _TANK_SEED_CACHE = None
+
+
+def _tank_rcn_from_bbl(volume_bbl: float, brackets: list[tuple[float, float]]) -> float | None:
+    """Return the bracket-anchored RCN for a given tank volume.
+
+    Lookup rule:
+      - At or below the smallest bracket → smallest bracket's mid RCN.
+      - At or above the largest bracket → linear extrapolation at the tail $/BBL rate
+        (mid_largest / bbl_largest), so a 5000 BBL doesn't snap to the 750 BBL price.
+      - Between two brackets → linear interpolation on (bbl, rcn).
+
+    Returns None if the bracket ladder is empty (caller falls back to flat scalar).
+    """
+    if not brackets or volume_bbl <= 0:
+        return None
+    if volume_bbl <= brackets[0][0]:
+        return brackets[0][1]
+    if volume_bbl >= brackets[-1][0]:
+        tail_bbl, tail_rcn = brackets[-1]
+        per_bbl = tail_rcn / tail_bbl
+        return per_bbl * volume_bbl
+    # Linear interp between adjacent brackets.
+    for i in range(len(brackets) - 1):
+        lo_bbl, lo_rcn = brackets[i]
+        hi_bbl, hi_rcn = brackets[i + 1]
+        if lo_bbl <= volume_bbl <= hi_bbl:
+            t = (volume_bbl - lo_bbl) / (hi_bbl - lo_bbl)
+            return lo_rcn + t * (hi_rcn - lo_rcn)
+    return None  # unreachable given the bounds above
 
 
 def normalize_category(category: str) -> str:
@@ -183,6 +293,13 @@ def compute_base_rcn(
 
     if category_key in STATIC_BASE_RCN:
         base_rcn = float(STATIC_BASE_RCN[category_key])
+        # Tier 2.5: tanks with parseable BBL route through the seed's $/BBL ladder
+        # (not the flat $50k scalar). Falls back to flat scalar when volume is
+        # missing OR the seed couldn't be loaded.
+        if category_key == "tank" and specs.volume_bbl is not None and specs.volume_bbl > 0:
+            bracket_rcn = _tank_rcn_from_bbl(specs.volume_bbl, _get_tank_seed_brackets())
+            if bracket_rcn is not None and bracket_rcn > 0:
+                return float(bracket_rcn), 0.75, True
         if weight_lbs is not None and weight_lbs > 0:
             scaling = (weight_lbs / WEIGHT_SCALING_BASE_LBS) ** WEIGHT_SCALING_EXPONENT
             return base_rcn * scaling, 0.70, True
