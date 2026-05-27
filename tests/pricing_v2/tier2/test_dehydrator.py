@@ -6,6 +6,7 @@ import pytest
 from backend.app.pricing_v2.tier2.dehydrator import (
     DEHYDRATOR_MATCH_TERMS,
     classify_dehydrator,
+    dehydrator_rcn,
     price_dehydrator,
 )
 from tests.pricing_v2.tier2.test_column_spec import assert_row_satisfies_spec
@@ -22,3 +23,28 @@ def test_classify_dehydrator_mole_sieve():
 
 def test_classify_dehydrator_generic():
     assert classify_dehydrator("dehydrator package") == "generic"
+
+
+# ── Task 2.2: RCN scaling by MMSCFD throughput ──────────────────────
+# NOTE: bracket values are placeholders — Curt confirms against
+# seeds/rcn_price_reference_seed_v2.xlsx before Chunk 2 closes.
+
+def test_dehydrator_rcn_small():
+    rcn = dehydrator_rcn(variant="teg", mmscfd=2.0)
+    assert rcn.low == 50_000 and rcn.mid == 100_000 and rcn.high == 150_000
+
+
+def test_dehydrator_rcn_medium():
+    rcn = dehydrator_rcn(variant="teg", mmscfd=15.0)
+    assert rcn.low == 150_000 and rcn.mid == 275_000 and rcn.high == 400_000
+
+
+def test_dehydrator_rcn_large():
+    rcn = dehydrator_rcn(variant="teg", mmscfd=50.0)
+    assert rcn.low == 400_000 and rcn.mid == 700_000 and rcn.high == 1_000_000
+
+
+def test_dehydrator_rcn_mole_sieve_premium():
+    teg = dehydrator_rcn(variant="teg", mmscfd=10.0)
+    mole = dehydrator_rcn(variant="mole_sieve", mmscfd=10.0)
+    assert mole.mid > teg.mid  # mole sieve carries premium
