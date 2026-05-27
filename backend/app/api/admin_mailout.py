@@ -222,3 +222,100 @@ async def mailout_sellers_csv(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── Buyers export ────────────────────────────────────────────────────────
+
+
+_BUYER_CSV_COLUMNS: list[str] = [
+    "vertical",
+    "company",
+    "ticker",
+    "hq",
+    "basin",
+    "scale",
+    "capex_driver",
+    "suppliers_page",
+    "contact_name",
+    "contact_title",
+    "contact_email",
+    "contact_linkedin",
+    "contact_confidence",
+    "location",
+    "outreach_notes",
+]
+
+
+_BUYER_SQL = """
+SELECT
+    vertical, company, ticker, hq, basin, scale, capex_driver, suppliers_page,
+    contact_name, contact_title, contact_email, contact_linkedin,
+    contact_confidence, location, outreach_notes
+FROM buyer_targets
+WHERE TRUE
+  {vertical_filter}
+ORDER BY vertical NULLS LAST, company, contact_name NULLS LAST
+LIMIT :limit
+"""
+
+
+@router.get("/admin/mailout/buyers.csv")
+async def mailout_buyers_csv(
+    authorization: str = Header(default=""),
+    vertical: str | None = Query(default=None, description="Filter to one vertical (e.g. 'US Upstream O&G')."),
+    limit: int = Query(default=5000, ge=1, le=50000, description="Cap output rows."),
+):
+    """Buy-side targets export. Admin-only.
+
+    Reads buyer_targets (populated by import_may10_enrichment.py from the
+    May 10 workbook). Buy-side companies don't appear in `listings`; this
+    is a standalone list of demand-side outreach targets.
+
+    Returns text/csv with header + one row per contact (companies without
+    contacts get a single row with contact fields blank).
+
+    Sort: vertical, company, contact_name.
+    """
+    _require_admin(authorization)
+
+    params: dict[str, Any] = {"limit": limit}
+    vertical_filter = ""
+    if vertical:
+        vertical_filter = "AND vertical = :vertical"
+        params["vertical"] = vertical
+
+    sql = _BUYER_SQL.format(vertical_filter=vertical_filter)
+
+    async with get_session() as session:
+        result = await session.execute(text(sql), params)
+        rows = result.fetchall()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_BUYER_CSV_COLUMNS)
+    for r in rows:
+        writer.writerow([
+            r[0] or "",   # vertical
+            r[1] or "",   # company
+            r[2] or "",   # ticker
+            r[3] or "",   # hq
+            r[4] or "",   # basin
+            r[5] or "",   # scale
+            r[6] or "",   # capex_driver
+            r[7] or "",   # suppliers_page
+            r[8] or "",   # contact_name
+            r[9] or "",   # contact_title
+            r[10] or "",  # contact_email
+            r[11] or "",  # contact_linkedin
+            r[12] or "",  # contact_confidence
+            r[13] or "",  # location
+            r[14] or "",  # outreach_notes
+        ])
+
+    today = date.today().isoformat()
+    filename = f"mailout_buyers_{today}.csv"
+    return Response(
+        content=buf.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )

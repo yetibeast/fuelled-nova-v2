@@ -634,6 +634,42 @@ class MockSession:
         if "FROM listings" in sql and "seller_source_id = :sid" in sql:
             return MockResult([])
 
+        # ── Mailout buyers export (no listings join) ──
+        # GET /api/admin/mailout/buyers.csv — SELECT from buyer_targets.
+        if "FROM buyer_targets" in sql and "SELECT" in sql.upper():
+            buyer_rows = getattr(self._db, "buyer_targets", [])
+            vertical_filter = params.get("vertical")
+            limit_b = params.get("limit", 5000) or 5000
+            filtered = [
+                b for b in buyer_rows
+                if (vertical_filter is None or b.get("vertical") == vertical_filter)
+            ]
+            filtered.sort(key=lambda b: (
+                b.get("vertical") or "￿",  # NULLS LAST
+                b.get("company") or "",
+                b.get("contact_name") or "￿",
+            ))
+            out_rows = []
+            for b in filtered[:limit_b]:
+                out_rows.append({
+                    0: b.get("vertical"),
+                    1: b.get("company"),
+                    2: b.get("ticker"),
+                    3: b.get("hq"),
+                    4: b.get("basin"),
+                    5: b.get("scale"),
+                    6: b.get("capex_driver"),
+                    7: b.get("suppliers_page"),
+                    8: b.get("contact_name"),
+                    9: b.get("contact_title"),
+                    10: b.get("contact_email"),
+                    11: b.get("contact_linkedin"),
+                    12: b.get("contact_confidence"),
+                    13: b.get("location"),
+                    14: b.get("outreach_notes"),
+                })
+            return MockResult(out_rows)
+
         # ── Mailout sellers aggregation (must precede generic GROUP BY source) ──
         # GET /api/admin/mailout/sellers.csv — CTE-wrapped GROUP BY (source, seller_name)
         # plus LEFT JOIN seller_contact_enrichment for the enriched_* columns.
