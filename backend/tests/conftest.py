@@ -791,9 +791,59 @@ class MockSession:
 
         # ── Fuelled Coverage ────────────────────────────────────────
 
-        # INSERT INTO fuelled_valuations — no-op
+        # INSERT INTO fuelled_valuations — no-op (record on _db for tank runner tests)
         if "INSERT INTO fuelled_valuations" in sql:
+            if not hasattr(self._db, "fuelled_valuations"):
+                self._db.fuelled_valuations = []
+            self._db.fuelled_valuations.append(dict(params))
             return MockResult(rowcount=1)
+
+        # ── pricing_runs (Tier 2.5 tank bulk-runner) ───────────────────
+        if "INSERT INTO pricing_runs" in sql:
+            if not hasattr(self._db, "pricing_runs"):
+                self._db.pricing_runs = {}
+            row = dict(params)
+            self._db.pricing_runs[row.get("run_id", "")] = row
+            return MockResult(rowcount=1)
+        if "UPDATE pricing_runs" in sql:
+            if not hasattr(self._db, "pricing_runs"):
+                self._db.pricing_runs = {}
+            run_id = params.get("run_id", "")
+            row = self._db.pricing_runs.get(run_id, {})
+            row.update(params)
+            self._db.pricing_runs[run_id] = row
+            return MockResult(rowcount=1)
+
+        # Tank bulk runner candidate SELECT.
+        if (
+            "FROM listings" in sql
+            and "fair_value IS NULL" in sql
+            and "ILIKE ANY" in sql
+        ):
+            patterns = params.get("patterns") or []
+            def _match(cat: str | None) -> bool:
+                if not cat:
+                    return False
+                c = cat.lower()
+                for p in patterns:
+                    p2 = p.replace("%", "").lower()
+                    if p2 in c:
+                        return True
+                return False
+            rows = []
+            for l in self._db.listings:
+                if (l.get("fair_value") or 0) > 0:
+                    continue
+                if not _match(l.get("category")):
+                    continue
+                rows.append({
+                    0: l.get("id"), 1: l.get("title"), 2: l.get("description"),
+                    3: l.get("category"), 4: l.get("make"), 5: l.get("model"),
+                    6: l.get("year"), 7: l.get("horsepower"), 8: l.get("hours"),
+                    9: l.get("weight_lbs"), 10: l.get("condition"),
+                    11: l.get("location"), 12: l.get("source"),
+                })
+            return MockResult(rows)
 
         # UPDATE listings SET fair_value — apply in-memory
         if "UPDATE listings SET fair_value" in sql:
@@ -932,6 +982,7 @@ def _patch_db():
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
          patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
+         patch("app.api.admin_pricing_tanks.get_session", _mock_get_session), \
          patch("app.api.fuelled_coverage.get_session", _mock_get_session):
         yield
 
