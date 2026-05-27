@@ -26,7 +26,7 @@ import logging
 import uuid
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Query
 from sqlalchemy import text
 
 from app.api.admin import _require_admin
@@ -106,13 +106,21 @@ def _confidence_class(composite: float) -> str:
 
 
 @router.post("/admin/pricing/tanks/run")
-async def run_tanks_bulk(authorization: str = Header(default="")):
-    """Run the deterministic engine across every unpriced tank-family listing.
+async def run_tanks_bulk(
+    authorization: str = Header(default=""),
+    limit: int = Query(0, ge=0, le=10000, description="0 = no cap (full run); N > 0 caps the candidate set for staged rollouts."),
+):
+    """Run the deterministic engine across unpriced tank-family listings.
 
     Returns {run_id, total, succeeded, failed} on completion. Each priced row
     lands in `fuelled_valuations` with methodology='nova_v2/tank/seed-rcn' and
     review_status='draft'. Engine failures are recorded with status='failed'
     and an error_reason instead of aborting the run.
+
+    `limit` defaults to 0 (no cap). Pass `?limit=10` to run a small
+    graduated batch before turning loose on the full backlog. Useful for
+    first-time prod invocations; the run_id still tracks the partial run
+    so it can be inspected end-to-end.
     """
     _require_admin(authorization)
 
@@ -136,17 +144,25 @@ async def run_tanks_bulk(authorization: str = Header(default="")):
         )
 
         # Pull the candidate set. Use ILIKE ANY for the category filter.
+        # When limit > 0, cap the row count for graduated rollouts; ORDER BY
+        # id keeps the slice stable across calls so an aborted partial run
+        # can be re-issued without re-pricing the same head.
+        limit_clause = " ORDER BY id LIMIT :lim" if limit > 0 else ""
+        params: dict[str, Any] = {"patterns": list(_TANK_CATEGORY_PATTERNS)}
+        if limit > 0:
+            params["lim"] = limit
         result = await session.execute(
             text(
-                """
+                f"""
                 SELECT id, title, description, category, make, model, year,
                        horsepower, hours, weight_lbs, condition, location, source
                 FROM listings
                 WHERE fair_value IS NULL
                   AND (category ILIKE ANY (:patterns))
+                {limit_clause}
                 """
             ),
-            {"patterns": list(_TANK_CATEGORY_PATTERNS)},
+            params,
         )
         rows = result.fetchall()
         total = len(rows)
