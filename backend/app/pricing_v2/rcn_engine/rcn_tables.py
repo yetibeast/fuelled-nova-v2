@@ -143,9 +143,25 @@ class RCNInput:
 _TANK_SEED_LOCK = threading.Lock()
 _TANK_SEED_CACHE: list[tuple[float, float]] | None = None  # [(bbl, mid_rcn), ...] sorted ascending.
 
-_TANK_SEED_PATH_DEFAULT = os.path.join(
-    os.path.dirname(__file__), "..", "..", "..", "..", "seeds", "rcn_price_reference_seed_v2.xlsx"
+# Two candidate paths searched in order. The Railway deploy uploads only
+# `backend/`, so `backend/seeds/...` is what prod uses. Local dev / tests
+# typically have the original at the repo-root `seeds/...`. RCN_SEED_PATH
+# env var, if set, overrides both.
+_TANK_SEED_PATH_CANDIDATES = (
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "seeds", "rcn_price_reference_seed_v2.xlsx"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "seeds", "rcn_price_reference_seed_v2.xlsx"),
 )
+
+
+def _resolve_seed_path() -> str | None:
+    """Return the first candidate seed path that exists, or None."""
+    env = os.environ.get("RCN_SEED_PATH")
+    if env and os.path.isfile(env):
+        return env
+    for candidate in _TANK_SEED_PATH_CANDIDATES:
+        if os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 def _load_tank_seed_brackets() -> list[tuple[float, float]]:
@@ -159,7 +175,9 @@ def _load_tank_seed_brackets() -> list[tuple[float, float]]:
 
     Returns an empty list on any read failure — caller falls back to flat $50k.
     """
-    seed_path = os.environ.get("RCN_SEED_PATH", _TANK_SEED_PATH_DEFAULT)
+    seed_path = _resolve_seed_path()
+    if seed_path is None:
+        return []
     try:
         import openpyxl  # local import — keeps engine import cheap if seed never queried
         wb = openpyxl.load_workbook(seed_path, read_only=True, data_only=True)
