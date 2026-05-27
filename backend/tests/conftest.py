@@ -481,6 +481,22 @@ class MockSession:
             self._db.seller_contact_enrichment.append(row)
             return MockResult(rowcount=1)
 
+        # ── Intel: status-endpoint count/sum aggregates ─────────────
+        if "FROM seller_contact_enrichment" in sql and "COUNT(DISTINCT seller_name)" in sql:
+            distinct = {
+                r["seller_name"] for r in self._db.seller_contact_enrichment
+                if r.get("contact_email")
+            }
+            return MockResult([{0: len(distinct)}])
+
+        if "FROM seller_contact_enrichment" in sql and "COUNT(*)" in sql and "contact_email IS NOT NULL" in sql:
+            n = sum(1 for r in self._db.seller_contact_enrichment if r.get("contact_email"))
+            return MockResult([{0: n}])
+
+        if "FROM enrichment_runs" in sql and "SUM(cost_usd)" in sql:
+            total = sum(float(r.get("cost_usd") or 0) for r in self._db.enrichment_runs)
+            return MockResult([{0: total}])
+
         # ── Intel: enrichment_runs read for status endpoint ─────────
         if "FROM enrichment_runs" in sql and "SELECT" in sql.upper():
             rows = sorted(
@@ -1264,7 +1280,8 @@ def _patch_db():
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
          patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
          patch("app.api.admin_mailout.get_session", _mock_get_session), \
-         patch("app.api.fuelled_coverage.get_session", _mock_get_session):
+         patch("app.api.fuelled_coverage.get_session", _mock_get_session), \
+         patch("app.api.v2_intel.get_session", _mock_get_session):
         yield
 
 
