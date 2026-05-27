@@ -634,6 +634,68 @@ class MockSession:
         if "FROM listings" in sql and "seller_source_id = :sid" in sql:
             return MockResult([])
 
+        # ── Mailout sellers aggregation (must precede generic GROUP BY source) ──
+        # GET /api/admin/mailout/sellers.csv — GROUP BY (source, seller_name).
+        if "GROUP BY source, seller_name" in sql and "FROM listings" in sql:
+            now_m = datetime.now(timezone.utc)
+            src_filter = params.get("source")
+            acct_filter = params.get("account_type")
+            min_active = params.get("min_active", 0) or 0
+            limit_m = params.get("limit", 5000) or 5000
+
+            groups: dict[tuple, list[dict]] = {}
+            for l in self._db.listings:
+                seller = l.get("seller_name")
+                if not seller:
+                    continue
+                source_val = l.get("source")
+                if src_filter and source_val != src_filter:
+                    continue
+                if acct_filter and l.get("seller_account_type") != acct_filter:
+                    continue
+                groups.setdefault((source_val, seller), []).append(l)
+
+            mailout_rows = []
+            for (src, seller), items in groups.items():
+                active_30d = sum(
+                    1 for l in items
+                    if l.get("last_seen") and l["last_seen"] >= now_m - timedelta(days=30)
+                )
+                if active_30d < min_active:
+                    continue
+                first_seen_vals = [l["first_seen"] for l in items if l.get("first_seen")]
+                last_seen_vals = [l["last_seen"] for l in items if l.get("last_seen")]
+                cats = sorted({l.get("category_normalized") for l in items if l.get("category_normalized")})
+                ask_total = sum(
+                    (l.get("asking_price") or l.get("current_bid") or 0) for l in items
+                )
+
+                def _first_nonnull(field: str, _items=items):
+                    for l in _items:
+                        v = l.get(field)
+                        if v:
+                            return v
+                    return None
+
+                mailout_rows.append({
+                    0: src,
+                    1: seller,
+                    2: _first_nonnull("seller_account_type"),
+                    3: len(items),
+                    4: active_30d,
+                    5: min(first_seen_vals).date() if first_seen_vals else None,
+                    6: max(last_seen_vals).date() if last_seen_vals else None,
+                    7: ", ".join(cats) if cats else None,
+                    8: int(ask_total),
+                    9: _first_nonnull("event_contact_name"),
+                    10: _first_nonnull("event_contact_email"),
+                    11: _first_nonnull("event_contact_phone"),
+                    12: _first_nonnull("seller_other_assets_url"),
+                    13: _first_nonnull("url"),
+                })
+            mailout_rows.sort(key=lambda r: (-r[3], r[0] or "", r[1] or ""))
+            return MockResult(mailout_rows[:limit_m])
+
         # SELECT source, COUNT(*) ... FROM listings GROUP BY source (listing counts)
         if "FROM listings" in sql and "GROUP BY source" in sql and "asking_price" in sql:
             counts: dict[str, dict] = {}
@@ -964,6 +1026,7 @@ def _patch_db():
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
          patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
+         patch("app.api.admin_mailout.get_session", _mock_get_session), \
          patch("app.api.fuelled_coverage.get_session", _mock_get_session):
         yield
 
