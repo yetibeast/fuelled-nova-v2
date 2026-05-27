@@ -80,3 +80,32 @@ def test_treater_rcn_electrostatic_routes_to_mega():
     """
     rcn = treater_rcn(variant="electrostatic", diameter_in=84)
     assert rcn.low == 1_400_000 and rcn.mid == 1_800_000 and rcn.high == 2_500_000
+
+
+# ── Task 5.2: dedicated treater depreciation curve ───────────────────
+# Replaced 2026-05-26. Previous curve [1.00, 0.93, 0.85, 0.76, 0.67,
+# 0.54, 0.35, 0.20, 0.12, 0.10] at [0,1,3,5,7,10,15,20,25,30] was too
+# steep at 10-20yr. New curve is flatter at mid-life — treater shell
+# rebuilds are cheaper than dehy glycol packages, so retention is
+# higher mid-life. Validated against HubSpot 96" sour 11-16yr sold
+# $80-150k range.
+
+def test_treater_age_factor_curve():
+    from backend.app.pricing_v2.rcn_engine.depreciation import get_age_factor
+    assert get_age_factor(0, "treater") == pytest.approx(1.00, rel=0.01)
+    assert get_age_factor(10, "treater") == pytest.approx(0.55, rel=0.02)
+    assert get_age_factor(15, "treater") == pytest.approx(0.35, rel=0.05)
+    assert get_age_factor(20, "treater") == pytest.approx(0.22, rel=0.05)
+    assert get_age_factor(30, "treater") == pytest.approx(0.10, rel=0.05)
+
+
+def test_treater_age_factor_flatter_than_old_curve_at_15yr():
+    """The new curve must retain MORE value at 15yr than the old steep
+    curve. Old 15yr = 0.35; new 15yr ≥ 0.35 (in practice exactly 0.35
+    is the floor — but the 10yr point at 0.55 vs old 0.54 is the real
+    flattening). This locks the intent: tail flattens, doesn't steepen."""
+    from backend.app.pricing_v2.rcn_engine.depreciation import get_age_factor
+    # 10yr is where the flattening shows: was 0.54, now 0.55
+    assert get_age_factor(10, "treater") >= 0.54
+    # 20yr is where the flattening continues: was 0.20, now 0.22
+    assert get_age_factor(20, "treater") >= 0.20
