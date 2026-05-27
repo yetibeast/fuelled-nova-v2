@@ -30,25 +30,25 @@ def test_classify_dehydrator_generic():
 
 
 # ── Task 2.2: RCN scaling by MMSCFD throughput ──────────────────────
-# Bracket values anchored 2026-05-26 against seeds/rcn_price_reference_seed_v2.xlsx
-# Static Equipment sheet (dehy:glycol:small:std → 5-25 MMCF/D and
-# dehy:glycol:large:std → 25-100 MMCF/D). Sub-5 MMSCFD bracket
-# extrapolated from HubSpot 2-MMSCFD listings. See dehydrator.py for
-# the full anchor trail.
+# Brackets re-calibrated 2026-05-26 to 2026 newbuild RCN. Anchor:
+# 30" sour dehy = $600k-$1MM CAD (large bracket × 1.15× sour). Brackets
+# back-solve with the steepened dehydrator depreciation curve below
+# against HubSpot sold dehys (42" sour 15yr @ $200k → RCN ~$1MM ✓).
+# See dehydrator.py for the full anchor + validation trail.
 
 def test_dehydrator_rcn_small():
     rcn = dehydrator_rcn(variant="teg", mmscfd=2.0)
-    assert rcn.low == 20_000 and rcn.mid == 40_000 and rcn.high == 60_000
+    assert rcn.low == 60_000 and rcn.mid == 100_000 and rcn.high == 130_000
 
 
 def test_dehydrator_rcn_medium():
     rcn = dehydrator_rcn(variant="teg", mmscfd=15.0)
-    assert rcn.low == 60_000 and rcn.mid == 100_000 and rcn.high == 150_000
+    assert rcn.low == 200_000 and rcn.mid == 300_000 and rcn.high == 400_000
 
 
 def test_dehydrator_rcn_large():
     rcn = dehydrator_rcn(variant="teg", mmscfd=50.0)
-    assert rcn.low == 150_000 and rcn.mid == 280_000 and rcn.high == 420_000
+    assert rcn.low == 520_000 and rcn.mid == 700_000 and rcn.high == 870_000
 
 
 def test_dehydrator_rcn_mole_sieve_premium():
@@ -58,15 +58,15 @@ def test_dehydrator_rcn_mole_sieve_premium():
 
 
 # ── Task 2.3: dedicated dehydrator depreciation curve ───────────────
-# Existing API is get_age_factor(effective_age, category); plan
-# snippet's age_factor() name does not exist in the engine. Adapted
-# to call the real primitive — keeps rcn_engine surface unchanged.
+# Steepened 2026-05-26 to match newbuild-RCN convention. 15yr retention
+# ≈ 0.20 back-solved against 42" sour @ $200k sold price.
 
 def test_dehydrator_age_factor_curve():
     from backend.app.pricing_v2.rcn_engine.depreciation import get_age_factor
     assert get_age_factor(0, "dehydrator") == pytest.approx(1.00, rel=0.01)
-    assert get_age_factor(10, "dehydrator") == pytest.approx(0.60, rel=0.05)
-    assert get_age_factor(20, "dehydrator") == pytest.approx(0.35, rel=0.05)
+    assert get_age_factor(10, "dehydrator") == pytest.approx(0.40, rel=0.05)
+    assert get_age_factor(15, "dehydrator") == pytest.approx(0.20, rel=0.05)
+    assert get_age_factor(20, "dehydrator") == pytest.approx(0.12, rel=0.10)
 
 
 # ── Task 2.4: service factor (sweet vs sour) ──────────────────────

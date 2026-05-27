@@ -47,12 +47,14 @@ AGE_CURVES: dict[str, tuple[list[int], list[float]]] = {
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
         [1.00, 0.93, 0.85, 0.76, 0.67, 0.54, 0.35, 0.20, 0.12, 0.10],
     ),
-    # Dehydrator — slightly steeper early than treater due to glycol
-    # fouling / regen heater wear. Placeholder milestones — Curt to
-    # calibrate against domain knowledge before final 348-row run.
+    # Dehydrator — steepened 2026-05-26 against HubSpot sold dehys to
+    # match newbuild-RCN convention (30" sour newbuild = $600k-$1MM
+    # per Curt). Back-solve: 42" sour 14-15yr sold $200k ÷ ~$1MM RCN
+    # = 0.20 retention at 15yr. Glycol fouling + regen heater wear
+    # drives steeper early-life decay than separator/treater curves.
     "dehydrator": (
-        [0, 5, 10, 15, 20, 25],
-        [1.00, 0.78, 0.60, 0.45, 0.35, 0.28],
+        [0, 3, 5, 8, 10, 15, 20, 25, 30],
+        [1.00, 0.85, 0.70, 0.50, 0.40, 0.20, 0.12, 0.08, 0.05],
     ),
     "heavy_equip": (
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
