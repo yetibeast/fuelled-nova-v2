@@ -29,6 +29,15 @@ CONDITION_STRING_MAP: dict[str, str] = {
     "newcondition": "EXCELLENT",
     "new/unused": "EXCELLENT",
     "excellent": "EXCELLENT",
+    # Fuelled platform letter-grade convention (matches Tier 1's
+    # pricing_v2/tools.py:_CONDITION_GRADE_MAP). A→EXCELLENT, B→GOOD,
+    # C→FAIR, D→POOR with no intermediate VERY_GOOD slot in the
+    # letter scheme. Centralizing here so every caller of
+    # normalize_condition() gets the same mapping.
+    "a": "EXCELLENT",
+    "b": "GOOD",
+    "c": "FAIR",
+    "d": "POOR",
     "very good": "VERY_GOOD",
     "very_good": "VERY_GOOD",
     "good": "GOOD",

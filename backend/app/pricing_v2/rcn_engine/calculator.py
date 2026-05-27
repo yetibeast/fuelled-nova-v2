@@ -6,18 +6,18 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from app.pricing_v2.rcn_engine.condition import (
+from .condition import (
     get_condition_factor,
     infer_condition_from_hours,
     normalize_condition,
 )
-from app.pricing_v2.rcn_engine.confidence import ConfidenceBreakdown, calculate_confidence
-from app.pricing_v2.rcn_engine.depreciation import (
+from .confidence import ConfidenceBreakdown, calculate_confidence
+from .depreciation import (
     compute_effective_age,
     get_age_factor,
     get_curve_name,
 )
-from app.pricing_v2.rcn_engine.market_factors import (
+from .market_factors import (
     get_drive_factor,
     get_geography_factor,
     get_h2s_age_multiplier,
@@ -25,7 +25,7 @@ from app.pricing_v2.rcn_engine.market_factors import (
     get_material_factor,
     get_nace_premium,
 )
-from app.pricing_v2.rcn_engine.rcn_tables import (
+from .rcn_tables import (
     RCNInput,
     compute_base_rcn,
     compute_spec_modifiers_factor,
