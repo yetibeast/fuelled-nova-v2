@@ -70,6 +70,20 @@ class TestNormalizeCondition:
         assert normalize_condition("pristine") == "GOOD"
         assert normalize_condition("like new but rusty") == "GOOD"
 
+    @pytest.mark.parametrize("raw,expected", [
+        ("A", "EXCELLENT"),
+        ("a", "EXCELLENT"),
+        ("B", "GOOD"),
+        ("b", "GOOD"),
+        ("C", "FAIR"),
+        ("c", "FAIR"),
+        ("D", "POOR"),
+        ("d", "POOR"),
+    ])
+    def test_fuelled_letter_grades(self, raw, expected):
+        """Fuelled platform A/B/C/D convention — load-bearing for Tier 2."""
+        assert normalize_condition(raw) == expected
+
 
 # ── Hours-based condition inference ───────────────────────────────────
 
