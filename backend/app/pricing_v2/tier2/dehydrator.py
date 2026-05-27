@@ -43,19 +43,27 @@ class RcnBand:
     high: int
 
 
-# ── PLACEHOLDER RCN BRACKETS ───────────────────────────────────────
-# Source: pending — Curt to calibrate against
-# seeds/rcn_price_reference_seed_v2.xlsx + seeds/hubspot/all-records.csv
-# before Chunk 2 closes. Numbers below are anchored on rough domain
-# intuition only.
+# ── RCN BRACKETS ──────────────────────────────────────────────────
+# Anchored 2026-05-26 against `seeds/rcn_price_reference_seed_v2.xlsx`
+# Static Equipment sheet — two dehydrator references:
+#   dehy:glycol:small:std  →  5–25 MMCF/D @ 10 ref →  $60k / $100k / $150k
+#   dehy:glycol:large:std  → 25–100 MMCF/D @ 50 ref → $150k / $280k / $420k
+# Cross-checked against HubSpot corpus: 50 MMSCFD unused unit asks
+# $300k with RV $570k (matches seed's large bracket). Sub-5 MMSCFD
+# skid packages not in the seed; values scaled down from seed-small
+# using HubSpot's two 2-MMSCFD listings (~$12k ask → ~$25–30k implied
+# RCN at typical depreciation). Open to Curt tightening the tiny
+# bracket once more data lands.
 _TEG_BRACKETS: dict[str, RcnBand] = {
-    "small":  RcnBand(50_000,  100_000, 150_000),    # < 5 MMSCFD
-    "medium": RcnBand(150_000, 275_000, 400_000),    # 5–25 MMSCFD
-    "large":  RcnBand(400_000, 700_000, 1_000_000),  # > 25 MMSCFD
+    "small":  RcnBand( 20_000,  40_000,  60_000),   # < 5 MMSCFD  (sub-seed extrapolation)
+    "medium": RcnBand( 60_000, 100_000, 150_000),   # 5–25 MMSCFD (RCN seed dehy:glycol:small:std)
+    "large":  RcnBand(150_000, 280_000, 420_000),   # > 25 MMSCFD (RCN seed dehy:glycol:large:std)
 }
 
-# Mole sieve carries ~1.5× premium on glycol units (molecular sieve
-# beds + heavier regen package). Placeholder multiplier.
+# Mole sieve premium over glycol (molecular sieve beds + heavier regen
+# package). HubSpot corpus has 0 explicit mole-sieve listings to
+# calibrate against; 1.5× retained as agent's domain-intuition default
+# pending a corpus point.
 _MOLE_SIEVE_PREMIUM = 1.5
 
 
@@ -212,7 +220,7 @@ def price_dehydrator(listing: dict) -> Tier2Row:
     )
     trail.add(
         "RCN bracket",
-        f"low ${rcn.low:,} / mid ${rcn.mid:,} / high ${rcn.high:,} CAD (placeholder values — pending Curt calibration)",
+        f"low ${rcn.low:,} / mid ${rcn.mid:,} / high ${rcn.high:,} CAD (seed-anchored: rcn_price_reference_seed_v2.xlsx dehy:glycol entries; mole-sieve premium 1.5× remains a domain-intuition default)",
     )
     trail.add(
         "Age",
@@ -257,7 +265,11 @@ def price_dehydrator(listing: dict) -> Tier2Row:
         "RCN New Low": rcn.low,
         "RCN New Mid": rcn.mid,
         "RCN New High": rcn.high,
-        "RCN Source": "fallback",
+        # Granular source so Mark can tell which family's bracket fired
+        # without parsing methodology_path. Same pattern propagates to
+        # other Tier 2 families (treater/heater/knockouts) in their
+        # respective Chunks.
+        "RCN Source": "fallback/dehydrator",
         # Methodology
         "Methodology Path": methodology_path,
         "Depreciation Curve": "dehydrator",

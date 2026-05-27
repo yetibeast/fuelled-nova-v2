@@ -30,22 +30,25 @@ def test_classify_dehydrator_generic():
 
 
 # ── Task 2.2: RCN scaling by MMSCFD throughput ──────────────────────
-# NOTE: bracket values are placeholders — Curt confirms against
-# seeds/rcn_price_reference_seed_v2.xlsx before Chunk 2 closes.
+# Bracket values anchored 2026-05-26 against seeds/rcn_price_reference_seed_v2.xlsx
+# Static Equipment sheet (dehy:glycol:small:std → 5-25 MMCF/D and
+# dehy:glycol:large:std → 25-100 MMCF/D). Sub-5 MMSCFD bracket
+# extrapolated from HubSpot 2-MMSCFD listings. See dehydrator.py for
+# the full anchor trail.
 
 def test_dehydrator_rcn_small():
     rcn = dehydrator_rcn(variant="teg", mmscfd=2.0)
-    assert rcn.low == 50_000 and rcn.mid == 100_000 and rcn.high == 150_000
+    assert rcn.low == 20_000 and rcn.mid == 40_000 and rcn.high == 60_000
 
 
 def test_dehydrator_rcn_medium():
     rcn = dehydrator_rcn(variant="teg", mmscfd=15.0)
-    assert rcn.low == 150_000 and rcn.mid == 275_000 and rcn.high == 400_000
+    assert rcn.low == 60_000 and rcn.mid == 100_000 and rcn.high == 150_000
 
 
 def test_dehydrator_rcn_large():
     rcn = dehydrator_rcn(variant="teg", mmscfd=50.0)
-    assert rcn.low == 400_000 and rcn.mid == 700_000 and rcn.high == 1_000_000
+    assert rcn.low == 150_000 and rcn.mid == 280_000 and rcn.high == 420_000
 
 
 def test_dehydrator_rcn_mole_sieve_premium():
