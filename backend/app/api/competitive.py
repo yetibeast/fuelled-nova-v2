@@ -285,7 +285,8 @@ async def competitive_stale_targets_csv(
     promotable_only: bool = Query(False),
     min_score: int = Query(0, ge=0, le=100),
     limit: int = Query(500, ge=1, le=5000),
-    cap_per_seller: int = Query(0, ge=0, le=100),
+    cap_per_seller: int = Query(1, ge=0, le=100),
+    sort: str = Query("seller_diverse", pattern="^(seller_diverse|score_only)$"),
 ):
     _require_auth(authorization)
     async with get_session() as session:
@@ -302,11 +303,15 @@ async def competitive_stale_targets_csv(
             continue
         candidates.append(candidate)
 
+    # Match the JSON dashboard endpoint's default ordering so the CSV
+    # download reflects the same seller diversity Mark sees on the page.
+    # Pass `?sort=score_only&cap_per_seller=0` to get the full legacy
+    # pure-score list for offline working.
     candidates.sort(key=lambda row: (-row["acquisition_score"], -row["days_listed"]))
-    # CSV is the working-list export, so default is no cap — the team wants
-    # every stale row per seller to plan outreach offline. Caller can request
-    # diversification with ?cap_per_seller=N.
-    candidates = _cap_per_seller(candidates, cap_per_seller)
+    if sort == "score_only":
+        candidates = _cap_per_seller(candidates, cap_per_seller)
+    else:
+        candidates = _seller_diverse_order(candidates, max(cap_per_seller, 1))
     candidates = candidates[:limit]
 
     buf = io.StringIO()
