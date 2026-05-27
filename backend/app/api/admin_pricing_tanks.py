@@ -23,6 +23,7 @@ are NOT in scope here — the tank category filter naturally excludes them.
 from __future__ import annotations
 
 import logging
+import re
 import uuid
 from typing import Any
 
@@ -43,8 +44,24 @@ _log = logging.getLogger(__name__)
 METHODOLOGY_SLUG = "nova_v2/tank/seed-rcn"
 METHODOLOGY_VERSION = "nova_v2"
 
-# Tank-family category filter. Conservative — matches the dispatch scope.
+# Tank-family category filter. Excludes `tanker-trailers` (transport, not
+# production tanks — Tier 3 deferral per scoping doc).
 _TANK_CATEGORY_PATTERNS = ("%tank%", "%storage%", "%bullet%")
+_TANK_CATEGORY_EXCLUDES = ("%tanker-trailer%", "%tanker_trailer%")
+
+# Listings that match the category pattern but clearly aren't production
+# pressure vessels — portable poly fuel skids, plastic sewer / water /
+# camp tanks, trailer-mounted asphalt units, etc. Caught from the 2026-05-27
+# limit=10 graduated run.
+_NON_PRODUCTION_TITLE_PATTERN = re.compile(
+    r"\b(poly|plastic|sewer|water|water\s+canon|portable|tow\s+behind|trailer\s+mounted|"
+    r"camp|overhead|fuel\s+tank|diesel\s+tank|chemical|wash\s+tank|septic)\b",
+    re.IGNORECASE,
+)
+
+# Production tanks below this size are typically skid / pickup-truck mounted
+# and not in the pressure-vessel-class the bracket ladder is calibrated for.
+_MIN_BBL_FOR_BULK_PRICING = 50
 
 # Source-aware year defaults (locked policy).
 _SOURCE_YEAR_DEFAULTS: dict[str, int] = {
@@ -59,6 +76,31 @@ def _default_year_for_source(source: str | None) -> int:
     if not source:
         return _DEFAULT_YEAR_FALLBACK
     return _SOURCE_YEAR_DEFAULTS.get(source.strip().lower(), _DEFAULT_YEAR_FALLBACK)
+
+
+def _scope_filter(row: dict[str, Any]) -> str | None:
+    """Return a skip reason if the row is out of scope, else None.
+
+    The tank bracket ladder is calibrated for production-scale steel
+    pressure vessels (100-750 BBL seed entries). Listings that are
+    plastic/poly skids, transport trailers, or sub-50-BBL portable
+    units get nonsense prices from the $/BBL extrapolation. Skip them
+    explicitly so the run's `skipped` counter surfaces the exclusion
+    instead of producing bad valuations.
+    """
+    title = (row.get("title") or "") + " " + (row.get("description") or "")
+    if _NON_PRODUCTION_TITLE_PATTERN.search(title):
+        return "non-production tank (poly / plastic / sewer / portable / trailer-mounted)"
+
+    # Volume gate: only price rows with extracted BBL >= 50.
+    # Imported lazily inside the function to keep top-level imports clean.
+    from app.pricing_v2.equipment.parsing import extract_tank_volume_bbl
+    bbl = extract_tank_volume_bbl(row.get("title") or "") or extract_tank_volume_bbl(row.get("description") or "")
+    if bbl is None:
+        return "no extractable volume — needs manual review"
+    if bbl < _MIN_BBL_FOR_BULK_PRICING:
+        return f"sub-{_MIN_BBL_FOR_BULK_PRICING}-BBL ({bbl:.0f}) — skid/portable class, not pressure vessel"
+    return None
 
 
 def _price_one_tank(row: dict[str, Any]) -> dict[str, Any]:
@@ -128,6 +170,8 @@ async def run_tanks_bulk(
     total = 0
     succeeded = 0
     failed = 0
+    skipped = 0
+    skip_reasons: dict[str, int] = {}
 
     async with get_session() as session:
         # Create the pricing_runs row up front so failures still leave a trail.
@@ -148,7 +192,10 @@ async def run_tanks_bulk(
         # id keeps the slice stable across calls so an aborted partial run
         # can be re-issued without re-pricing the same head.
         limit_clause = " ORDER BY id LIMIT :lim" if limit > 0 else ""
-        params: dict[str, Any] = {"patterns": list(_TANK_CATEGORY_PATTERNS)}
+        params: dict[str, Any] = {
+            "patterns": list(_TANK_CATEGORY_PATTERNS),
+            "excludes": list(_TANK_CATEGORY_EXCLUDES),
+        }
         if limit > 0:
             params["lim"] = limit
         result = await session.execute(
@@ -159,6 +206,7 @@ async def run_tanks_bulk(
                 FROM listings
                 WHERE fair_value IS NULL
                   AND (category ILIKE ANY (:patterns))
+                  AND NOT (category ILIKE ANY (:excludes))
                 {limit_clause}
                 """
             ),
@@ -174,6 +222,16 @@ async def run_tanks_bulk(
                 "horsepower": r[7], "hours": r[8], "weight_lbs": r[9],
                 "condition": r[10], "location": r[11], "source": r[12],
             }
+
+            # Scope filter: skip non-production / sub-50-BBL rows up front so
+            # they don't produce nonsense bracketed prices. Skip != failure;
+            # skipped rows are explicitly out of scope and counted separately.
+            skip_reason = _scope_filter(row_dict)
+            if skip_reason is not None:
+                skipped += 1
+                skip_reasons[skip_reason] = skip_reasons.get(skip_reason, 0) + 1
+                continue
+
             valuation_id = str(uuid.uuid4())
             try:
                 priced = _price_one_tank(row_dict)
@@ -259,5 +317,7 @@ async def run_tanks_bulk(
         "total": total,
         "succeeded": succeeded,
         "failed": failed,
+        "skipped": skipped,
+        "skip_reasons": skip_reasons,
         "methodology": METHODOLOGY_SLUG,
     }
