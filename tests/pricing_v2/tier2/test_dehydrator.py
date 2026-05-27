@@ -47,7 +47,10 @@ def test_dehydrator_rcn_medium():
 
 
 def test_dehydrator_rcn_large():
-    rcn = dehydrator_rcn(variant="teg", mmscfd=50.0)
+    # 40 MMSCFD sits squarely in Large (25–50). The 30" sour anchor
+    # (≈40 MMSCFD) maps here: Large × 1.15 = $598-1,001k matches the
+    # $600k-$1MM Curt anchor.
+    rcn = dehydrator_rcn(variant="teg", mmscfd=40.0)
     assert rcn.low == 520_000 and rcn.mid == 700_000 and rcn.high == 870_000
 
 
@@ -62,11 +65,21 @@ def test_dehydrator_rcn_mole_sieve_premium():
 # ≈ 0.20 back-solved against 42" sour @ $200k sold price.
 
 def test_dehydrator_age_factor_curve():
+    # Curve flattened 2026-05-27 after reverse-pass against HubSpot
+    # sold dehys ≥$25k. Old 15yr=0.20 was too steep — implied $3-4MM
+    # RCN for 42-54" sour units, which is not real. New 15yr=0.40
+    # produces $1.1-1.5MM implied RCN for those units, defensible.
     from backend.app.pricing_v2.rcn_engine.depreciation import get_age_factor
     assert get_age_factor(0, "dehydrator") == pytest.approx(1.00, rel=0.01)
-    assert get_age_factor(10, "dehydrator") == pytest.approx(0.40, rel=0.05)
-    assert get_age_factor(15, "dehydrator") == pytest.approx(0.20, rel=0.05)
-    assert get_age_factor(20, "dehydrator") == pytest.approx(0.12, rel=0.10)
+    assert get_age_factor(10, "dehydrator") == pytest.approx(0.60, rel=0.05)
+    assert get_age_factor(15, "dehydrator") == pytest.approx(0.40, rel=0.05)
+    assert get_age_factor(20, "dehydrator") == pytest.approx(0.30, rel=0.10)
+
+
+def test_dehydrator_rcn_mega_bracket():
+    """≥50 MMSCFD (~48"+ diameter, major-plant scale) → Mega bracket."""
+    rcn_75 = dehydrator_rcn(variant="teg", mmscfd=75.0)
+    assert rcn_75.low == 1_000_000 and rcn_75.mid == 1_500_000 and rcn_75.high == 2_200_000
 
 
 # ── Task 2.4: service factor (sweet vs sour) ──────────────────────

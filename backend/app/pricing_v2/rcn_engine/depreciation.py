@@ -47,14 +47,15 @@ AGE_CURVES: dict[str, tuple[list[int], list[float]]] = {
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
         [1.00, 0.93, 0.85, 0.76, 0.67, 0.54, 0.35, 0.20, 0.12, 0.10],
     ),
-    # Dehydrator — steepened 2026-05-26 against HubSpot sold dehys to
-    # match newbuild-RCN convention (30" sour newbuild = $600k-$1MM
-    # per Curt). Back-solve: 42" sour 14-15yr sold $200k ÷ ~$1MM RCN
-    # = 0.20 retention at 15yr. Glycol fouling + regen heater wear
-    # drives steeper early-life decay than separator/treater curves.
+    # Dehydrator — flattened tail 2026-05-27 after reverse-pass against
+    # HubSpot sold dehys ≥$25k. Prior 15yr=0.20 / 30yr=0.05 curve
+    # back-solved 42-54" sour units to $3-4MM implied RCN, which is not
+    # real-world. Flattened tail produces defensible $1.1-1.5MM implied
+    # RCN for those units, consistent with the new Mega bracket above
+    # the original Large in tier2/dehydrator.py.
     "dehydrator": (
         [0, 3, 5, 8, 10, 15, 20, 25, 30],
-        [1.00, 0.85, 0.70, 0.50, 0.40, 0.20, 0.12, 0.08, 0.05],
+        [1.00, 0.92, 0.85, 0.72, 0.60, 0.40, 0.30, 0.22, 0.17],
     ),
     "heavy_equip": (
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],

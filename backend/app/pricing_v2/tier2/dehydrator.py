@@ -65,9 +65,10 @@ class RcnBand:
 # The seed values in rcn_price_reference_seed_v2.xlsx are 2-3× low
 # vs this calibration — separate cleanup needed on that seed.
 _TEG_BRACKETS: dict[str, RcnBand] = {
-    "small":  RcnBand( 60_000, 100_000, 130_000),   # < 5 MMSCFD   (~12" skid package)
-    "medium": RcnBand(200_000, 300_000, 400_000),   # 5–25 MMSCFD  (~18-24" contactor)
-    "large":  RcnBand(520_000, 700_000, 870_000),   # > 25 MMSCFD  (~30-42" contactor; 30" sour×1.15 = anchor)
+    "small":  RcnBand(   60_000,   100_000,   130_000),  # < 5 MMSCFD    (~12" skid package)
+    "medium": RcnBand(  200_000,   300_000,   400_000),  # 5–25 MMSCFD   (~18-24" contactor)
+    "large":  RcnBand(  520_000,   700_000,   870_000),  # 25–50 MMSCFD  (~30-42" contactor; 30" sour×1.15 = anchor)
+    "mega":   RcnBand(1_000_000, 1_500_000, 2_200_000),  # > 50 MMSCFD   (~48"+ diameter; major plant scale)
 }
 
 # Mole sieve premium over glycol (molecular sieve beds + heavier regen
@@ -91,7 +92,9 @@ def _bracket_for_mmscfd(mmscfd: float) -> str:
         return "small"
     if mmscfd < 25:
         return "medium"
-    return "large"
+    if mmscfd < 50:
+        return "large"
+    return "mega"
 
 
 def dehydrator_service_factor(service_description: str) -> float:
