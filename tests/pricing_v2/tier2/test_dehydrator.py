@@ -1,6 +1,9 @@
 """Dehydrator family ruleset — Tier 2 vertical slice."""
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 import pytest
 
 from backend.app.pricing_v2.tier2.dehydrator import (
@@ -71,3 +74,35 @@ def test_dehydrator_service_factor_sweet():
 
 def test_dehydrator_service_factor_sour():
     assert dehydrator_service_factor("sour gas H2S 2%") == 1.15
+
+
+# ── Task 2.5: end-to-end pricing produces spec-compliant row ──────
+
+def test_dehydrator_end_to_end_5mmscfd_teg():
+    fx = json.loads(
+        (Path(__file__).parent / "fixtures" / "dehydrator_5mmscfd_teg.json").read_text()
+    )
+    row = price_dehydrator(fx)
+    # 1. Spec contract holds
+    assert_row_satisfies_spec(row)
+    # 2. Family routed correctly
+    assert row.to_dict()["Family"] == "dehydrator"
+    # 3. Methodology path traceable
+    assert "teg" in row.to_dict()["Methodology Path"].lower()
+    # 4. Reasoning trail is multi-line
+    assert row.to_dict()["Reasoning Trail"].count("\n") >= 3
+    # 5. Sold anchor not used (standalone run)
+    assert row.to_dict()["Sold Anchor Used"] is False
+    # 6. Confidence is composite-classified consistently
+    composite = row.to_dict()["Conf Composite"]
+    cls = row.to_dict()["Conf Class"]
+    if composite >= 0.75:
+        assert cls == "automated"
+    elif composite >= 0.40:
+        assert cls == "hitl_review"
+    else:
+        assert cls == "manual"
+    # 7. Price targets bracket the FMV mid
+    d = row.to_dict()
+    fmv_mid = d["RCN New Mid"] * d["Factor Combined"]
+    assert d["Price Target LOW"] < fmv_mid < d["Price Target HIGH"]
