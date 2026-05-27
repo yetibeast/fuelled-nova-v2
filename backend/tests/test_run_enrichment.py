@@ -7,6 +7,8 @@ and the in-memory MockSession from conftest.
 from __future__ import annotations
 
 import asyncio
+import os
+import re
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 
@@ -14,6 +16,18 @@ import pytest
 
 from app.pricing_v2.intel.providers.mock import MockProvider
 from app.pricing_v2.intel.runner import run_enrichment
+
+# Canonical flag name shared by the CLI, cron config, docs, and tests.
+# If this constant changes, every artifact in the recurring-enrichment
+# surface must be updated together (see test_cli_and_cron_use_consistent_flag_name).
+CLI_FLAG_NAME = "--trigger"
+REJECTED_FLAG_NAME = "--mode"
+
+_SCRIPTS_DIR = os.path.normpath(
+    os.path.join(os.path.dirname(__file__), "..", "scripts")
+)
+_CRON_PATH = os.path.join(_SCRIPTS_DIR, "intel-cron.conf")
+_CLI_PATH = os.path.join(_SCRIPTS_DIR, "run_enrichment.py")
 
 
 def _run(coro):
@@ -301,3 +315,61 @@ def test_runner_marks_empty_contacts_as_failure():
     assert len(empty_rows) == 1
     assert empty_rows[0]["last_research_error"] == "no contacts returned"
     assert summary.sellers_failed >= 1
+
+
+# ── CLI / cron flag-name consistency (bug C1 regression) ──────────────
+#
+# History: the original spec brief mentioned --mode {detect,research,refresh}
+# but the CLI shipped with --trigger (a free-text audit label). The cron
+# config matched the CLI. These tests lock the names together so any future
+# drift between the CLI, cron, and (rejected) spec-name fails fast.
+
+
+def test_cli_and_cron_use_consistent_flag_name():
+    """Every CLI invocation in intel-cron.conf must use the canonical flag
+    name and must not reference the rejected alternative."""
+    with open(_CRON_PATH, "r", encoding="utf-8") as f:
+        cron_text = f.read()
+
+    # Extract uncommented lines that invoke run_enrichment.py.
+    invocations = [
+        line for line in cron_text.splitlines()
+        if "run_enrichment.py" in line and not line.lstrip().startswith("#")
+    ]
+    assert invocations, (
+        f"intel-cron.conf has no uncommented run_enrichment.py invocations "
+        f"— expected at least one weekly + one quarterly entry."
+    )
+
+    for line in invocations:
+        assert CLI_FLAG_NAME in line, (
+            f"cron invocation missing {CLI_FLAG_NAME}: {line!r}"
+        )
+        assert REJECTED_FLAG_NAME not in line, (
+            f"cron invocation references rejected flag {REJECTED_FLAG_NAME}: {line!r}"
+        )
+
+
+def test_cli_argparse_defines_canonical_flag_and_not_rejected():
+    """The CLI's argparse parser must define the canonical flag name
+    and must NOT define the rejected one."""
+    with open(_CLI_PATH, "r", encoding="utf-8") as f:
+        cli_src = f.read()
+
+    # Pattern matches: p.add_argument("--trigger", ...)
+    canonical_added = re.search(
+        r'add_argument\(\s*[\'"]' + re.escape(CLI_FLAG_NAME) + r'[\'"]',
+        cli_src,
+    )
+    rejected_added = re.search(
+        r'add_argument\(\s*[\'"]' + re.escape(REJECTED_FLAG_NAME) + r'[\'"]',
+        cli_src,
+    )
+
+    assert canonical_added, (
+        f"run_enrichment.py argparse does not define {CLI_FLAG_NAME}"
+    )
+    assert not rejected_added, (
+        f"run_enrichment.py argparse still defines rejected flag "
+        f"{REJECTED_FLAG_NAME}"
+    )
