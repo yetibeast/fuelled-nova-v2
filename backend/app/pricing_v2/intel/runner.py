@@ -18,6 +18,7 @@ finished_at) and updated with totals at the end.
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -30,6 +31,8 @@ from app.pricing_v2.intel.providers.base import (
     EnrichmentProvider,
     ProviderResult,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -107,6 +110,13 @@ _UPSERT_CONTACT_SQL = text(
 # We still want to bump research_attempts and stash the error so /status
 # can surface it. We INSERT a marker row with NULL email when no row exists
 # for this (seller, source); ON CONFLICT it just increments + sets error.
+#
+# The conflict target is the PARTIAL unique index
+# uq_seller_contact_enrichment_failure_marker (see migration
+# 2026-05-27_enrichment_failure_partial_idx.sql). The full
+# (seller_name, source, contact_email) unique index is unusable here
+# because Postgres treats NULL as distinct, so re-failures would
+# accumulate rows instead of bumping research_attempts.
 _MARK_FAILURE_SQL = text(
     "INSERT INTO seller_contact_enrichment ("
     "  seller_name, source, contact_email, enrichment_source, "
@@ -115,7 +125,8 @@ _MARK_FAILURE_SQL = text(
     "  :seller, :source, NULL, :enrichment_source, "
     "  NOW(), 1, :error"
     ") "
-    "ON CONFLICT (seller_name, source, contact_email) DO UPDATE SET "
+    "ON CONFLICT (seller_name, source) WHERE contact_email IS NULL "
+    "DO UPDATE SET "
     "  last_researched_at = NOW(), "
     "  research_attempts = seller_contact_enrichment.research_attempts + 1, "
     "  last_research_error = :error"
@@ -157,7 +168,7 @@ async def run_enrichment(
     max_cost_usd: float = 10.0,
     trigger: str = "manual",
     dry_run: bool = False,
-    enrichment_source: str = "claude_parallel",
+    enrichment_source: Optional[str] = None,
 ) -> RunSummary:
     """Execute one batch.
 
@@ -167,8 +178,14 @@ async def run_enrichment(
 
     provider: an EnrichmentProvider instance.
 
+    enrichment_source: audit label written to seller_contact_enrichment rows.
+    Defaults to the provider's name (bug I3 — used to be hardcoded to
+    "claude_parallel" regardless of which provider actually ran).
+
     Returns a RunSummary with cumulative metrics.
     """
+    if enrichment_source is None:
+        enrichment_source = provider.name
     run_id = str(uuid.uuid4())
     summary = RunSummary(run_id=run_id)
 
@@ -213,6 +230,13 @@ async def run_enrichment(
                 {"sample_listing_urls": s["sample_urls"]},
             )
         except Exception as exc:
+            # Bug I4: log the full traceback. The DB column
+            # last_research_error is truncated to 500 chars below; the log
+            # must keep the complete exception so debugging is possible.
+            logger.exception(
+                "Provider %s raised on seller=%r source=%r: %s",
+                provider.name, s["seller_name"], s["source"], exc,
+            )
             result = ProviderResult(
                 contacts=[],
                 cost_usd=0.0,
@@ -232,8 +256,13 @@ async def run_enrichment(
                 summary.contacts_added += len(result.contacts)
         return summary
 
-    async with session_factory() as session:
-        for s, result in enrichment_results:
+    # Bug I2: commit per-seller, not per-batch. If the runner crashes
+    # mid-batch the work done so far (and the provider $ already spent)
+    # must survive. The enrichment_runs row was already inserted+committed
+    # in Phase 1 with finished_at=NULL, so a crash leaves the audit row
+    # visible in /status as an unfinished run.
+    for s, result in enrichment_results:
+        async with session_factory() as session:
             if result.error:
                 summary.sellers_failed += 1
                 await session.execute(_MARK_FAILURE_SQL, {
@@ -242,6 +271,7 @@ async def run_enrichment(
                     "enrichment_source": enrichment_source,
                     "error": result.error[:500],
                 })
+                await session.commit()
                 continue
 
             if not result.contacts:
@@ -252,6 +282,7 @@ async def run_enrichment(
                     "enrichment_source": enrichment_source,
                     "error": "no contacts returned",
                 })
+                await session.commit()
                 continue
 
             summary.sellers_succeeded += 1
@@ -270,7 +301,9 @@ async def run_enrichment(
                     "enrichment_source": enrichment_source,
                 })
                 summary.contacts_added += 1
+            await session.commit()
 
+    async with session_factory() as session:
         await session.execute(_FINISH_RUN_SQL, {
             "rid": run_id,
             "total": summary.sellers_total,
