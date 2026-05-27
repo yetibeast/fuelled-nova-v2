@@ -56,6 +56,16 @@ def _bracket_for_mmscfd(mmscfd: float) -> str:
     return "large"
 
 
+def dehydrator_service_factor(service_description: str) -> float:
+    """Sour gas service carries a premium on RCN — heavier metallurgy +
+    NACE compliance + monitoring. Sweet gas is the baseline (1.00).
+    Placeholder multipliers — Curt to calibrate."""
+    t = service_description.lower()
+    if "sour" in t or "h2s" in t or "h₂s" in t:
+        return 1.15
+    return 1.00
+
+
 def dehydrator_rcn(*, variant: DehydratorVariant, mmscfd: float) -> RcnBand:
     """Return RCN bracket (low/mid/high CAD) for a dehydrator at given throughput.
 

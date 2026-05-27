@@ -7,6 +7,7 @@ from backend.app.pricing_v2.tier2.dehydrator import (
     DEHYDRATOR_MATCH_TERMS,
     classify_dehydrator,
     dehydrator_rcn,
+    dehydrator_service_factor,
     price_dehydrator,
 )
 from .test_column_spec import assert_row_satisfies_spec
@@ -60,3 +61,13 @@ def test_dehydrator_age_factor_curve():
     assert get_age_factor(0, "dehydrator") == pytest.approx(1.00, rel=0.01)
     assert get_age_factor(10, "dehydrator") == pytest.approx(0.60, rel=0.05)
     assert get_age_factor(20, "dehydrator") == pytest.approx(0.35, rel=0.05)
+
+
+# ── Task 2.4: service factor (sweet vs sour) ──────────────────────
+
+def test_dehydrator_service_factor_sweet():
+    assert dehydrator_service_factor("sweet gas") == 1.00
+
+
+def test_dehydrator_service_factor_sour():
+    assert dehydrator_service_factor("sour gas H2S 2%") == 1.15
