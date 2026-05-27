@@ -1,0 +1,11 @@
+{
+  "listing_id": "FX-METER-LACT-001",
+  "record_id": "fixture-meter-lact-1",
+  "listing_name": "Dual LACT Metering Skid w/ Control Room & Coriolis Meters",
+  "category": "Metering Equipment",
+  "supplier_company": "FixtureSupplier Ltd.",
+  "url": "https://example.test/fx-meter-lact-001",
+  "description": "Dual LACT (Lease Automatic Custody Transfer) unit, 3\" Micro Motion coriolis meters, control room, prover loop, condition B, year 2015.",
+  "year": 2015,
+  "condition": "B"
+}
