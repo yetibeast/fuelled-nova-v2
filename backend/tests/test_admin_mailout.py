@@ -133,6 +133,14 @@ _EXPECTED_COLUMNS = [
     "contact_phone",
     "other_assets_url",
     "sample_listing_url",
+    # Enriched contact columns (May 10 workbook → seller_contact_enrichment).
+    # Appended to the end so existing consumers don't break.
+    "enriched_contact_name",
+    "enriched_contact_title",
+    "enriched_email",
+    "enriched_email_confidence",
+    "enriched_linkedin",
+    "enriched_outreach_notes",
 ]
 
 
@@ -242,3 +250,87 @@ def test_mailout_filter_by_account_type(client, admin_headers):
     _, rows = _parse_csv(resp.text)
     assert len(rows) == 1
     assert rows[0]["seller_name"] == "Calgary Surplus Co"
+
+
+# ── Enriched contact columns (May 10 workbook join) ────────────────────
+
+
+def _seed_enrichment_for(seller_name, **fields):
+    """Inject a row into the in-memory seller_contact_enrichment table."""
+    from tests import conftest
+    if not hasattr(conftest._db, "seller_contact_enrichment"):
+        conftest._db.seller_contact_enrichment = []
+    row = {
+        "seller_name": seller_name,
+        "source": None,
+        "contact_name": None,
+        "contact_title": None,
+        "contact_email": None,
+        "contact_phone": None,
+        "contact_linkedin": None,
+        "contact_confidence": None,
+        "location": None,
+        "outreach_notes": None,
+    }
+    row.update(fields)
+    conftest._db.seller_contact_enrichment.append(row)
+
+
+def test_mailout_surfaces_enriched_contact_when_present(client, admin_headers):
+    """When seller_contact_enrichment has a row matching seller_name, the
+    enriched_* columns carry the workbook contact alongside the scraper
+    event_contact_* columns."""
+    _seed_mailout_listings()
+    _seed_enrichment_for(
+        "Ritchie Energy Auctions",
+        contact_name="Jane Doe",
+        contact_title="VP of Asset Sales",
+        contact_email="jane.doe@ritchie.example",
+        contact_confidence="verified",
+        contact_linkedin="https://www.linkedin.com/in/jane-doe-ritchie/",
+        outreach_notes="Named in workbook — owns surplus disposition.",
+    )
+    resp = client.get("/api/admin/mailout/sellers.csv", headers=admin_headers)
+    _, rows = _parse_csv(resp.text)
+    ritchie = next(r for r in rows if r["seller_name"] == "Ritchie Energy Auctions")
+    # Scraper-derived columns unchanged
+    assert ritchie["contact_name"] == "Bob Smith"
+    assert ritchie["contact_email"] == "bob@ritchie.example"
+    # Enriched columns populated separately
+    assert ritchie["enriched_contact_name"] == "Jane Doe"
+    assert ritchie["enriched_contact_title"] == "VP of Asset Sales"
+    assert ritchie["enriched_email"] == "jane.doe@ritchie.example"
+    assert ritchie["enriched_email_confidence"] == "verified"
+    assert ritchie["enriched_linkedin"] == "https://www.linkedin.com/in/jane-doe-ritchie/"
+    assert "Named in workbook" in ritchie["enriched_outreach_notes"]
+
+
+def test_mailout_enriched_columns_blank_when_no_match(client, admin_headers):
+    """Sellers without a seller_contact_enrichment row get empty enriched_* cells."""
+    _seed_mailout_listings()
+    resp = client.get("/api/admin/mailout/sellers.csv", headers=admin_headers)
+    _, rows = _parse_csv(resp.text)
+    # Big Iron has no enrichment row → enriched_* should be empty strings.
+    big_iron = next(r for r in rows if r["seller_name"] == "Big Iron Auctions")
+    assert big_iron["enriched_contact_name"] == ""
+    assert big_iron["enriched_email"] == ""
+    assert big_iron["enriched_outreach_notes"] == ""
+
+
+def test_mailout_enriched_source_scoping(client, admin_headers):
+    """seller_contact_enrichment.source='allsurplus' should only match
+    listings whose source='allsurplus', not other sources for the same
+    seller_name. (Used for the LS Event Manager rows.)"""
+    _seed_mailout_listings()
+    _seed_enrichment_for(
+        "Big Iron Auctions",
+        source="allsurplus",  # only applies to allsurplus, not bidspotter
+        contact_name="Ruth Hernandez",
+        contact_email="ruth.hernandez@liquidityservices.com",
+    )
+    resp = client.get("/api/admin/mailout/sellers.csv", headers=admin_headers)
+    _, rows = _parse_csv(resp.text)
+    big_iron = next(r for r in rows if r["seller_name"] == "Big Iron Auctions")
+    # Big Iron is on bidspotter — the allsurplus-scoped enrichment must NOT match.
+    assert big_iron["enriched_contact_name"] == ""
+    assert big_iron["enriched_email"] == ""

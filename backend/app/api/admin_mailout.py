@@ -54,44 +54,86 @@ _CSV_COLUMNS: list[str] = [
     "contact_phone",
     "other_assets_url",
     "sample_listing_url",
+    # Enriched contact columns (May 10 workbook → seller_contact_enrichment).
+    # These are SEPARATE from the scraper-captured event_contact_* columns
+    # so reviewers can compare the two signals.
+    "enriched_contact_name",
+    "enriched_contact_title",
+    "enriched_email",
+    "enriched_email_confidence",
+    "enriched_linkedin",
+    "enriched_outreach_notes",
 ]
 
 
 _AGGREGATE_SQL = """
+WITH grouped AS (
+    SELECT
+        source,
+        seller_name,
+        MAX(seller_account_type) AS account_type,
+        COUNT(*) AS total_listings,
+        COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '30 days') AS active_listings_30d,
+        MIN(first_seen)::date AS first_seen_on_fuelled,
+        MAX(last_seen)::date AS last_seen_on_fuelled,
+        (
+            SELECT STRING_AGG(c, ', ')
+            FROM (
+                SELECT DISTINCT category_normalized AS c
+                FROM listings l2
+                WHERE l2.source = l.source
+                  AND l2.seller_name = l.seller_name
+                  AND l2.category_normalized IS NOT NULL
+                ORDER BY c
+                LIMIT 6
+            ) sub
+        ) AS categories_raw,
+        SUM(COALESCE(asking_price, current_bid, 0))::bigint AS total_ask_value_usd,
+        MAX(event_contact_name) AS contact_name,
+        MAX(event_contact_email) AS contact_email,
+        MAX(event_contact_phone) AS contact_phone,
+        MAX(seller_other_assets_url) AS other_assets_url,
+        MAX(url) AS sample_listing_url
+    FROM listings l
+    WHERE seller_name IS NOT NULL
+      AND seller_name <> ''
+      {source_filter}
+      {account_type_filter}
+    GROUP BY source, seller_name
+    {having_clause}
+)
 SELECT
-    source,
-    seller_name,
-    MAX(seller_account_type) AS account_type,
-    COUNT(*) AS total_listings,
-    COUNT(*) FILTER (WHERE last_seen >= NOW() - INTERVAL '30 days') AS active_listings_30d,
-    MIN(first_seen)::date AS first_seen_on_fuelled,
-    MAX(last_seen)::date AS last_seen_on_fuelled,
-    (
-        SELECT STRING_AGG(c, ', ')
-        FROM (
-            SELECT DISTINCT category_normalized AS c
-            FROM listings l2
-            WHERE l2.source = l.source
-              AND l2.seller_name = l.seller_name
-              AND l2.category_normalized IS NOT NULL
-            ORDER BY c
-            LIMIT 6
-        ) sub
-    ) AS categories_raw,
-    SUM(COALESCE(asking_price, current_bid, 0))::bigint AS total_ask_value_usd,
-    MAX(event_contact_name) AS contact_name,
-    MAX(event_contact_email) AS contact_email,
-    MAX(event_contact_phone) AS contact_phone,
-    MAX(seller_other_assets_url) AS other_assets_url,
-    MAX(url) AS sample_listing_url
-FROM listings l
-WHERE seller_name IS NOT NULL
-  AND seller_name <> ''
-  {source_filter}
-  {account_type_filter}
-GROUP BY source, seller_name
-{having_clause}
-ORDER BY total_listings DESC, source, seller_name
+    g.source,
+    g.seller_name,
+    g.account_type,
+    g.total_listings,
+    g.active_listings_30d,
+    g.first_seen_on_fuelled,
+    g.last_seen_on_fuelled,
+    g.categories_raw,
+    g.total_ask_value_usd,
+    g.contact_name,
+    g.contact_email,
+    g.contact_phone,
+    g.other_assets_url,
+    g.sample_listing_url,
+    MAX(e.contact_name)       AS enriched_contact_name,
+    MAX(e.contact_title)      AS enriched_contact_title,
+    MAX(e.contact_email)      AS enriched_email,
+    MAX(e.contact_confidence) AS enriched_email_confidence,
+    MAX(e.contact_linkedin)   AS enriched_linkedin,
+    MAX(e.outreach_notes)     AS enriched_outreach_notes
+FROM grouped g
+LEFT JOIN seller_contact_enrichment e
+       ON e.seller_name = g.seller_name
+      AND (e.source IS NULL OR e.source = g.source)
+GROUP BY
+    g.source, g.seller_name, g.account_type, g.total_listings,
+    g.active_listings_30d, g.first_seen_on_fuelled, g.last_seen_on_fuelled,
+    g.categories_raw, g.total_ask_value_usd,
+    g.contact_name, g.contact_email, g.contact_phone,
+    g.other_assets_url, g.sample_listing_url
+ORDER BY g.total_listings DESC, g.source, g.seller_name
 LIMIT :limit
 """
 
@@ -165,6 +207,12 @@ async def mailout_sellers_csv(
             r[11] or "",                          # contact_phone
             r[12] or "",                          # other_assets_url
             r[13] or "",                          # sample_listing_url
+            r[14] or "",                          # enriched_contact_name
+            r[15] or "",                          # enriched_contact_title
+            r[16] or "",                          # enriched_email
+            r[17] or "",                          # enriched_email_confidence
+            r[18] or "",                          # enriched_linkedin
+            r[19] or "",                          # enriched_outreach_notes
         ])
 
     today = date.today().isoformat()

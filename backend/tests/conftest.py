@@ -635,8 +635,9 @@ class MockSession:
             return MockResult([])
 
         # ── Mailout sellers aggregation (must precede generic GROUP BY source) ──
-        # GET /api/admin/mailout/sellers.csv — GROUP BY (source, seller_name).
-        if "GROUP BY source, seller_name" in sql and "FROM listings" in sql:
+        # GET /api/admin/mailout/sellers.csv — CTE-wrapped GROUP BY (source, seller_name)
+        # plus LEFT JOIN seller_contact_enrichment for the enriched_* columns.
+        if "seller_contact_enrichment" in sql and "FROM listings" in sql:
             now_m = datetime.now(timezone.utc)
             src_filter = params.get("source")
             acct_filter = params.get("account_type")
@@ -677,6 +678,19 @@ class MockSession:
                             return v
                     return None
 
+                # LEFT JOIN seller_contact_enrichment: rows match when
+                #   e.seller_name == seller AND (e.source IS NULL OR e.source == src)
+                enrich_rows = getattr(self._db, "seller_contact_enrichment", [])
+                matches = [
+                    e for e in enrich_rows
+                    if e.get("seller_name") == seller
+                    and (e.get("source") is None or e.get("source") == src)
+                ]
+
+                def _max_e(field: str, _matches=matches):
+                    vals = [m.get(field) for m in _matches if m.get(field)]
+                    return max(vals) if vals else None
+
                 mailout_rows.append({
                     0: src,
                     1: seller,
@@ -692,6 +706,12 @@ class MockSession:
                     11: _first_nonnull("event_contact_phone"),
                     12: _first_nonnull("seller_other_assets_url"),
                     13: _first_nonnull("url"),
+                    14: _max_e("contact_name"),
+                    15: _max_e("contact_title"),
+                    16: _max_e("contact_email"),
+                    17: _max_e("contact_confidence"),
+                    18: _max_e("contact_linkedin"),
+                    19: _max_e("outreach_notes"),
                 })
             mailout_rows.sort(key=lambda r: (-r[3], r[0] or "", r[1] or ""))
             return MockResult(mailout_rows[:limit_m])
