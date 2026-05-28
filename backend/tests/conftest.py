@@ -202,6 +202,31 @@ def _seed_competitor_listings() -> list[dict]:
             "is_active": True,
         },
         {
+            # AllSurplus-style auction row: no asking_price, only current_bid.
+            # Before the COALESCE(asking_price, current_bid) fix this row was
+            # silently dropped despite having a seller_name we'd want to surface.
+            "id": "cmp-stale-bid-only",
+            "source": "allsurplus",
+            "title": "2016 Ariel JGK/4 Compressor (Auction)",
+            "category": "compressors",
+            "category_normalized": "compressors",
+            "make": "Ariel",
+            "model": "JGK/4",
+            "year": 2016,
+            "condition": "Good",
+            "hours": 13500,
+            "horsepower": 540,
+            "asking_price": None,
+            "current_bid": 285000,
+            "location": "Texas",
+            "url": "https://allsurplus.example/listing/9",
+            "first_seen": stale_400,
+            "last_seen": now,
+            "seller_name": "Bid-Only Test Seller",
+            "seller_account_type": "Commercial",
+            "is_active": True,
+        },
+        {
             "id": "fu-stale-ignored",
             "source": "fuelled",
             "title": "2014 Fuelled Legacy Compressor",
@@ -229,6 +254,10 @@ class _InMemoryDB:
         self.competitive_acquisition_targets: dict[str, dict] = {}
         self.competitive_acquisition_events: dict[str, dict] = {}
         self.listings: list[dict] = _seed_fuelled_listings() + _seed_competitor_listings()
+        # Intel vertical (recurring enrichment pipeline).
+        self.seller_contact_enrichment: list[dict] = []
+        self.buyer_targets: list[dict] = []
+        self.enrichment_runs: list[dict] = []
 
 
 _db = _InMemoryDB()
@@ -287,6 +316,199 @@ class MockSession:
         # CREATE TABLE — no-op
         if sql.upper().startswith("CREATE TABLE") or sql.upper().startswith("CREATE INDEX"):
             return MockResult()
+
+        # ── Intel: enrichment_queue view ────────────────────────────
+        if "FROM enrichment_queue" in sql:
+            now_q = datetime.now(timezone.utc)
+            ninety_days_ago = now_q - timedelta(days=90)
+            # Group listings by (seller_name, source).
+            groups: dict[tuple, dict] = {}
+            for l in self._db.listings:
+                seller = l.get("seller_name")
+                if not seller:
+                    continue
+                src = l.get("source")
+                key = (seller, src)
+                g = groups.setdefault(key, {"listing_volume": 0, "last_seen": None})
+                g["listing_volume"] += 1
+                ls = l.get("last_seen")
+                if ls and (g["last_seen"] is None or ls > g["last_seen"]):
+                    g["last_seen"] = ls
+            # Aggregate existing enrichment per (seller, source).
+            existing: dict[tuple, dict] = {}
+            for e in self._db.seller_contact_enrichment:
+                key = (e.get("seller_name"), e.get("source"))
+                cur = existing.setdefault(key, {"last_researched_at": None, "attempts": 0})
+                lr = e.get("last_researched_at")
+                if lr and (cur["last_researched_at"] is None or lr > cur["last_researched_at"]):
+                    cur["last_researched_at"] = lr
+                if (e.get("research_attempts") or 0) > cur["attempts"]:
+                    cur["attempts"] = e.get("research_attempts") or 0
+            rows: list[dict] = []
+            for (seller, src), g in groups.items():
+                # Match e on seller; source matches either equal or NULL.
+                match = existing.get((seller, src))
+                if match is None:
+                    match = existing.get((seller, None))
+                last_researched = match["last_researched_at"] if match else None
+                attempts = match["attempts"] if match else 0
+                # Filter: never OR stale, attempts < 3.
+                if last_researched is not None and last_researched >= ninety_days_ago:
+                    continue
+                if attempts >= 3:
+                    continue
+                if last_researched is None:
+                    freshness = "never"
+                elif last_researched < ninety_days_ago:
+                    freshness = "stale"
+                else:
+                    freshness = "fresh"
+                rows.append({
+                    "seller_name": seller,
+                    "source": src,
+                    "listing_volume": g["listing_volume"],
+                    "last_seen": g["last_seen"],
+                    "last_researched_at": last_researched,
+                    "attempts": attempts,
+                    "freshness": freshness,
+                })
+            rows.sort(key=lambda r: -r["listing_volume"])
+            lim = params.get("lim") if isinstance(params, dict) else None
+            if lim:
+                rows = rows[:lim]
+            return MockResult(rows)
+
+        # ── Intel: sample-listing-urls lookup ───────────────────────
+        if "SELECT url FROM listings" in sql and "seller_name = :seller" in sql:
+            seller = params.get("seller")
+            src = params.get("source")
+            urls = [
+                l.get("url") for l in self._db.listings
+                if l.get("seller_name") == seller and l.get("source") == src
+                and l.get("url")
+            ]
+            return MockResult([{"url": u, 0: u} for u in urls[:3]])
+
+        # ── Intel: enrichment_runs INSERT ───────────────────────────
+        if "INSERT INTO enrichment_runs" in sql:
+            row = {
+                "run_id": params.get("rid", str(uuid.uuid4())),
+                "started_at": datetime.now(timezone.utc),
+                "finished_at": None,
+                "trigger": params.get("trig", "manual"),
+                "provider_chain": params.get("chain", ""),
+                "sellers_total": 0,
+                "sellers_succeeded": 0,
+                "sellers_failed": 0,
+                "contacts_added": 0,
+                "cost_usd": 0.0,
+                "notes": None,
+            }
+            self._db.enrichment_runs.append(row)
+            return MockResult(rowcount=1)
+
+        # ── Intel: enrichment_runs UPDATE (finalize) ────────────────
+        if "UPDATE enrichment_runs" in sql:
+            rid = params.get("rid")
+            for r in self._db.enrichment_runs:
+                if r["run_id"] == rid:
+                    r["finished_at"] = datetime.now(timezone.utc)
+                    r["sellers_total"] = params.get("total", 0)
+                    r["sellers_succeeded"] = params.get("ok", 0)
+                    r["sellers_failed"] = params.get("fail", 0)
+                    r["contacts_added"] = params.get("added", 0)
+                    r["cost_usd"] = float(params.get("cost", 0.0) or 0.0)
+                    r["notes"] = params.get("notes")
+                    return MockResult(rowcount=1)
+            return MockResult()
+
+        # ── Intel: seller_contact_enrichment INSERT … ON CONFLICT … ─
+        # Two variants: full UPSERT_CONTACT and MARK_FAILURE.
+        if "INSERT INTO seller_contact_enrichment" in sql and "ON CONFLICT" in sql:
+            seller = params.get("seller")
+            src = params.get("source")
+            email = params.get("email")
+            # Match the unique key (seller, source, email).
+            existing = next(
+                (e for e in self._db.seller_contact_enrichment
+                 if e.get("seller_name") == seller
+                 and e.get("source") == src
+                 and e.get("contact_email") == email),
+                None,
+            )
+            now_e = datetime.now(timezone.utc)
+            if existing is not None:
+                # ON CONFLICT DO UPDATE path.
+                if "last_research_error = :error" in sql:
+                    # MARK_FAILURE: bump attempts + record error
+                    existing["last_researched_at"] = now_e
+                    existing["research_attempts"] = (existing.get("research_attempts") or 0) + 1
+                    existing["last_research_error"] = params.get("error")
+                else:
+                    # UPSERT_CONTACT: refresh contact fields + bump attempts
+                    existing["contact_name"] = params.get("name")
+                    existing["contact_title"] = params.get("title")
+                    existing["contact_phone"] = params.get("phone")
+                    existing["contact_linkedin"] = params.get("linkedin")
+                    existing["contact_confidence"] = params.get("confidence")
+                    existing["confidence_overall"] = params.get("confidence")
+                    existing["location"] = params.get("location")
+                    existing["outreach_notes"] = params.get("notes")
+                    existing["last_researched_at"] = now_e
+                    existing["research_attempts"] = (existing.get("research_attempts") or 0) + 1
+                    existing["last_research_error"] = None
+                return MockResult(rowcount=1)
+            # INSERT path.
+            row = {
+                "id": str(uuid.uuid4()),
+                "seller_name": seller,
+                "source": src,
+                "contact_name": params.get("name"),
+                "contact_title": params.get("title"),
+                "contact_email": email,
+                "contact_phone": params.get("phone"),
+                "contact_linkedin": params.get("linkedin"),
+                "contact_confidence": params.get("confidence"),
+                "confidence_overall": params.get("confidence"),
+                "location": params.get("location"),
+                "outreach_notes": params.get("notes"),
+                "enrichment_source": params.get("enrichment_source"),
+                "last_researched_at": now_e,
+                "research_attempts": 1,
+                "last_research_error": params.get("error"),
+                "imported_at": now_e,
+            }
+            self._db.seller_contact_enrichment.append(row)
+            return MockResult(rowcount=1)
+
+        # ── Intel: status-endpoint count/sum aggregates ─────────────
+        if "FROM seller_contact_enrichment" in sql and "COUNT(DISTINCT seller_name)" in sql:
+            distinct = {
+                r["seller_name"] for r in self._db.seller_contact_enrichment
+                if r.get("contact_email")
+            }
+            return MockResult([{0: len(distinct)}])
+
+        if "FROM seller_contact_enrichment" in sql and "COUNT(*)" in sql and "contact_email IS NOT NULL" in sql:
+            n = sum(1 for r in self._db.seller_contact_enrichment if r.get("contact_email"))
+            return MockResult([{0: n}])
+
+        if "FROM enrichment_runs" in sql and "SUM(cost_usd)" in sql:
+            total = sum(float(r.get("cost_usd") or 0) for r in self._db.enrichment_runs)
+            return MockResult([{0: total}])
+
+        # ── Intel: enrichment_runs read for status endpoint ─────────
+        if "FROM enrichment_runs" in sql and "SELECT" in sql.upper():
+            rows = sorted(
+                self._db.enrichment_runs,
+                key=lambda r: r["started_at"],
+                reverse=True,
+            )
+            lim = params.get("lim") if isinstance(params, dict) else None
+            if lim:
+                rows = rows[:lim]
+            return MockResult(rows)
+
 
         # ── Conversations (order matters: DELETE/UPDATE before SELECT) ────
 
@@ -609,6 +831,124 @@ class MockSession:
         if "FROM listings" in sql and "seller_source_id = :sid" in sql:
             return MockResult([])
 
+        # ── Mailout buyers export (no listings join) ──
+        # GET /api/admin/mailout/buyers.csv — SELECT from buyer_targets.
+        if "FROM buyer_targets" in sql and "SELECT" in sql.upper():
+            buyer_rows = getattr(self._db, "buyer_targets", [])
+            vertical_filter = params.get("vertical")
+            limit_b = params.get("limit", 5000) or 5000
+            filtered = [
+                b for b in buyer_rows
+                if (vertical_filter is None or b.get("vertical") == vertical_filter)
+            ]
+            filtered.sort(key=lambda b: (
+                b.get("vertical") or "￿",  # NULLS LAST
+                b.get("company") or "",
+                b.get("contact_name") or "￿",
+            ))
+            out_rows = []
+            for b in filtered[:limit_b]:
+                out_rows.append({
+                    0: b.get("vertical"),
+                    1: b.get("company"),
+                    2: b.get("ticker"),
+                    3: b.get("hq"),
+                    4: b.get("basin"),
+                    5: b.get("scale"),
+                    6: b.get("capex_driver"),
+                    7: b.get("suppliers_page"),
+                    8: b.get("contact_name"),
+                    9: b.get("contact_title"),
+                    10: b.get("contact_email"),
+                    11: b.get("contact_linkedin"),
+                    12: b.get("contact_confidence"),
+                    13: b.get("location"),
+                    14: b.get("outreach_notes"),
+                })
+            return MockResult(out_rows)
+
+        # ── Mailout sellers aggregation (must precede generic GROUP BY source) ──
+        # GET /api/admin/mailout/sellers.csv — CTE-wrapped GROUP BY (source, seller_name)
+        # plus LEFT JOIN seller_contact_enrichment for the enriched_* columns.
+        if "seller_contact_enrichment" in sql and "FROM listings" in sql:
+            now_m = datetime.now(timezone.utc)
+            src_filter = params.get("source")
+            acct_filter = params.get("account_type")
+            min_active = params.get("min_active", 0) or 0
+            limit_m = params.get("limit", 5000) or 5000
+
+            groups: dict[tuple, list[dict]] = {}
+            for l in self._db.listings:
+                seller = l.get("seller_name")
+                if not seller:
+                    continue
+                source_val = l.get("source")
+                if src_filter and source_val != src_filter:
+                    continue
+                if acct_filter and l.get("seller_account_type") != acct_filter:
+                    continue
+                groups.setdefault((source_val, seller), []).append(l)
+
+            mailout_rows = []
+            for (src, seller), items in groups.items():
+                active_30d = sum(
+                    1 for l in items
+                    if l.get("last_seen") and l["last_seen"] >= now_m - timedelta(days=30)
+                )
+                if active_30d < min_active:
+                    continue
+                first_seen_vals = [l["first_seen"] for l in items if l.get("first_seen")]
+                last_seen_vals = [l["last_seen"] for l in items if l.get("last_seen")]
+                cats = sorted({l.get("category_normalized") for l in items if l.get("category_normalized")})
+                ask_total = sum(
+                    (l.get("asking_price") or l.get("current_bid") or 0) for l in items
+                )
+
+                def _first_nonnull(field: str, _items=items):
+                    for l in _items:
+                        v = l.get(field)
+                        if v:
+                            return v
+                    return None
+
+                # LEFT JOIN seller_contact_enrichment: rows match when
+                #   e.seller_name == seller AND (e.source IS NULL OR e.source == src)
+                enrich_rows = getattr(self._db, "seller_contact_enrichment", [])
+                matches = [
+                    e for e in enrich_rows
+                    if e.get("seller_name") == seller
+                    and (e.get("source") is None or e.get("source") == src)
+                ]
+
+                def _max_e(field: str, _matches=matches):
+                    vals = [m.get(field) for m in _matches if m.get(field)]
+                    return max(vals) if vals else None
+
+                mailout_rows.append({
+                    0: src,
+                    1: seller,
+                    2: _first_nonnull("seller_account_type"),
+                    3: len(items),
+                    4: active_30d,
+                    5: min(first_seen_vals).date() if first_seen_vals else None,
+                    6: max(last_seen_vals).date() if last_seen_vals else None,
+                    7: ", ".join(cats) if cats else None,
+                    8: int(ask_total),
+                    9: _first_nonnull("event_contact_name"),
+                    10: _first_nonnull("event_contact_email"),
+                    11: _first_nonnull("event_contact_phone"),
+                    12: _first_nonnull("seller_other_assets_url"),
+                    13: _first_nonnull("url"),
+                    14: _max_e("contact_name"),
+                    15: _max_e("contact_title"),
+                    16: _max_e("contact_email"),
+                    17: _max_e("contact_confidence"),
+                    18: _max_e("contact_linkedin"),
+                    19: _max_e("outreach_notes"),
+                })
+            mailout_rows.sort(key=lambda r: (-r[3], r[0] or "", r[1] or ""))
+            return MockResult(mailout_rows[:limit_m])
+
         # SELECT source, COUNT(*) ... FROM listings GROUP BY source (listing counts)
         if "FROM listings" in sql and "GROUP BY source" in sql and "asking_price" in sql:
             counts: dict[str, dict] = {}
@@ -657,7 +997,7 @@ class MockSession:
             )
             return MockResult([{0: count}])
 
-        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '60 days'" in sql and "asking_price > 0" in sql:
+        if "COUNT(*)" in sql and "first_seen < NOW() - INTERVAL '60 days'" in sql and "COALESCE(asking_price, current_bid" in sql:
             now = datetime.now(timezone.utc)
             exclude_fuelled = "LOWER(source) != 'fuelled'" in sql
             count = 0
@@ -666,7 +1006,7 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 if l["first_seen"] < now - timedelta(days=60) and l["last_seen"] > now - timedelta(days=30):
                     count += 1
@@ -681,7 +1021,7 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 if l["first_seen"] >= now - timedelta(days=60):
                     continue
@@ -690,7 +1030,7 @@ class MockSession:
                 rows.append({
                     0: l.get("title"),
                     1: l.get("source"),
-                    2: l.get("asking_price"),
+                    2: l.get("asking_price") or l.get("current_bid"),
                     3: l.get("category_normalized") or l.get("category"),
                     4: l.get("location"),
                     5: l.get("url"),
@@ -700,7 +1040,7 @@ class MockSession:
             rows.sort(key=lambda row: row[6])
             return MockResult(rows[:25])
 
-        if "FROM listings" in sql and "LOWER(source) != 'fuelled'" in sql and "asking_price > 0" in sql and "last_seen" in sql and "first_seen" in sql and "GROUP BY" not in sql and "COUNT(*)" not in sql:
+        if "FROM listings" in sql and "LOWER(source) != 'fuelled'" in sql and "COALESCE(asking_price, current_bid" in sql and "last_seen" in sql and "first_seen" in sql and "GROUP BY" not in sql and "COUNT(*)" not in sql:
             now = datetime.now(timezone.utc)
             rows = []
             for l in self._db.listings:
@@ -708,13 +1048,14 @@ class MockSession:
                     continue
                 if not l.get("first_seen") or not l.get("last_seen"):
                     continue
-                if (l.get("asking_price") or 0) <= 0:
+                if (l.get("asking_price") or l.get("current_bid") or 0) <= 0:
                     continue
                 rows.append({
                     "id": l.get("id"),
                     "title": l.get("title"),
                     "source": l.get("source"),
                     "asking_price": l.get("asking_price"),
+                    "current_bid": l.get("current_bid"),
                     "category": l.get("category"),
                     "category_normalized": l.get("category_normalized") or l.get("category"),
                     "make": l.get("make"),
@@ -727,6 +1068,12 @@ class MockSession:
                     "url": l.get("url"),
                     "first_seen": l.get("first_seen"),
                     "last_seen": l.get("last_seen"),
+                    "seller_name": l.get("seller_name"),
+                    "seller_account_type": l.get("seller_account_type"),
+                    "seller_other_assets_url": l.get("seller_other_assets_url"),
+                    "event_contact_name": l.get("event_contact_name"),
+                    "event_contact_email": l.get("event_contact_email"),
+                    "event_contact_phone": l.get("event_contact_phone"),
                     "days_listed": (now - l["first_seen"]).days,
                 })
             return MockResult(rows)
@@ -932,7 +1279,9 @@ def _patch_db():
          patch("app.api.evidence.get_session", _mock_get_session), \
          patch("app.api.admin_scrapers.get_session", _mock_get_session), \
          patch("app.api.admin_supply_targets.get_session", _mock_get_session), \
-         patch("app.api.fuelled_coverage.get_session", _mock_get_session):
+         patch("app.api.admin_mailout.get_session", _mock_get_session), \
+         patch("app.api.fuelled_coverage.get_session", _mock_get_session), \
+         patch("app.api.v2_intel.get_session", _mock_get_session):
         yield
 
 

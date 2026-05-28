@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from app.config import CORS_ORIGINS
-from app.api import price, batch, admin, admin_scrapers, admin_ai, admin_users, admin_gold, admin_supply_targets, competitive, competitive_queue, auth, conversations, calibration, evidence, reports, fuelled_coverage
+from app.api import price, batch, admin, admin_scrapers, admin_ai, admin_users, admin_gold, admin_supply_targets, admin_pricing_tanks, admin_mailout, competitive, competitive_queue, auth, conversations, calibration, evidence, reports, fuelled_coverage, v2_price, v2_intel
 from app.db.session import get_session
 
 _FRONTEND_HTML = os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "chat-interface", "index.html")
@@ -32,6 +32,8 @@ app.include_router(admin_ai.router, prefix="/api")
 app.include_router(admin_users.router, prefix="/api")
 app.include_router(admin_gold.router, prefix="/api")
 app.include_router(admin_supply_targets.router, prefix="/api")
+app.include_router(admin_pricing_tanks.router, prefix="/api")
+app.include_router(admin_mailout.router, prefix="/api")
 app.include_router(competitive.router, prefix="/api")
 app.include_router(competitive_queue.router, prefix="/api")
 app.include_router(conversations.router, prefix="/api")
@@ -39,6 +41,8 @@ app.include_router(calibration.router, prefix="/api")
 app.include_router(evidence.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 app.include_router(fuelled_coverage.router, prefix="/api")
+app.include_router(v2_price.router, prefix="/api")
+app.include_router(v2_intel.router, prefix="/api")
 
 
 @app.get("/api/health")

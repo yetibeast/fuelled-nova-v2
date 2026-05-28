@@ -85,6 +85,17 @@ def data_quality_score(row: Any) -> int:
     return round(sum(1 for ok in checks if ok) / len(checks) * 15)
 
 
+def effective_price(row: Any) -> float | None:
+    """Listing price for scoring/comp math. Falls back to current_bid for
+    auction sources (allsurplus, bidspotter, govdeals, ironplanet partial)
+    that don't expose an asking_price."""
+    for key in ("asking_price", "current_bid"):
+        value = row_value(row, key)
+        if value is not None and value > 0:
+            return float(value)
+    return None
+
+
 def _peer_prices(listing: Any, peers: list[dict[str, Any]]) -> list[float]:
     category = normalized_category(listing)
     listing_id = row_value(listing, "id")
@@ -97,13 +108,13 @@ def _peer_prices(listing: Any, peers: list[dict[str, Any]]) -> list[float]:
             continue
         if normalized_category(peer) != category:
             continue
-        price = row_value(peer, "asking_price")
-        if price is None or price <= 0:
+        price = effective_price(peer)
+        if price is None:
             continue
-        prices.append(float(price))
+        prices.append(price)
         peer_year = row_value(peer, "year")
         if listing_year is not None and peer_year is not None and abs(peer_year - listing_year) <= 2:
-            same_year_prices.append(float(price))
+            same_year_prices.append(price)
 
     if len(same_year_prices) >= 3:
         return same_year_prices
@@ -116,8 +127,8 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
     if source == "fuelled":
         return None
 
-    asking_price = row_value(listing, "asking_price")
-    if asking_price is None or asking_price <= 0:
+    list_price = effective_price(listing)
+    if list_price is None:
         return None
 
     first_seen = row_value(listing, "first_seen")
@@ -138,8 +149,8 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
     age_score = min(35, round(12 + overdue_ratio * 35))
 
     negotiability_score = 0
-    if peer_median and asking_price > peer_median:
-        negotiability_score = min(20, round(((asking_price - peer_median) / peer_median) * 30))
+    if peer_median and list_price > peer_median:
+        negotiability_score = min(20, round(((list_price - peer_median) / peer_median) * 30))
 
     liquidity_score = min(20, peer_count * 4)
     quality_score = data_quality_score(listing)
@@ -161,14 +172,21 @@ def build_stale_candidate(listing: Any, peers: list[dict[str, Any]], now: dateti
         f"{peer_count} priced peers" if peer_count else "limited peer coverage",
     ]
     if peer_median:
-        reason_parts.append(f"ask vs peer median {int(asking_price - peer_median):,}")
+        reason_parts.append(f"ask vs peer median {int(list_price - peer_median):,}")
+
+    current_bid_raw = row_value(listing, "current_bid")
 
     return {
         "source_listing_id": row_value(listing, "id"),
         "title": row_value(listing, "title"),
         "source": row_value(listing, "source"),
         "category": row_value(listing, "category_normalized") or row_value(listing, "category"),
-        "asking_price": float(asking_price),
+        # asking_price stays the primary downstream-facing price field. For
+        # auction sources without an ask, it carries current_bid so the
+        # frontend table and CSV stay populated; current_bid is also surfaced
+        # so consumers can tell ask-vs-bid apart.
+        "asking_price": list_price,
+        "current_bid": float(current_bid_raw) if current_bid_raw else None,
         "location": row_value(listing, "location"),
         "url": row_value(listing, "url"),
         "first_seen": first_seen.isoformat() if hasattr(first_seen, "isoformat") else first_seen,

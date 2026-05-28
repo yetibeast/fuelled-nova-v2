@@ -77,6 +77,61 @@ class TestComputeBaseRCN:
         assert quality == pytest.approx(0.60)
         assert has_size is False
 
+    # ── Tank $/BBL seed-bracket routing (Tier 2.5 unblock) ──────────────
+
+    def test_tank_500_bbl_uses_seed_bracket_not_flat_50k(self):
+        """500 BBL falls in the 500–1000 bracket (seed: 750 BBL row, mid $45k).
+
+        The legacy STATIC_BASE_RCN["tank"] returned a flat $50k regardless of size.
+        With the seed routing, a 500 BBL prod tank must anchor on the seed ladder,
+        not on $50k. Mid is bracket-dependent; floor is that it's *not* the flat
+        scalar and is meaningfully different from $50k.
+        """
+        specs = RCNInput(volume_bbl=500)
+        rcn, quality, has_size = compute_base_rcn("tank", specs)
+        # Should NOT be the flat $50k default
+        assert rcn != pytest.approx(50_000)
+        # 500 BBL is in the 500–1000 range — seed 750 BBL mid is $45k.
+        # Allow the implementation to choose: nearest bracket or interpolation.
+        # Either way it should land in $25k–$60k.
+        assert 25_000 <= rcn <= 60_000
+        assert has_size is True
+
+    def test_tank_100_bbl_uses_smallest_bracket(self):
+        """100 BBL hits the smallest seed bracket (100 BBL row, mid $12k)."""
+        specs = RCNInput(volume_bbl=100)
+        rcn, _, has_size = compute_base_rcn("tank", specs)
+        assert rcn == pytest.approx(12_000, rel=0.01)
+        assert has_size is True
+
+    def test_tank_750_bbl_uses_largest_bracket(self):
+        """750 BBL anchors on the seed 750 BBL row (mid $45k)."""
+        specs = RCNInput(volume_bbl=750)
+        rcn, _, has_size = compute_base_rcn("tank", specs)
+        assert rcn == pytest.approx(45_000, rel=0.01)
+        assert has_size is True
+
+    def test_tank_no_volume_falls_back_to_flat_with_low_confidence(self):
+        """No BBL on the listing → keep the legacy flat $50k path so the row still
+        gets a price, but flag low confidence via the quality score."""
+        specs = RCNInput()
+        rcn, quality, has_size = compute_base_rcn("tank", specs)
+        assert rcn == pytest.approx(50_000)
+        assert has_size is False
+        # Quality stays at the legacy no-size value.
+        assert quality == pytest.approx(0.60)
+
+    def test_tank_extrapolates_beyond_largest_bracket(self):
+        """5000 BBL is well past the largest seed row. Should scale via the
+        tail $/BBL rate, not snap to $45k."""
+        specs = RCNInput(volume_bbl=5000)
+        rcn, _, _ = compute_base_rcn("tank", specs)
+        # Tail rate from the 750 BBL row is $45000/750 = $60/BBL.
+        # 5000 BBL at that rate would be $300k; allow a wide band because the
+        # implementation can choose to flatten the tail (linear, sqrt, clamp).
+        # The floor: it must exceed the 750 BBL mid by a healthy margin.
+        assert rcn > 60_000
+
     def test_heavy_equip_categories(self):
         specs = RCNInput()
         rcn, _, _ = compute_base_rcn("loader", specs)

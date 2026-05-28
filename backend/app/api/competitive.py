@@ -29,15 +29,20 @@ def _require_auth(authorization: str | None) -> str:
 
 
 async def _load_competitor_priced_rows(session):
+    # COALESCE(asking_price, current_bid) lets auction sources (allsurplus,
+    # bidspotter, govdeals, ironplanet partial) survive the gate — they price
+    # via current_bid, not asking_price. Without this they were silently
+    # dropped, hiding 175 captured AllSurplus seller_names from stale-targets.
     result = await session.execute(text(
-        """SELECT id, title, source, asking_price, category_normalized, category,
+        """SELECT id, title, source, asking_price, current_bid,
+                  category_normalized, category,
                   make, model, year, condition, hours, horsepower,
                   location, url, first_seen, last_seen,
                   seller_name, seller_account_type, seller_other_assets_url,
                   event_contact_name, event_contact_email, event_contact_phone
            FROM listings
            WHERE LOWER(source) != 'fuelled'
-           AND asking_price > 0
+           AND COALESCE(asking_price, current_bid, 0) > 0
            AND first_seen IS NOT NULL
            AND last_seen IS NOT NULL"""
     ))
@@ -70,12 +75,14 @@ async def competitive_summary(authorization: str = Header(None)):
         # build_stale_candidate. 60 days is the most-permissive category threshold
         # (compressors/engines/generators); per-category filtering happens in
         # /competitive/stale-targets which scores and ranks the actual candidates.
+        # COALESCE keeps this count consistent with _load_competitor_priced_rows
+        # so auction sources (current_bid only) aren't silently dropped.
         r3 = await session.execute(text(
             """SELECT COUNT(*) FROM listings
                WHERE first_seen < NOW() - INTERVAL '60 days'
                AND last_seen > NOW() - INTERVAL '30 days'
                AND LOWER(source) != 'fuelled'
-               AND asking_price > 0"""
+               AND COALESCE(asking_price, current_bid, 0) > 0"""
         ))
         stale_count = r3.scalar() or 0
 
@@ -124,15 +131,20 @@ async def competitive_new(authorization: str = Header(None)):
 async def competitive_stale(authorization: str = Header(None)):
     _require_auth(authorization)
     async with get_session() as session:
+        # Surface ask-priced and bid-priced stale rows together; the
+        # listing-level "asking_price" returned is whichever the source
+        # actually populates (auction sources use current_bid).
         result = await session.execute(text(
-            """SELECT title, source, asking_price, category_normalized,
+            """SELECT title, source,
+                      COALESCE(asking_price, current_bid) AS list_price,
+                      category_normalized,
                       location, url, first_seen,
                       EXTRACT(DAY FROM NOW() - first_seen)::int as days_listed
                FROM listings
                WHERE first_seen < NOW() - INTERVAL '60 days'
                AND last_seen > NOW() - INTERVAL '30 days'
                AND LOWER(source) != 'fuelled'
-               AND asking_price > 0
+               AND COALESCE(asking_price, current_bid, 0) > 0
                ORDER BY first_seen ASC
                LIMIT 25"""
         ))
@@ -153,12 +165,62 @@ async def competitive_stale(authorization: str = Header(None)):
 # 4. GET /competitive/stale-targets — ranked stale acquisition candidates
 # ---------------------------------------------------------------------------
 
+def _cap_per_seller(candidates: list[dict], cap: int) -> list[dict]:
+    """Single-pass cap: each non-null seller_name appears at most `cap` times,
+    anonymous rows pass through unrestricted. cap=0 disables (legacy)."""
+    if cap <= 0:
+        return candidates
+    seen: dict[str, int] = {}
+    out: list[dict] = []
+    for row in candidates:
+        name = (row.get("seller_name") or "").strip()
+        if not name:
+            out.append(row)
+            continue
+        used = seen.get(name, 0)
+        if used >= cap:
+            continue
+        seen[name] = used + 1
+        out.append(row)
+    return out
+
+
+def _seller_diverse_order(candidates: list[dict], cap_named: int) -> list[dict]:
+    """Two-pass ordering for the dashboard top-N. Surface distinct named
+    sellers first (one row each by default), then fill remaining slots with
+    anonymous rows and any over-cap named rows.
+
+    Reason: anonymous high-quality dealer rows (equipmenttrader, no seller
+    capture) tie at score=100 with named-but-lower-scored auction rows
+    (allsurplus, source_score=0). A pure score sort buries every named
+    auction seller. Mark explicitly asked for *names* to target, so we
+    surface them first.
+    """
+    seen: dict[str, int] = {}
+    named_section: list[dict] = []
+    overflow: list[dict] = []
+    for row in candidates:  # caller pre-sorts by score
+        name = (row.get("seller_name") or "").strip()
+        if not name:
+            overflow.append(row)
+            continue
+        used = seen.get(name, 0)
+        if used < cap_named:
+            named_section.append(row)
+            seen[name] = used + 1
+        else:
+            overflow.append(row)
+    return named_section + overflow
+
+
 @router.get("/competitive/stale-targets")
 async def competitive_stale_targets(
     authorization: str = Header(None),
     promotable_only: bool = Query(False),
     min_score: int = Query(0, ge=0, le=100),
     limit: int = Query(25, ge=1, le=100),
+    cap_per_seller: int = Query(1, ge=0, le=100),
+    sort: str = Query("seller_diverse", pattern="^(seller_diverse|score_only)$"),
 ):
     _require_auth(authorization)
     async with get_session() as session:
@@ -176,6 +238,12 @@ async def competitive_stale_targets(
         candidates.append(candidate)
 
     candidates.sort(key=lambda row: (-row["acquisition_score"], -row["days_listed"]))
+
+    if sort == "score_only":
+        candidates = _cap_per_seller(candidates, cap_per_seller)
+    else:
+        candidates = _seller_diverse_order(candidates, max(cap_per_seller, 1))
+
     return candidates[:limit]
 
 
@@ -200,6 +268,7 @@ _CSV_COLUMNS = [
     "contact_email",
     "contact_phone",
     "asking_price",
+    "current_bid",
     "days_listed",
     "stale_threshold_days",
     "acquisition_score",
@@ -216,6 +285,8 @@ async def competitive_stale_targets_csv(
     promotable_only: bool = Query(False),
     min_score: int = Query(0, ge=0, le=100),
     limit: int = Query(500, ge=1, le=5000),
+    cap_per_seller: int = Query(1, ge=0, le=100),
+    sort: str = Query("seller_diverse", pattern="^(seller_diverse|score_only)$"),
 ):
     _require_auth(authorization)
     async with get_session() as session:
@@ -232,7 +303,15 @@ async def competitive_stale_targets_csv(
             continue
         candidates.append(candidate)
 
+    # Match the JSON dashboard endpoint's default ordering so the CSV
+    # download reflects the same seller diversity Mark sees on the page.
+    # Pass `?sort=score_only&cap_per_seller=0` to get the full legacy
+    # pure-score list for offline working.
     candidates.sort(key=lambda row: (-row["acquisition_score"], -row["days_listed"]))
+    if sort == "score_only":
+        candidates = _cap_per_seller(candidates, cap_per_seller)
+    else:
+        candidates = _seller_diverse_order(candidates, max(cap_per_seller, 1))
     candidates = candidates[:limit]
 
     buf = io.StringIO()
@@ -251,6 +330,7 @@ async def competitive_stale_targets_csv(
             c.get("event_contact_email") or "",
             c.get("event_contact_phone") or "",
             c.get("asking_price") or "",
+            c.get("current_bid") or "",
             c.get("days_listed") or "",
             c.get("stale_threshold_days") or "",
             c.get("acquisition_score") or "",

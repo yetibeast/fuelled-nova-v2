@@ -114,6 +114,7 @@ def _parse_input(specs: dict[str, Any]) -> RCNInput:
         comparable_cv=_coerce_float(payload.get("comparable_cv")),
         data_age_days=_coerce_int(payload.get("data_age_days")),
         spec_modifiers=payload.get("spec_modifiers"),
+        volume_bbl=_coerce_float(payload.get("volume_bbl")),
     )
 
 

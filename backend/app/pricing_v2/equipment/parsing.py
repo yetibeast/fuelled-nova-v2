@@ -22,6 +22,47 @@ from app.pricing_v2.equipment.aliases import (
     normalize_model,
 )
 
+# ── TANK VOLUME EXTRACTION (Tier 2.5 bulk runner) ─────────────────────
+
+# BBL match: numeric (with optional thousand-separators / decimals) + bbl token.
+_BBL_PATTERN = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*bbl\b", re.I)
+
+# m³ / m3 / m^3 fallback. 1 m³ ≈ 6.2898 BBL — using 6.29 per dispatch instructions.
+_M3_PATTERN = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*m[\^]?[³3]\b", re.I)
+
+_M3_TO_BBL = 6.29
+
+
+def extract_tank_volume_bbl(text: str | None) -> float | None:
+    """Pull tank volume in BBL out of a free-text listing title or description.
+
+    Rules:
+      * Prefer explicit BBL match (e.g. "400 BBL", "1,000bbl", "100.5 BBL").
+      * Fall back to m³ / m3 / m^3 converted via 6.29 BBL/m³ when no BBL token.
+      * Returns None when neither unit is present.
+
+    Tolerates thousand-separators ("10,000 BBL"), case ("bbl"/"BBL"), and
+    optional whitespace between the number and the unit.
+    """
+    if not text:
+        return None
+    bbl_match = _BBL_PATTERN.search(text)
+    if bbl_match:
+        raw = bbl_match.group(1).replace(",", "")
+        try:
+            return float(raw)
+        except ValueError:
+            return None
+    m3_match = _M3_PATTERN.search(text)
+    if m3_match:
+        raw = m3_match.group(1).replace(",", "")
+        try:
+            return float(raw) * _M3_TO_BBL
+        except ValueError:
+            return None
+    return None
+
+
 # ── REGEX PATTERNS ────────────────────────────────────────────────────
 
 DRIVE_TYPE_PATTERNS: list[tuple[re.Pattern[str], str]] = [
