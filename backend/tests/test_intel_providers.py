@@ -195,3 +195,39 @@ def test_claude_parallel_returns_error_on_api_failure():
 
     assert result.contacts == []
     assert result.error and "network unreachable" in result.error
+
+
+def test_claude_parallel_aborts_when_api_hangs_past_timeout():
+    """Bug #11: an Anthropic call that never returns must not lock up the
+    batch. Provider must abort within its configured per-call timeout and
+    surface a TimeoutError-flavored ProviderResult."""
+    import time
+    from app.pricing_v2.intel.providers.claude_parallel import ClaudeParallelProvider
+
+    class HangingMessages:
+        async def create(self, **kwargs):
+            # Simulate a stuck HTTPS call — sleep much longer than the
+            # provider's timeout. If the provider doesn't enforce its own
+            # timeout, this test will sit here for 30s.
+            await asyncio.sleep(30)
+            raise AssertionError("should never get here")
+
+    class FakeClient:
+        def __init__(self):
+            self.messages = HangingMessages()
+
+    provider = ClaudeParallelProvider(
+        api_key="x",
+        client=FakeClient(),
+        per_call_timeout_s=2,
+    )
+
+    t0 = time.monotonic()
+    result = _run(provider.enrich_seller("ACME", "bidspotter", {}))
+    elapsed = time.monotonic() - t0
+
+    # Must abort within timeout window (small headroom for scheduler jitter).
+    assert elapsed < 5, f"provider hung for {elapsed:.1f}s (timeout was 2s)"
+    assert result.contacts == []
+    assert result.error is not None
+    assert "timeout" in result.error.lower() or "TimeoutError" in result.error

@@ -18,6 +18,7 @@ set against the prod queue.
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -158,11 +159,17 @@ class ClaudeParallelProvider:
         model: str = _SONNET_MODEL,
         max_tokens: int = 1024,
         client: Any = None,
+        per_call_timeout_s: float = 120.0,
     ):
         self.api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         self.model = model
         self.max_tokens = max_tokens
         self._client = client    # injectable for offline tests
+        # Hard ceiling on a single messages.create() round-trip. The SDK's
+        # built-in timeout has been observed to silently never fire (see
+        # 2026-05-27 incident: 36-min hang on a single seller during a 200-
+        # seller batch). asyncio.wait_for is the belt to the SDK's braces.
+        self.per_call_timeout_s = per_call_timeout_s
 
     def _get_client(self) -> Any:
         if self._client is not None:
@@ -181,16 +188,30 @@ class ClaudeParallelProvider:
         client = self._get_client()
         user_prompt = _build_user_prompt(seller_name, source, hints)
         try:
-            response = await client.messages.create(
-                model=self.model,
-                max_tokens=self.max_tokens,
-                system=_SYSTEM_PROMPT,
-                tools=[{
-                    "type": "web_search_20250305",
-                    "name": "web_search",
-                    "max_uses": 1,
-                }],
-                messages=[{"role": "user", "content": user_prompt}],
+            response = await asyncio.wait_for(
+                client.messages.create(
+                    model=self.model,
+                    max_tokens=self.max_tokens,
+                    system=_SYSTEM_PROMPT,
+                    tools=[{
+                        "type": "web_search_20250305",
+                        "name": "web_search",
+                        "max_uses": 1,
+                    }],
+                    messages=[{"role": "user", "content": user_prompt}],
+                ),
+                timeout=self.per_call_timeout_s,
+            )
+        except asyncio.TimeoutError:
+            _log.warning(
+                "claude_parallel timed out after %.1fs for %s",
+                self.per_call_timeout_s, seller_name,
+            )
+            return ProviderResult(
+                contacts=[],
+                cost_usd=0.0,
+                raw_payload=None,
+                error=f"TimeoutError: per-call timeout {self.per_call_timeout_s}s exceeded",
             )
         except Exception as exc:   # network / auth / model failure
             _log.exception("claude_parallel failed for %s", seller_name)
