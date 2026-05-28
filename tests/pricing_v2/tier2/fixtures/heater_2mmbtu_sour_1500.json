@@ -1,0 +1,11 @@
+{
+  "listing_id": "FX-HTR-001",
+  "record_id": "fixture-htr-1",
+  "listing_name": "2.0 MMBTU 4\" 1500/1500 Sour Line Heater, 2011",
+  "category": "line_heater",
+  "supplier_company": "FixtureSupplier Ltd.",
+  "url": "https://example.test/fx-htr-001",
+  "description": "2.0 MMBTU 4\" 1500/1500 sour line heater, firetube package, condition B, year 2011.",
+  "year": 2011,
+  "condition": "B"
+}

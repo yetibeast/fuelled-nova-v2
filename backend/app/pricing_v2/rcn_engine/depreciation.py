@@ -57,6 +57,17 @@ AGE_CURVES: dict[str, tuple[list[int], list[float]]] = {
         [0, 3, 5, 8, 10, 15, 20, 25, 30],
         [1.00, 0.92, 0.85, 0.72, 0.60, 0.40, 0.30, 0.22, 0.17],
     ),
+    # Heater — dedicated curve added 2026-05-27. Sits between treater
+    # (gentler) and dehydrator (steeper); firetube/coil replacement at
+    # ~15yr is the cliff. Locked from heater-calibration-2026-05-26.md
+    # deep-dive — back-solve places 8 of 10 sold rows within ±35% of
+    # predicted FMV; the 2 misses both close to within ±20% after the
+    # +20% code-stamp adder applies. Prior aliasing to `treater` was
+    # too gentle (treater curve calibrated for 3-5× larger vessels).
+    "heater": (
+        [0, 3, 5, 8, 10, 15, 20, 25, 30],
+        [1.00, 0.85, 0.72, 0.58, 0.47, 0.32, 0.20, 0.13, 0.08],
+    ),
     "heavy_equip": (
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
         [1.00, 0.93, 0.86, 0.78, 0.70, 0.58, 0.40, 0.25, 0.17, 0.15],
@@ -93,7 +104,11 @@ CATEGORY_CURVE_MAP: dict[str, str] = {
     "tanks": "tank",
     "treater": "treater",
     "treaters": "treater",
-    "heater": "treater",
+    # Heater split from treater 2026-05-27 — heaters age differently
+    # (firetube wear at ~15yr; vessel scale ~3-5× smaller). Treater
+    # curve was a Tier 1 placeholder; Tier 2 owns a dedicated curve.
+    "heater": "heater",
+    "line_heater": "heater",
     "production": "treater",
     "pump": "pump",
     "pumps": "pump",
@@ -140,6 +155,9 @@ ANNUAL_HOURS: dict[str, int] = {
     "electrical": 8000,
     "treater": 7000,
     "dehydrator": 7000,
+    # Line heaters run continuously on producing wells — higher
+    # annual utilization than cycling heater treaters.
+    "heater": 8000,
     "heavy_equip": 1500,
     "truck": 2000,
 }
