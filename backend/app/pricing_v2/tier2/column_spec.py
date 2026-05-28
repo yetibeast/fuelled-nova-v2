@@ -105,6 +105,9 @@ VALID_FAMILIES: frozenset[str] = frozenset({
     "knockout-gas",
     "knockout-flare",
     "knockout-ambiguous",  # disambiguation failed — flagged for review
+    "meter-run",  # Tier 2.5 — pipe-size × ANSI bracket + meter-type adder.
+                  # LACT / custody-transfer sub-flag flips Review Flag=True
+                  # and defers price to Tier 3 (rare large packages).
 })
 
 

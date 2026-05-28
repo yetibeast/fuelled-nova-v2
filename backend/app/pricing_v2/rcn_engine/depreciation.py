@@ -117,6 +117,12 @@ CATEGORY_CURVE_MAP: dict[str, str] = {
     "heater": "heater",
     "line_heater": "heater",
     "production": "treater",
+    # Meter runs — static utility equipment, alias to treater curve.
+    # Scoping report 2026-05-27: no corpus signal for a meter-specific
+    # curve, but pressure-tested static equipment ages like vessels.
+    "meter_run": "treater",
+    "metering": "treater",
+    "metering_equipment": "treater",
     "pump": "pump",
     "pumps": "pump",
     "generator": "generator",

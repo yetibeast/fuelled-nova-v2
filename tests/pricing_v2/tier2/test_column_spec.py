@@ -107,6 +107,11 @@ def test_valid_families_includes_all_chunks():
     assert required.issubset(VALID_FAMILIES)
 
 
+def test_valid_families_includes_meter_run():
+    """Tier 2.5 — meter run family declared."""
+    assert "meter-run" in VALID_FAMILIES
+
+
 def test_minimal_synthetic_row_passes_validator():
     """The validator function itself runs cleanly on a hand-built valid row."""
     row = Tier2Row(data={
