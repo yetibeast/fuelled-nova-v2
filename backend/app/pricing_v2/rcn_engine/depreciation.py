@@ -43,9 +43,16 @@ AGE_CURVES: dict[str, tuple[list[int], list[float]]] = {
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
         [1.00, 0.94, 0.87, 0.80, 0.72, 0.60, 0.40, 0.24, 0.14, 0.10],
     ),
+    # Treater — flattened mid-life 2026-05-26 against HubSpot 96" sour
+    # sold corpus (11-16yr sold $80-150k range). The prior curve
+    # [1.00, 0.93, 0.85, 0.76, 0.67, 0.54, 0.35, 0.20, 0.12, 0.10] at
+    # [0, 1, 3, 5, 7, 10, 15, 20, 25, 30] was too steep at 10-20yr.
+    # Treater shell rebuilds are cheaper than dehy glycol packages, so
+    # retention is higher mid-life — milestones tightened and tail
+    # lifted to match validated sold-data.
     "treater": (
-        [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
-        [1.00, 0.93, 0.85, 0.76, 0.67, 0.54, 0.35, 0.20, 0.12, 0.10],
+        [0, 3, 5, 10, 15, 20, 25, 30],
+        [1.00, 0.90, 0.82, 0.55, 0.35, 0.22, 0.15, 0.10],
     ),
     # Dehydrator — flattened tail 2026-05-27 after reverse-pass against
     # HubSpot sold dehys ≥$25k. Prior 15yr=0.20 / 30yr=0.05 curve
