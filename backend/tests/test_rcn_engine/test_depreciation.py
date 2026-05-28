@@ -174,3 +174,51 @@ class TestGetAgeFactor:
         for category in ("compressor", "separator", "tank", "pump",
                          "generator", "pump_jack", "truck"):
             assert get_age_factor(999, category) > 0
+
+
+# ── Knockout family curves (Tier 2 Chunk 3) ─────────────────────────
+
+
+class TestKnockoutCurves:
+    """FWKO and Flare KO carry their own depreciation curves.
+
+    Gas KO and Ambiguous ride the separator curve (see Tier 2 plan
+    Chunk 3 calibration locked 2026-05-27).
+    """
+
+    def test_knockout_fwko_curve_milestones(self):
+        # Production vessel-shape; flattened tail similar to separator
+        # but FWKOs see free-water service so age slightly faster mid-life.
+        assert get_age_factor(0, "knockout_fwko") == pytest.approx(1.00)
+        assert get_age_factor(5, "knockout_fwko") == pytest.approx(0.72)
+        assert get_age_factor(10, "knockout_fwko") == pytest.approx(0.50)
+        assert get_age_factor(20, "knockout_fwko") == pytest.approx(0.20)
+        # floor
+        assert get_age_factor(80, "knockout_fwko") == pytest.approx(0.10)
+
+    def test_knockout_flare_curve_milestones(self):
+        # Flare KO drums age slower — vapor service, low solids loading,
+        # minimal corrosion. Hold value better than FWKO.
+        assert get_age_factor(0, "knockout_flare") == pytest.approx(1.00)
+        assert get_age_factor(5, "knockout_flare") == pytest.approx(0.82)
+        assert get_age_factor(10, "knockout_flare") == pytest.approx(0.65)
+        assert get_age_factor(20, "knockout_flare") == pytest.approx(0.38)
+        # floor
+        assert get_age_factor(80, "knockout_flare") == pytest.approx(0.22)
+
+    def test_knockout_gas_rides_separator_curve(self):
+        # Data-thin family — no dedicated curve until corpus grows.
+        sep = get_age_factor(10, "separator")
+        assert get_age_factor(10, "knockout_gas") == pytest.approx(sep)
+
+    def test_knockout_ambiguous_rides_separator_curve(self):
+        sep = get_age_factor(10, "separator")
+        assert get_age_factor(10, "knockout_ambiguous") == pytest.approx(sep)
+
+    def test_knockout_curves_monotonically_decreasing(self):
+        for category in ("knockout_fwko", "knockout_flare"):
+            prev = get_age_factor(0, category)
+            for age in range(1, 40):
+                current = get_age_factor(age, category)
+                assert current <= prev + 1e-9
+                prev = current

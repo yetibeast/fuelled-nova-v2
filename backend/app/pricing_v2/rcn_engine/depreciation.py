@@ -61,6 +61,20 @@ AGE_CURVES: dict[str, tuple[list[int], list[float]]] = {
         [0, 1, 3, 5, 7, 10, 15, 20, 25, 30],
         [1.00, 0.93, 0.86, 0.78, 0.70, 0.58, 0.40, 0.25, 0.17, 0.15],
     ),
+    # Knockout — FWKO (free-water knockout). Production vessel in
+    # free-water service; flattened tail similar to separator/treater
+    # but ages slightly faster mid-life due to higher water/solids
+    # loading. Locked 2026-05-27 with Curt for Tier 2 Chunk 3.
+    "knockout_fwko": (
+        [0, 3, 5, 10, 15, 20, 25, 30, 40],
+        [1.00, 0.85, 0.72, 0.50, 0.30, 0.20, 0.15, 0.12, 0.10],
+    ),
+    # Knockout — Flare KO drum. Vapor service, low solids/corrosion;
+    # holds value better than FWKO. Locked 2026-05-27 with Curt.
+    "knockout_flare": (
+        [0, 3, 5, 10, 15, 20, 25, 30],
+        [1.00, 0.90, 0.82, 0.65, 0.50, 0.38, 0.28, 0.22],
+    ),
     "truck": (
         [0, 1, 3, 5, 7, 10, 13, 15, 18, 20, 25],
         [1.00, 0.92, 0.83, 0.74, 0.65, 0.52, 0.38, 0.30, 0.22, 0.17, 0.17],
@@ -105,6 +119,12 @@ CATEGORY_CURVE_MAP: dict[str, str] = {
     "trucks": "truck",
     "trailer": "truck",
     "trailers": "truck",
+    # Knockout sub-families (Tier 2 Chunk 3). Gas KO + Ambiguous ride
+    # separator until corpus growth supports a dedicated curve.
+    "knockout_fwko": "knockout_fwko",
+    "knockout_flare": "knockout_flare",
+    "knockout_gas": "separator",
+    "knockout_ambiguous": "separator",
 }
 
 DEFAULT_CURVE = "heavy_equip"
