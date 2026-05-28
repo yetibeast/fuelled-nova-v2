@@ -82,7 +82,7 @@ async def fetch_listing(url: str) -> str:
 
 async def search_comparables(keywords: list[str], category: str | None = None,
                              price_min: float = 0, price_max: float = 99999999,
-                             max_results: int = 20) -> str:
+                             max_results: int = 20, country: str | None = None) -> str:
     if not keywords:
         return "No keywords provided."
     where = " OR ".join(f"title ILIKE :kw{i}" for i in range(len(keywords)))
@@ -92,6 +92,37 @@ async def search_comparables(keywords: list[str], category: str | None = None,
     if category:
         sql += " AND category_normalized ILIKE :cat"
         params["cat"] = f"%{category}%"
+    if country:
+        # Country detection is tiered because the `country` column is only populated for
+        # `fuelled` and `ironhub` sources — every other source (bidspotter, kijiji,
+        # equipmenttrader, allsurplus, etc.) leaves it NULL. So we layer:
+        #   1. trust `country` column when present (handles fuelled/ironhub)
+        #   2. parse trailing 3-letter ISO codes ", USA" / ", CAN" (allsurplus)
+        #   3. parse trailing 2-letter state/province codes (kijiji, equipmenttrader)
+        #   4. parse full state/province names (bidspotter, ironplanet)
+        # Without this, US deals get drowned in CA-anchored comps because the CA-heavy
+        # sources dominate the table (~7K CA listings vs 2.4K US in `country`-tagged data,
+        # before we even reach the 60K NULL rows).
+        cu = country.strip().upper()
+        params["country"] = cu
+        if cu == "US":
+            sql += (
+                " AND ("
+                "country ILIKE 'United Sta%' OR country = 'USA' OR country = 'US'"
+                " OR location ~* ',\\s*USA\\s*$'"
+                " OR location ~* ',\\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\\s*$'"
+                " OR location ~* '(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming|District of Columbia)'"
+                ")"
+            )
+        elif cu == "CA":
+            sql += (
+                " AND ("
+                "country = 'Canada' OR country = 'CAN' OR country = 'CA'"
+                " OR location ~* ',\\s*CAN\\s*$'"
+                " OR location ~* ',\\s*(AB|BC|MB|NB|NL|NS|NT|NU|ON|PE|QC|SK|YT)\\s*$'"
+                " OR location ~* '(Alberta|British Columbia|Manitoba|New Brunswick|Newfoundland|Nova Scotia|Northwest Territories|Nunavut|Ontario|Prince Edward Island|Quebec|Saskatchewan|Yukon)'"
+                ")"
+            )
     sql += f" ORDER BY asking_price DESC LIMIT :lim"
     params["lim"] = max_results
     async with get_session() as session:

@@ -21,6 +21,7 @@ TOOLS = [
                 "price_min": {"type": "number", "default": 0, "description": "Minimum asking_price filter"},
                 "price_max": {"type": "number", "default": 99999999, "description": "Maximum asking_price filter"},
                 "max_results": {"type": "integer", "default": 20, "description": "Max listings to return"},
+                "country": {"type": "string", "enum": ["US", "CA"], "description": "ISO country code ('US' or 'CA') to filter comparables. Use for US deals to avoid Canadian comp anchoring — the marketplace is CA-heavy so unfiltered searches drown US comps. Pass 'US' when equipment is in a US state, 'CA' when in a Canadian province. Omit if location is unknown."},
             },
             "required": ["keywords"],
         },
