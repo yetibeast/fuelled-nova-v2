@@ -83,7 +83,7 @@ railway ssh "cd /app && nohup python3 -m scripts.run_enrichment \
 
 | Task | Status | Notes |
 |------|--------|-------|
-| Enable weekly enrichment cron | **ready, needs Curtis go-ahead** | runner is hardened + proven; `backend/scripts/intel-cron.conf` has the schedule. Retries the ~85 empty sellers + catches new ones. |
+| Enable weekly enrichment cron | **NOT ready — needs deployment to container 107 first** | See the dedicated "Cron enablement — actual state" section below. The cron file is already installed on 107 but DEAD (no runner code, no anthropic lib, no API key). Earlier in this doc I called it a one-liner — that was wrong. |
 | Tier 2 sample-row spot-check | **owed** | 5 family rulesets shipped without per-family review (accepted risk). If a real valuation looks off, send listing+number back and calibrate. |
 | Task #15 — 14 pre-existing test failures | open | `fuelled_coverage`(5), `evidence`(4), `conversations`(4), `admin_pricing_tanks`(1). Fail in isolation — separate root cause from the event-loop fix (likely MockSession SQL-match gaps / assertion drift). Blocks a fully-green suite. |
 | Task #3 — smoke-test *suite* design | open, scope-first | Curtis's original ask. Tonight's was a one-off live smoke, not the automated suite. Was paused on scope (pricing-only vs broad; cadence). |
