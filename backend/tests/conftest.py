@@ -1,6 +1,7 @@
 """Shared fixtures for Phase C + D tests."""
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 import uuid
@@ -1253,6 +1254,35 @@ async def _mock_get_session():
 @asynccontextmanager
 async def _mock_get_state_session():
     yield MockSession(_db)
+
+
+@pytest.fixture(autouse=True)
+def _isolate_event_loop():
+    """Give every test its own event loop, isolated from cross-test pollution.
+
+    Two async idioms coexist in this suite: some tests use asyncio.run() (which
+    creates a loop, runs, closes it, then calls set_event_loop(None)); others use
+    asyncio.get_event_loop().run_until_complete(). On Python 3.9 once asyncio.run()
+    has left the policy at (_loop=None, _set_called=True), a later get_event_loop()
+    raises "There is no current event loop" instead of lazily creating one — so any
+    asyncio.run() test silently poisons every later get_event_loop() test, making
+    the suite order-dependent.
+
+    Setting a fresh loop before each test removes that coupling. Within one test
+    get_event_loop() returns this single loop, so a DB engine bound to it survives
+    across multiple run_until_complete() calls (the Postgres integration tests rely
+    on this). Defined before _patch_db so it sets up first / tears down last — the
+    loop stays alive while every other fixture finalizes (e.g. engine.dispose()).
+    """
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        loop.close()
+        # Hand the next test a fresh, open loop rather than None — a closed-or-None
+        # current loop would make any between-test get_event_loop() raise.
+        asyncio.set_event_loop(asyncio.new_event_loop())
 
 
 @pytest.fixture(autouse=True)
