@@ -146,6 +146,35 @@ export async function submitFeedback(data: {
   });
 }
 
+/**
+ * Structured error thrown when the backend returns a non-2xx response.
+ * Carries the FastAPI `detail` payload so the UI can map error codes
+ * (rate_limit_error, model_not_found, anthropic_timeout, etc.) to
+ * actionable user messages instead of generic "Something went wrong".
+ */
+export class NovaApiError extends Error {
+  status: number;
+  code: string;
+  detail: Record<string, unknown> | string;
+  retryAfter?: number;
+
+  constructor(status: number, detail: Record<string, unknown> | string, fallback: string) {
+    const isObj = typeof detail === "object" && detail !== null;
+    const code = isObj ? String((detail as Record<string, unknown>).code ?? `http_${status}`) : `http_${status}`;
+    const message = isObj
+      ? String((detail as Record<string, unknown>).message ?? fallback)
+      : (typeof detail === "string" && detail ? detail : fallback);
+    super(message);
+    this.name = "NovaApiError";
+    this.status = status;
+    this.code = code;
+    this.detail = detail;
+    if (isObj && typeof (detail as Record<string, unknown>).retry_after_seconds === "number") {
+      this.retryAfter = (detail as Record<string, unknown>).retry_after_seconds as number;
+    }
+  }
+}
+
 export async function sendPriceQuery(formData: FormData) {
   // Call backend directly — pricing takes 30-60s which exceeds Next.js proxy timeout
   const res = await fetch(`${getBackendUrl()}/api/price`, {
@@ -154,12 +183,23 @@ export async function sendPriceQuery(formData: FormData) {
     headers: authHeaders(),
   });
   if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
+    let detail: Record<string, unknown> | string = `HTTP ${res.status}`;
     try {
-      const body = await res.text();
-      if (body) detail += `: ${body}`;
-    } catch { /* ignore */ }
-    throw new Error(detail);
+      const body = await res.json();
+      // FastAPI HTTPException puts the structured payload under `detail`
+      if (body && typeof body === "object" && "detail" in body) {
+        detail = body.detail as Record<string, unknown> | string;
+      } else if (body) {
+        detail = body;
+      }
+    } catch {
+      // body wasn't JSON — fall back to text
+      try {
+        const text = await res.text();
+        if (text) detail = text;
+      } catch { /* ignore */ }
+    }
+    throw new NovaApiError(res.status, detail, `Pricing request failed (HTTP ${res.status})`);
   }
   return res.json();
 }

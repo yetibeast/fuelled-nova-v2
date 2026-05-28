@@ -7,6 +7,7 @@ import {
   createConversation,
   fetchConversation,
   addConversationMessage,
+  NovaApiError,
 } from "@/lib/api";
 import { ChatInput } from "@/components/pricing/chat-input";
 import { UserMessage, NovaMessage } from "@/components/pricing/chat-message";
@@ -274,12 +275,53 @@ export function ChatPanel({ onResponse }: ChatPanelProps) {
     } catch (err) {
       console.error("[Nova] Error:", err);
       setIsThinking(false);
-      const errMsg = err instanceof Error ? err.message : String(err);
+
+      // Map backend error codes → actionable user messages.
+      // Backend uses HTTPException with structured detail {code, message, ...}
+      // surfaced as NovaApiError on the frontend side.
+      let userMessage = "Something went wrong. Please try again — if it persists, copy the details below and send to Curt.";
+      let detailText = err instanceof Error ? err.message : String(err);
+
+      if (err instanceof NovaApiError) {
+        detailText = `[${err.code}] ${err.message}`;
+        // Override with code-specific guidance when we have one
+        switch (err.code) {
+          case "rate_limit_error":
+            userMessage = err.retryAfter
+              ? `Hit Anthropic's rate limit (Fuelled's quota). Try again in ~${err.retryAfter} seconds. Curt is working on raising the cap.`
+              : "Hit Anthropic's rate limit (Fuelled's quota). Try again in 30-60 seconds. Curt is working on raising the cap.";
+            break;
+          case "model_not_found":
+            userMessage = "The pricing model is misconfigured (likely a retired model). Engineering has been notified — try again in a few minutes.";
+            break;
+          case "anthropic_timeout":
+            userMessage = "The pricing call took longer than expected. Try a shorter file, or split the question into two requests.";
+            break;
+          case "anthropic_bad_request":
+            userMessage = "Anthropic rejected the request — usually the file format isn't supported, or the input is too large.";
+            break;
+          case "anthropic_error":
+            userMessage = "Anthropic returned an error. Try again in a moment.";
+            break;
+          case "http_401":
+            userMessage = "Session expired. Please log out and back in.";
+            break;
+          case "http_413":
+            userMessage = "File is too large (10MB max). Try a smaller version.";
+            break;
+          default:
+            // Use the backend-provided message if it looks human-friendly
+            if (typeof err.message === "string" && err.message && err.message !== `Pricing request failed (HTTP ${err.status})`) {
+              userMessage = err.message;
+            }
+        }
+      }
+
       const errorEntry: ChatEntry = {
         role: "nova",
-        text: "Something went wrong. Please try again.",
+        text: userMessage,
         isError: true,
-        errorDetail: errMsg,
+        errorDetail: detailText,
       };
       setEntries([...newEntries, errorEntry]);
     }

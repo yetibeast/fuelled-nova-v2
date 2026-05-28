@@ -26,3 +26,6 @@ docs/supply-targets/
 
 # HubSpot CRM exports — customer data, never commit
 seeds/hubspot/
+
+# Obsidian Energy engineering calcs — third-party controlled docs, never commit
+seeds/obsidian-energy-calcs/
