@@ -35,13 +35,18 @@ Country detection is tiered so it works across our mixed scraper sources: truste
 ## What's NOT in this rev
 
 - **Cron auto-enrichment still OFF.** The recurring pipeline can run safely now, but we haven't enabled the weekly schedule. Manual backfills only until you flip the cron on.
-- **Seller mailout coverage hasn't expanded yet.** Mark's mailout CSV still shows ~24% of sellers with enriched leads (the same 11 from the May 10 workbook plus today's single smoke-test). The backfill against the remaining 175 sellers is the next thing to run now that the runner is hardened. Buyer CSV is already at 92% coverage and unchanged.
+- **Buyer CSV unchanged** — already at 92% coverage from the May 10 research.
 - **No PDF/spreadsheet export changes.** Same export format as before.
+
+## Seller mailout coverage — expanded tonight
+
+Ran the enrichment backfill across the full seller queue. **Seller-side mailout coverage went from ~24% to 72%** (214 of 299 seller/source pairs now carry a named contact, 165 with a direct email). Top-volume auction houses and dealers — Liquid Asset Partners, Buddy Barton Auctions, Bright Star Auctions, Graham Auctioneers, Global Power Systems and others — now have outreach contacts in the CSV. Total run cost: $8.64.
+
+The ~85 sellers still without a lead are mostly sparse-online-presence auction houses where automated research couldn't surface a contact (e.g. Asset Built, Martin's Auction Service, Royal Auction Group). They'll be retried automatically when the weekly schedule is enabled.
 
 ## What's next
 
-- **Seller backfill** — re-attempt against the now-timeout-hardened runner. Target: bring seller mailout coverage from ~24% to ~100% at an estimated total cost of ~$12-15.
-- **Enable weekly cron** for ongoing seller enrichment once the backfill validates.
+- **Enable weekly cron** for ongoing seller enrichment — picks up new sellers + retries the ~85 that came back empty. Currently OFF pending your go-ahead.
 - **Tier 2 sample-row spot-check** — the 5 family rulesets that shipped earlier tonight (heater, treater, knockouts, dehydrator, meter runs) didn't go through an explicit per-family sample review. If anything looks off in a real valuation, send the listing back and we'll calibrate.
 
 Implementation notes: country detection logic in `backend/app/pricing_v2/tools.py`; batch timeout in `backend/app/api/batch.py`; runner timeout in `backend/app/pricing_v2/intel/providers/claude_parallel.py`. All on main.
