@@ -103,3 +103,22 @@ When a feature is complete and merged:
 3. Curtis owns the actual send to the Fuelled team. Don't assume a notice is "out" just because the file exists.
 
 If you finish a feature and don't draft a notice, the work isn't done. Treat the rev notice as part of the feature's definition of done, the same as tests.
+
+## 6. Deploy from main only — never from a feature branch
+
+**`railway up --service backend` from a feature branch is a silent regression machine.** Auto-deploy is off, so prod is literally "whatever was last `railway up`'d." If two feature branches deploy in sequence (`feat/A` then `feat/B`), the second deploy strips everything in A that isn't also in B. Tests pass on each branch in isolation; production loses features.
+
+This isn't hypothetical. On 2026-05-27 the batch-timeout hotfix shipped from `hotfix/batch-timeout-120s` at noon. A later `railway up` from `feat/intel-recurring` (which didn't include the hotfix) overwrote it. Container went back to `timeout=60` silently. Caught only during a manual end-of-day audit.
+
+### The rule
+
+1. Feature branches must merge to `main` **before** any `railway up`.
+2. Deploy from `main` only. If you need to deploy from a worktree, the worktree must be on `main` with the relevant work merged in.
+3. After every `railway up`, spot-check at least one signature line of whatever the previous deploy fixed (e.g. `railway ssh "grep timeout= /app/app/api/batch.py"`). Silence is not success.
+4. Never stack uncommitted hotfixes on feature branches — they're easy to lose when a parallel feature deploys.
+
+### Workflow when you have a hotfix during in-flight feature work
+
+The right shape is: cherry-pick or merge the hotfix onto the feature branch *before* deploying it. Or merge to main first, deploy from main, then resume the feature branch from the new main.
+
+Wrong shape: ship the hotfix from its own branch, then ship the feature branch separately. The feature's `railway up` will overwrite the hotfix.
