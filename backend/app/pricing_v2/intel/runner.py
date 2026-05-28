@@ -78,7 +78,7 @@ _FINISH_RUN_SQL = text(
     "WHERE run_id = :rid"
 )
 
-# UPSERT one contact. Matches the existing unique index
+# UPSERT one contact WITH an email. Matches the full-key unique index
 # uq_seller_contact_enrichment_key on (seller_name, source, contact_email).
 _UPSERT_CONTACT_SQL = text(
     "INSERT INTO seller_contact_enrichment ("
@@ -93,6 +93,44 @@ _UPSERT_CONTACT_SQL = text(
     "  :enrichment_source, NOW(), 1"
     ") "
     "ON CONFLICT (seller_name, source, contact_email) DO UPDATE SET "
+    "  contact_name = EXCLUDED.contact_name, "
+    "  contact_title = EXCLUDED.contact_title, "
+    "  contact_phone = EXCLUDED.contact_phone, "
+    "  contact_linkedin = EXCLUDED.contact_linkedin, "
+    "  contact_confidence = EXCLUDED.contact_confidence, "
+    "  confidence_overall = EXCLUDED.confidence_overall, "
+    "  location = EXCLUDED.location, "
+    "  outreach_notes = EXCLUDED.outreach_notes, "
+    "  last_researched_at = NOW(), "
+    "  research_attempts = seller_contact_enrichment.research_attempts + 1, "
+    "  last_research_error = NULL"
+)
+
+# UPSERT one contact WITHOUT an email. Bug C2-followup: when Claude
+# returns a real contact (name + phone) but no email, contact_email is
+# NULL and the partial index uq_seller_contact_enrichment_failure_marker
+# claims the (seller_name, source) slot. The full-key INSERT above would
+# raise IntegrityError because Postgres treats NULL as distinct on the
+# full key but the partial index doesn't.
+#
+# Conflict target here matches the partial index exactly. This SQL
+# absorbs both failure-marker rows (no contact_name) and prior no-email
+# success rows for the same seller — re-research updates the row in
+# place, clears last_research_error, and bumps research_attempts.
+_UPSERT_NOEMAIL_CONTACT_SQL = text(
+    "INSERT INTO seller_contact_enrichment ("
+    "  seller_name, source, contact_name, contact_title, contact_email, "
+    "  contact_phone, contact_linkedin, contact_confidence, "
+    "  confidence_overall, location, outreach_notes, "
+    "  enrichment_source, last_researched_at, research_attempts"
+    ") VALUES ("
+    "  :seller, :source, :name, :title, NULL, "
+    "  :phone, :linkedin, :confidence, "
+    "  :confidence, :location, :notes, "
+    "  :enrichment_source, NOW(), 1"
+    ") "
+    "ON CONFLICT (seller_name, source) WHERE contact_email IS NULL "
+    "DO UPDATE SET "
     "  contact_name = EXCLUDED.contact_name, "
     "  contact_title = EXCLUDED.contact_title, "
     "  contact_phone = EXCLUDED.contact_phone, "
@@ -287,19 +325,26 @@ async def run_enrichment(
 
             summary.sellers_succeeded += 1
             for c in result.contacts:
-                await session.execute(_UPSERT_CONTACT_SQL, {
+                params = {
                     "seller": s["seller_name"],
                     "source": s["source"],
                     "name": c.name,
                     "title": c.title,
-                    "email": c.email,
                     "phone": c.phone,
                     "linkedin": c.linkedin,
                     "confidence": c.confidence,
                     "location": c.location,
                     "notes": c.outreach_notes,
                     "enrichment_source": enrichment_source,
-                })
+                }
+                # Bug C2-followup: contacts without an email must use the
+                # partial-index conflict target, otherwise the failure-marker
+                # partial index raises IntegrityError.
+                if c.email is None:
+                    await session.execute(_UPSERT_NOEMAIL_CONTACT_SQL, params)
+                else:
+                    params["email"] = c.email
+                    await session.execute(_UPSERT_CONTACT_SQL, params)
                 summary.contacts_added += 1
             await session.commit()
 

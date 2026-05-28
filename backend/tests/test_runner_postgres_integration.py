@@ -385,3 +385,328 @@ def test_i4_long_provider_exceptions_are_fully_logged(
         f"Long error truncated in log: only {x_count} 'x' chars captured "
         f"(expected ≥900)"
     )
+
+
+# ────────────────────────────────────────────────────────────────────────
+# Bug C2-followup — SUCCESS rows with contact_email = NULL must upsert
+# cleanly. The failure-marker partial index now also covers any success
+# row where Claude returned a contact without an email (real example:
+# Andrea Sprute / Machinery Auctioneers — name + phone, no email). The
+# runner's success INSERT uses ON CONFLICT (seller_name, source,
+# contact_email), which does NOT match the partial index, so Postgres
+# raises IntegrityError on the partial index instead of upserting.
+# ────────────────────────────────────────────────────────────────────────
+
+
+class NoEmailContactProvider:
+    """Returns exactly one contact per call, with no email. Tracks calls."""
+
+    name = "mock"
+    cost_per_query_usd = 0.0
+
+    def __init__(self, name: str = "Andrea Sprute",
+                 title: str = "Auctioneer",
+                 phone: str = "+1-210-648-2225",
+                 location: str = "Texas"):
+        self.name_val = name
+        self.title_val = title
+        self.phone_val = phone
+        self.location_val = location
+        self.calls = 0
+
+    async def enrich_seller(self, seller_name, source, hints):
+        self.calls += 1
+        # Vary the title between calls so we can confirm "latest" wins.
+        title = f"{self.title_val} v{self.calls}"
+        return ProviderResult(
+            contacts=[Contact(
+                name=self.name_val,
+                title=title,
+                email=None,
+                phone=self.phone_val,
+                location=self.location_val,
+                confidence="medium",
+                outreach_notes="contact found via web research",
+            )],
+            cost_usd=0.0,
+            raw_payload={"seller": seller_name},
+        )
+
+
+class MixedContactProvider:
+    """Returns two contacts: one with email, one without."""
+
+    name = "mock"
+    cost_per_query_usd = 0.0
+
+    async def enrich_seller(self, seller_name, source, hints):
+        return ProviderResult(
+            contacts=[
+                Contact(
+                    name="With Email",
+                    title="Manager",
+                    email="with.email@example.com",
+                    phone="+1-555-0001",
+                    location="Texas",
+                    confidence="high",
+                ),
+                Contact(
+                    name="No Email",
+                    title="Auctioneer",
+                    email=None,
+                    phone="+1-555-0002",
+                    location="Texas",
+                    confidence="medium",
+                ),
+            ],
+            cost_usd=0.0,
+            raw_payload={"seller": seller_name},
+        )
+
+
+def test_c2fu_success_with_no_email_contact_upserts_cleanly(
+    pg_engine, pg_session_factory,
+):
+    """Provider returns a single contact with contact_email=None for a
+    new seller. Must persist as one row without IntegrityError.
+
+    Current bug: success INSERT uses ON CONFLICT (seller_name, source,
+    contact_email) — the partial index uq_seller_contact_enrichment_failure_marker
+    blocks this with IntegrityError because (seller_name, source) already
+    "exists" under that index (NULL email matches the partial predicate).
+    """
+    _run(_insert_listings(pg_session_factory, [
+        ("Machinery Auctioneers", "bidspotter"),
+    ]))
+
+    provider = NoEmailContactProvider(name="Andrea Sprute")
+    summary = _run(run_enrichment(
+        pg_session_factory,
+        provider=provider,
+        limit=5,
+        trigger="manual",
+    ))
+    assert summary.sellers_succeeded == 1, (
+        f"Expected sellers_succeeded=1, got {summary.sellers_succeeded}"
+    )
+
+    n = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment "
+        "WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert n == 1, f"Expected 1 row, got {n}"
+
+    row = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_name, contact_phone, research_attempts, "
+        "       last_research_error "
+        "FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert row[0] == "Andrea Sprute", f"contact_name was {row[0]!r}"
+    assert row[1] == "+1-210-648-2225", f"contact_phone was {row[1]!r}"
+    assert row[2] == 1, f"research_attempts was {row[2]}"
+    assert row[3] is None, f"last_research_error was {row[3]!r} (expected NULL)"
+
+
+async def _reset_research_freshness(pg_engine, seller: str):
+    """Push last_researched_at back >90d so enrichment_queue re-surfaces
+    the seller. The view excludes anything researched <90d ago, which
+    blocks the idempotency tests from re-invoking the runner.
+    """
+    async with pg_engine.begin() as conn:
+        await conn.execute(text(
+            "UPDATE seller_contact_enrichment "
+            "SET last_researched_at = NOW() - INTERVAL '120 days' "
+            "WHERE seller_name = :s"
+        ), {"s": seller})
+
+
+def test_c2fu_repeated_no_email_research_increments_attempts(
+    pg_engine, pg_session_factory,
+):
+    """Running the no-email success path twice for the same seller must
+    update a single row in place and bump research_attempts to 2.
+    """
+    _run(_insert_listings(pg_session_factory, [
+        ("Machinery Auctioneers", "bidspotter"),
+    ]))
+
+    provider = NoEmailContactProvider(name="Andrea Sprute")
+
+    _run(run_enrichment(
+        pg_session_factory, provider=provider, limit=5, trigger="manual",
+    ))
+    # Age the row so enrichment_queue re-surfaces this seller.
+    _run(_reset_research_freshness(pg_engine, "Machinery Auctioneers"))
+    _run(run_enrichment(
+        pg_session_factory, provider=provider, limit=5, trigger="manual",
+    ))
+
+    n = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment "
+        "WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert n == 1, f"Expected 1 row after 2 runs, got {n}"
+
+    row = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_name, contact_title, research_attempts "
+        "FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert row[0] == "Andrea Sprute"
+    # Title varies per call ('Auctioneer v1' then 'Auctioneer v2'); latest
+    # call wins.
+    assert row[1] == "Auctioneer v2", f"contact_title was {row[1]!r}"
+    assert row[2] == 2, f"research_attempts was {row[2]}"
+
+
+def test_c2fu_failure_marker_then_success_with_no_email_resolves(
+    pg_engine, pg_session_factory,
+):
+    """First run records a failure marker (no contacts). Second run
+    succeeds but the discovered contact has no email. The end state must
+    be one row with the contact populated, attempts=2,
+    last_research_error=NULL.
+
+    Tests the failure→success transition through the partial index — the
+    risky case where the failure row already occupies the partial-index
+    slot when the success upsert runs.
+    """
+    _run(_insert_listings(pg_session_factory, [
+        ("Machinery Auctioneers", "bidspotter"),
+    ]))
+
+    # Phase 1: provider returns empty → runner records a failure marker.
+    empty_provider = MockProvider(contacts_per_seller=0, cost_usd=0.0)
+    # MockProvider returns N contacts ONLY when seller_name doesn't start
+    # with "empty-" or "fail-". contacts_per_seller=0 still returns 0
+    # contacts (the list comprehension produces []).
+    _run(run_enrichment(
+        pg_session_factory, provider=empty_provider, limit=5, trigger="manual",
+    ))
+
+    failure_count = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert failure_count == 1, (
+        f"Setup: expected 1 failure marker, got {failure_count}"
+    )
+
+    # Age the failure marker so the queue view re-surfaces this seller.
+    _run(_reset_research_freshness(pg_engine, "Machinery Auctioneers"))
+
+    # Phase 2: provider returns a no-email success contact.
+    success_provider = NoEmailContactProvider(name="Andrea Sprute")
+    _run(run_enrichment(
+        pg_session_factory, provider=success_provider, limit=5, trigger="manual",
+    ))
+
+    n = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert n == 1, f"Expected 1 row after failure→success, got {n}"
+
+    row = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_name, contact_phone, research_attempts, "
+        "       last_research_error "
+        "FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Machinery Auctioneers"},
+    ))
+    assert row[0] == "Andrea Sprute", f"contact_name was {row[0]!r}"
+    assert row[1] == "+1-210-648-2225", f"contact_phone was {row[1]!r}"
+    assert row[2] == 2, f"research_attempts was {row[2]} (expected 2)"
+    assert row[3] is None, (
+        f"last_research_error was {row[3]!r} — success should clear it"
+    )
+
+
+def test_c2fu_success_with_email_still_works(
+    pg_engine, pg_session_factory,
+):
+    """Regression guard: contact WITH an email still upserts cleanly via
+    the original full-key conflict path. Re-running updates in place.
+    """
+    _run(_insert_listings(pg_session_factory, [
+        ("Email Seller", "bidspotter"),
+    ]))
+
+    provider = MockProvider(contacts_per_seller=1, cost_usd=0.0)
+    _run(run_enrichment(
+        pg_session_factory, provider=provider, limit=5, trigger="manual",
+    ))
+    _run(_reset_research_freshness(pg_engine, "Email Seller"))
+    _run(run_enrichment(
+        pg_session_factory, provider=provider, limit=5, trigger="manual",
+    ))
+
+    n = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Email Seller"},
+    ))
+    assert n == 1, f"Expected 1 row, got {n}"
+
+    row = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_email, research_attempts "
+        "FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Email Seller"},
+    ))
+    assert row[0] == "contact1@email-seller.com", f"email was {row[0]!r}"
+    assert row[1] == 2, f"research_attempts was {row[1]}"
+
+
+def test_c2fu_mixed_contacts_one_with_email_one_without(
+    pg_engine, pg_session_factory,
+):
+    """Provider returns two contacts for the same seller: one has an
+    email, one doesn't. Both must persist — the email contact via the
+    full-key index, the no-email contact via the partial index. This is
+    the realistic production case.
+    """
+    _run(_insert_listings(pg_session_factory, [
+        ("Mixed Seller", "bidspotter"),
+    ]))
+
+    provider = MixedContactProvider()
+    summary = _run(run_enrichment(
+        pg_session_factory, provider=provider, limit=5, trigger="manual",
+    ))
+    assert summary.sellers_succeeded == 1
+    assert summary.contacts_added == 2
+
+    n = _run(_count_rows(
+        pg_engine,
+        "SELECT COUNT(*) FROM seller_contact_enrichment WHERE seller_name = :s",
+        {"s": "Mixed Seller"},
+    ))
+    assert n == 2, f"Expected 2 rows (email + no-email), got {n}"
+
+    with_email = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_name, contact_phone FROM seller_contact_enrichment "
+        "WHERE seller_name = :s AND contact_email IS NOT NULL",
+        {"s": "Mixed Seller"},
+    ))
+    assert with_email[0] == "With Email"
+    assert with_email[1] == "+1-555-0001"
+
+    without_email = _run(_fetch_one(
+        pg_engine,
+        "SELECT contact_name, contact_phone FROM seller_contact_enrichment "
+        "WHERE seller_name = :s AND contact_email IS NULL",
+        {"s": "Mixed Seller"},
+    ))
+    assert without_email[0] == "No Email"
+    assert without_email[1] == "+1-555-0002"
