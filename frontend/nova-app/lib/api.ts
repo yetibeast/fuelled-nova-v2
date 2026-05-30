@@ -459,7 +459,9 @@ export async function exportBatchReport(
   client?: string,
   buyerOffer?: number | null,
 ) {
-  const res = await fetch("/api/price/batch/report", {
+  // Call backend directly — the multi-item Claude pass takes 60-90s, which
+  // exceeds the Next.js proxy timeout (same reason generateTieredReport bypasses it).
+  const res = await fetch(`${getBackendUrl()}/api/price/batch/report`, {
     method: "POST",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify({
@@ -492,6 +494,23 @@ export async function pollBatchStatus(jobId: string) {
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error("Failed to poll batch status");
+  return res.json();
+}
+
+export interface BatchReviewItem {
+  title: string;
+  category: string;
+  specs: Record<string, unknown>;
+}
+
+export async function priceReviewedItems(jobId: string, items: BatchReviewItem[]) {
+  const res = await fetch(`/api/price/batch/${jobId}/price`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ items }),
+  });
+  if (res.status === 404) throw new Error("Review session expired — please re-upload the file");
+  if (!res.ok) throw new Error("Failed to start pricing");
   return res.json();
 }
 
