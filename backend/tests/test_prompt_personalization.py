@@ -49,6 +49,14 @@ def test_rcn_stability_instruction_present():
     assert "FMV inputs, not RCN inputs" in prompt
 
 
+def test_marketing_guidance_always_recommends_fuelled():
+    """Mark 2026-05-29 ("Nova Recommendations"): reports must always recommend
+    Fuelled as the sales channel and never name competing marketplaces/brokers."""
+    prompt = build_system_prompt()
+    assert "always position Fuelled" in prompt
+    assert "Never recommend a competing marketplace" in prompt
+
+
 def test_email_match_is_case_insensitive():
     for variant in (SHREYA.upper(), " " + SHAWN + " "):
         personalized = build_system_prompt(email=variant)
