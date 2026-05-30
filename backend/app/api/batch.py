@@ -60,6 +60,13 @@ class BatchRequest(BaseModel):
 
 
 # ── Core batch logic ──────────────────────────────────────────
+_NO_VALUATION_MSG = (
+    "No valuation produced — the description lacked enough detail to price "
+    "(needs make/model, size, year, or condition). Check the spreadsheet columns "
+    "are mapped to the right fields."
+)
+
+
 async def _price_batch(items: list[BatchItem]) -> dict:
     results, errors = [], []
     total_fmv_low, total_fmv_high = 0, 0
@@ -72,15 +79,18 @@ async def _price_batch(items: list[BatchItem]) -> dict:
             v = out.get("structured", {}).get("valuation", {})
             fmv_lo = v.get("fmv_low", 0) or 0
             fmv_hi = v.get("fmv_high", 0) or 0
-            total_fmv_low += fmv_lo
-            total_fmv_high += fmv_hi
-            results.append({
-                "title": item.title,
-                "structured": out.get("structured", {}),
-                "response": out.get("response", ""),
-                "confidence": out.get("confidence", "LOW"),
-                "tools_used": out.get("tools_used", []),
-            })
+            if not fmv_lo and not fmv_hi:
+                errors.append({"title": item.title, "error": _NO_VALUATION_MSG})
+            else:
+                total_fmv_low += fmv_lo
+                total_fmv_high += fmv_hi
+                results.append({
+                    "title": item.title,
+                    "structured": out.get("structured", {}),
+                    "response": out.get("response", ""),
+                    "confidence": out.get("confidence", "LOW"),
+                    "tools_used": out.get("tools_used", []),
+                })
         except asyncio.TimeoutError:
             errors.append({"title": item.title, "error": "Timed out after 120s — item may be too complex or comps lookup slow"})
         except Exception as e:
@@ -132,15 +142,18 @@ async def _price_batch_async(job_id: str, items: list[BatchItem]):
             v = out.get("structured", {}).get("valuation", {})
             fmv_lo = v.get("fmv_low", 0) or 0
             fmv_hi = v.get("fmv_high", 0) or 0
-            total_fmv_low += fmv_lo
-            total_fmv_high += fmv_hi
-            job["results"].append({
-                "title": item.title,
-                "structured": out.get("structured", {}),
-                "response": out.get("response", ""),
-                "confidence": out.get("confidence", "LOW"),
-                "tools_used": out.get("tools_used", []),
-            })
+            if not fmv_lo and not fmv_hi:
+                job["errors"].append({"title": item.title, "error": _NO_VALUATION_MSG})
+            else:
+                total_fmv_low += fmv_lo
+                total_fmv_high += fmv_hi
+                job["results"].append({
+                    "title": item.title,
+                    "structured": out.get("structured", {}),
+                    "response": out.get("response", ""),
+                    "confidence": out.get("confidence", "LOW"),
+                    "tools_used": out.get("tools_used", []),
+                })
         except asyncio.TimeoutError:
             job["errors"].append({"title": item.title, "error": "Timed out after 120s — item may be too complex or comps lookup slow"})
         except Exception as e:
@@ -219,6 +232,14 @@ def _try_schema_parse(data: bytes, ext: str) -> list[BatchItem] | None:
     col_map = _detect_columns(all_rows[0])
     if "title" not in col_map:
         return None
+    # Confidence gate: a real row-per-item table has a title column AND at least
+    # one corroborating identity column. A header that maps title alone is almost
+    # always a form/metadata sheet (e.g. a "Name" label above a company name, a
+    # date, and a sub-table). Force-parsing those slurps junk cells as equipment;
+    # route them to the LLM extractor, which handles arbitrary layouts.
+    _IDENTITY_FIELDS = {"category", "make", "model", "year", "location"}
+    if not _IDENTITY_FIELDS & col_map.keys():
+        return None
     items = _rows_to_items(all_rows[1:], col_map)
     if not items:
         raise HTTPException(status_code=400, detail="Spreadsheet has header row but no data rows")
@@ -247,13 +268,20 @@ async def batch_start(file: UploadFile = File(...), authorization: str = Header(
         "results": [],
         "errors": [],
         "summary": None,
+        "items": None,
         "created_at": datetime.datetime.utcnow(),
     }
-    asyncio.create_task(_parse_then_price(job_id, data, file.filename or ""))
+    asyncio.create_task(_parse_only(job_id, data, file.filename or ""))
     return {"job_id": job_id}
 
 
-async def _parse_then_price(job_id: str, data: bytes, filename: str):
+async def _parse_only(job_id: str, data: bytes, filename: str):
+    """Parse the file into items and pause for human review.
+
+    Pricing does NOT run here. The extracted items are stashed on the job and the
+    status flips to ``awaiting_review`` so the frontend can show them and let the
+    user drop junk rows before committing to (paid) pricing — see POST /batch/{id}/price.
+    """
     job = _batch_jobs[job_id]
     try:
         items = await _parse_file_to_items(data, filename)
@@ -268,10 +296,10 @@ async def _parse_then_price(job_id: str, data: bytes, filename: str):
         job["current_item"] = None
         return
 
-    job["status"] = "running"
+    job["items"] = [it.model_dump() for it in items]
     job["total"] = len(items)
     job["current_item"] = None
-    await _price_batch_async(job_id, items)
+    job["status"] = "awaiting_review"
 
 
 # ── GET /api/price/batch/{job_id}/status ─────────────────────
@@ -281,6 +309,34 @@ async def batch_status(job_id: str, authorization: str = Header(None)):
     if job_id not in _batch_jobs:
         raise HTTPException(status_code=404, detail="Job not found")
     return _batch_jobs[job_id]
+
+
+# ── POST /api/price/batch/{job_id}/price  (review → price phase) ──────────
+@router.post("/batch/{job_id}/price")
+async def batch_price_reviewed(
+    job_id: str, body: BatchRequest, authorization: str = Header(None)
+):
+    """Price the reviewed items the user kept after the parse/preview step.
+
+    The client sends back the kept items (read-only preview ⇒ identical to what
+    we parsed, minus dropped rows). 404 if the review session expired out of the
+    in-memory store; 400 if every row was deselected.
+    """
+    _require_auth(authorization)
+    if job_id not in _batch_jobs:
+        raise HTTPException(status_code=404, detail="Review session expired — please re-upload")
+    if not body.items:
+        raise HTTPException(status_code=400, detail="No items selected to price")
+
+    job = _batch_jobs[job_id]
+    job["status"] = "running"
+    job["total"] = len(body.items)
+    job["completed"] = 0
+    job["results"] = []
+    job["errors"] = []
+    job["current_item"] = None
+    asyncio.create_task(_price_batch_async(job_id, body.items))
+    return {"job_id": job_id, "status": "running", "total": len(body.items)}
 
 
 # ── POST /api/price/batch ─────────────────────────────────────
@@ -305,11 +361,19 @@ _COL_HINTS = {
 
 def _detect_columns(headers: list[str]) -> dict[str, int]:
     mapping: dict[str, int] = {}
+    used: set[int] = set()
     lower = [h.lower().strip() for h in headers]
+    # title is checked first (see _COL_HINTS order), so a header like
+    # "Type of Equipment" — which matches both title ("equipment") and category
+    # ("type") — is claimed by title. Once a column is claimed it can't satisfy a
+    # second field, so category stays unmapped rather than collapsing onto title.
     for field, hints in _COL_HINTS.items():
         for i, col in enumerate(lower):
+            if i in used:
+                continue
             if any(h in col for h in hints):
                 mapping[field] = i
+                used.add(i)
                 break
     return mapping
 
