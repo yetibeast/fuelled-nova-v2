@@ -131,6 +131,35 @@ async def _call_anthropic(**kwargs):
     ) from last_429
 
 
+# ── Prompt caching ──────────────────────────────────────────────────────
+def _cached_system(system_prompt: str) -> list[dict]:
+    """Wrap the system prompt in a cache_control block.
+
+    The (tools + system) prefix is ~15K static tokens re-sent on every call and
+    every tool-loop iteration. Caching it cuts cost ~90% on that prefix and drops
+    the rate-limited input per call from ~19K to ~4K. The breakpoint on the system
+    block caches tools + system together (tools render before system).
+    """
+    return [{"type": "text", "text": system_prompt, "cache_control": {"type": "ephemeral"}}]
+
+
+# Sonnet 4.6 pricing (USD/token). Cache read = 0.1× input; cache write = 1.25× input.
+_RATE_IN = 3 / 1_000_000
+_RATE_OUT = 15 / 1_000_000
+
+
+def _compute_cost(input_tokens: int, cache_read: int, cache_creation: int, output_tokens: int) -> float:
+    """Accurate cost once caching splits usage. input_tokens is the uncached
+    remainder only; cached tokens are billed separately (read 0.1×, write 1.25×)."""
+    return round(
+        input_tokens * _RATE_IN
+        + cache_read * _RATE_IN * 0.1
+        + cache_creation * _RATE_IN * 1.25
+        + output_tokens * _RATE_OUT,
+        6,
+    )
+
+
 # ── Langfuse (optional — graceful no-op when keys are missing) ──────────
 _langfuse_ok = False
 try:
@@ -219,17 +248,26 @@ async def run_pricing(
     tools_used = []
     total_input_tokens = 0
     total_output_tokens = 0
+    total_cache_read = 0
+    total_cache_creation = 0
+    cached_system = _cached_system(system_prompt)
+
+    def _tally(usage):
+        nonlocal total_input_tokens, total_output_tokens, total_cache_read, total_cache_creation
+        total_input_tokens += getattr(usage, "input_tokens", 0) or 0
+        total_output_tokens += getattr(usage, "output_tokens", 0) or 0
+        total_cache_read += getattr(usage, "cache_read_input_tokens", 0) or 0
+        total_cache_creation += getattr(usage, "cache_creation_input_tokens", 0) or 0
 
     # Initial API call
     response = await _call_anthropic(
         model=_model,
-        system=system_prompt,
+        system=cached_system,
         tools=TOOLS,
         messages=messages,
         max_tokens=8192,
     )
-    total_input_tokens += getattr(response.usage, "input_tokens", 0)
-    total_output_tokens += getattr(response.usage, "output_tokens", 0)
+    _tally(response.usage)
 
     # Tool loop
     while response.stop_reason == "tool_use":
@@ -257,13 +295,12 @@ async def run_pricing(
         # Call Claude again
         response = await _call_anthropic(
             model=_model,
-            system=system_prompt,
+            system=cached_system,
             tools=TOOLS,
             messages=messages,
             max_tokens=8192,
         )
-        total_input_tokens += getattr(response.usage, "input_tokens", 0)
-        total_output_tokens += getattr(response.usage, "output_tokens", 0)
+        _tally(response.usage)
 
     # Extract final text
     full_text = "".join(b.text for b in response.content if hasattr(b, "text"))
@@ -283,8 +320,8 @@ async def run_pricing(
     else:
         confidence = "LOW"
 
-    # ── Cost calculation (Sonnet: $3/M input, $15/M output) ─────
-    cost_usd = (total_input_tokens * 3 / 1_000_000) + (total_output_tokens * 15 / 1_000_000)
+    # ── Cost calculation (cache-aware: read 0.1×, write 1.25× input) ─────
+    cost_usd = _compute_cost(total_input_tokens, total_cache_read, total_cache_creation, total_output_tokens)
 
     # ── Langfuse trace metadata ─────────────────────────────────
     trace_id = None
@@ -336,6 +373,8 @@ async def run_pricing(
         "response_length": len(clean_text),
         "input_tokens": total_input_tokens,
         "output_tokens": total_output_tokens,
+        "cache_read_tokens": total_cache_read,
+        "cache_creation_tokens": total_cache_creation,
         "model": _model,
         "cost_usd": round(cost_usd, 6),
         "trace_id": trace_id,
