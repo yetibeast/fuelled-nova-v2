@@ -122,3 +122,53 @@ This isn't hypothetical. On 2026-05-27 the batch-timeout hotfix shipped from `ho
 The right shape is: cherry-pick or merge the hotfix onto the feature branch *before* deploying it. Or merge to main first, deploy from main, then resume the feature branch from the new main.
 
 Wrong shape: ship the hotfix from its own branch, then ship the feature branch separately. The feature's `railway up` will overwrite the hotfix.
+
+## 7. Root cause, assessed end-to-end — no snowball fixes
+
+**Every change fixes the root cause and is assessed end-to-end before it ships. A change that only treats a symptom, or that forces a cascade of follow-on changes to work, is not done — it's a warning sign.**
+
+Two failures we refuse to repeat: patching a symptom while the real cause stays live (it resurfaces later, worse), and a "small fix" that snowballs — each change breaking something else until the diff sprawls and nobody can reason about it.
+
+### Root cause, not symptom
+
+- Diagnose before you fix: reproduce, find WHY, then fix the cause. (The batch "$0" bug was fixed at the column-detection + review-step level, not by hiding the empty rows. The report export was fixed at the proxy-timeout cause, not by retrying blindly.)
+- If you're about to write a fix and can't state the root cause in one sentence, stop — you're guessing.
+- A workaround is allowed only as an explicit, labeled stopgap with the root-cause fix tracked as a follow-up. Say so out loud; don't let a band-aid masquerade as a fix.
+
+### Assess end-to-end before shipping
+
+Before calling a change done, trace its full blast radius and confirm nothing downstream breaks. Name each place the change reaches and why it's safe:
+
+- Other code paths that share what you touched (other call sites, other consumers).
+- Data-shape changes — who READS this table/log/response? Adding a field is usually safe; renaming or removing is not.
+- The frontend / API contract — did the response shape change?
+- Cross-cutting effects — cost, rate limits, caching, auth.
+
+State the finding explicitly: *"added 2 log fields, all 4 readers use `.get()`, no break; response shape unchanged → frontend unaffected."* "I think it's fine" is not an assessment.
+
+### No snowball
+
+If a fix starts requiring a chain of other changes to work, STOP. That cascade means you're either fixing a symptom or fighting the architecture — reassess the root cause or the design before continuing. This is the partner to rule 3 (Surgical Changes): touch only what the root cause requires, and prove the rest is unaffected.
+
+The test: you can state the root cause in one sentence, and you can name every place the change reaches and why each is safe.
+
+## 8. Track the Nova Core architecture as it's built
+
+**Nova Core is a major, multi-phase re-architecture (deterministic capability APIs + a thin agent/orchestration layer). Every architectural decision and every capability that lands gets recorded in the living architecture doc, so the system is understandable later without archaeology.**
+
+The shift touches pricing, batch, reports, and the frontend over time. If we don't track it as we go, the architecture becomes folklore — nobody can reason about why a boundary is where it is.
+
+### Canonical home
+
+`docs/architecture/nova-core.md` is the **living** architecture doc — the current truth, kept up to date as work lands:
+
+- **Current state** — the layers, the capability APIs that exist, what each owns, what's built vs planned.
+- **Decision log** — a dated, append-only list of significant architectural decisions and WHY (what we chose, what we rejected, the tradeoff). One short entry per decision.
+
+The originating spec (`docs/superpowers/specs/2026-05-20-nova-engine-architecture-spec.md`) is the design rationale and stays as history; the living doc is current state.
+
+### When to update it (in the SAME change, not "later")
+
+- A capability API is added, changed, or its boundary moves.
+- A layer-boundary decision is made (what belongs in the engine vs the agent).
+- A cross-cutting choice lands (caching, model selection, batch vs interactive, data contracts).
